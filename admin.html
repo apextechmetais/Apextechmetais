@@ -320,7 +320,12 @@
                     <i class="fa-solid fa-arrow-up-right-from-square" style="margin-left:auto; font-size:0.7rem; opacity:0.6;"></i>
                 </a>
 
-                <a href="/" class="nav-item return-site" style="margin-top: 15px; border-top: 1px dashed #223547;" data-tooltip="Voltar ao Site">
+                                <a href="#" class="nav-item" id="nav-item-admin-master" style="display:none; color: #ff4d4d; border-top: 1px dashed #4d1a1a;" onclick="abrirModalSenhaMaster()">
+                    <i class="fa-solid fa-key" style="color: #ff4d4d;"></i>
+                    <span>Senha Master</span>
+                </a>
+
+<a href="/" class="nav-item return-site" style="margin-top: 15px; border-top: 1px dashed #223547;" data-tooltip="Voltar ao Site">
                     <i class="fa-solid fa-arrow-left"></i>
                     <span>Voltar ao Site</span>
                 </a>
@@ -2700,8 +2705,56 @@
                     <button type="button" class="btn-subtab" id="tab-btn-estr-ativos" onclick="alternarSubAbaEstrategico('ativos')">
                         <i class="fa-solid fa-list-check"></i> Planos Ativos
                     </button>
+                    <button type="button" class="btn-subtab" style="color: #4fc3f7; border-color: #4fc3f7;" id="tab-btn-estr-forecast" onclick="alternarSubAbaEstrategico('forecast')">
+                        <i class="fa-solid fa-chart-pie"></i> Forecast & Compras
+                    </button>
                 </div>
                 
+                <div id="subaba-estr-forecast" style="display:none;">
+                    <div class="glass-panel" style="margin-bottom:20px;">
+                        <h2 style="margin-top:0; color:#4fc3f7;"><i class="fa-solid fa-chart-pie"></i> Forecast e Estratégias de Compras (Dados Reais)</h2>
+                        <p style="color:#aaa; font-size:0.9rem; margin-bottom:15px;">Análise inteligente baseada nos <strong>Pedidos de Venda</strong> (demanda real de 90 dias) e no estoque/pedidos pendentes atuais. Escolha sua estratégia para alavancar os negócios.</p>
+                        
+                        <div class="glass-panel" style="background:#102235; padding:15px; border-radius:8px; margin-bottom:20px; border-left:4px solid #2AD07A;">
+                            <h3 style="margin-top:0; color:#2AD07A;"><i class="fa-solid fa-money-bill-trend-up"></i> Simulador de Alavancagem (Qual o mix ideal para bater minha meta?)</h3>
+                            <div style="display:flex; gap:15px; align-items:flex-end; flex-wrap:wrap;">
+                                <div class="form-group" style="margin:0;">
+                                    <label style="color:#aaa; font-size:0.8rem; display:block; margin-bottom:4px;">Minha Meta Financeira (R$)</label>
+                                    <select id="alavancagem-tipo" class="noble-input" style="width:140px; display:inline-block;">
+                                        <option value="lucro">Meta de Lucro</option>
+                                        <option value="faturamento">Meta de Faturamento</option>
+                                    </select>
+                                    <input type="number" id="alavancagem-valor" class="noble-input" placeholder="Ex: 50000" style="width:150px; display:inline-block; margin-left:10px;">
+                                </div>
+                                <button type="button" class="btn-noble" onclick="calcularAlavancagemInteligente()" style="background:#2AD07A; color:#0d1826; font-weight:bold;">
+                                    <i class="fa-solid fa-calculator"></i> Gerar Plano de Compras Ideal
+                                </button>
+                            </div>
+                            <div id="alavancagem-resultado" style="margin-top:15px; display:none; background:#0d1826; padding:15px; border-radius:8px; border:1px solid #1e4e8c;"></div>
+                        </div>
+
+                        <div class="noble-table-wrapper" style="max-height:600px; overflow-y:auto;">
+                            <table class="noble-table" id="table-estr-forecast">
+                                <thead>
+                                    <tr>
+                                        <th>Material / Insumo</th>
+                                        <th>Estoque<br>Projetado</th>
+                                        <th>Demanda<br>(Mês)</th>
+                                        <th>Margem<br>(%)</th>
+                                        <th style="color:#00e5ff; background:#102235;">Conservador<br>(30 dias)</th>
+                                        <th style="color:#2AD07A; background:#0f2b23;">Moderado<br>(45-60 dias)</th>
+                                        <th style="color:#ffb74d; background:#2a2010;">Agressivo<br>(90-120 dias)</th>
+                                        <th>Ação Recomendada</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td colspan="8" style="text-align:center;">Carregando dados reais de vendas e estoque...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
                 <div id="subaba-estr-margens">
 
 
@@ -3830,63 +3883,81 @@
         
     <!-- Permissões View -->
     <section id="permissoes-view" class="view-section" style="padding:20px;">
-        <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
-            <div style="width:40px; height:40px; border-radius:10px; background:rgba(62,124,177,0.15); display:flex; align-items:center; justify-content:center; color:#3e7cb1;">
-                <i class="fa-solid fa-user-shield fa-lg"></i>
+        <header class="section-header" style="margin-bottom:25px;">
+            <div>
+                <h1><i class="fa-solid fa-user-shield" style="color:#3e7cb1;"></i> Controle de Permissões por Perfil</h1>
+                <p>Defina exatamente o que cada perfil pode <strong>ver</strong> ou <strong>editar</strong> no sistema. O Administrador tem acesso irrestrito.</p>
+            </div>
+        </header>
+
+        <style>
+            .perm-module-row { display: grid; grid-template-columns: 230px 1fr; align-items: center; padding: 10px 15px; border-radius: 8px; background: #111b24; border: 1px solid #1a3045; margin-bottom: 8px; transition: border-color 0.2s; }
+            .perm-module-row:hover { border-color: #3e7cb1; }
+            .perm-module-name { color: #fff; font-weight: 600; font-size: 0.9rem; display: flex; align-items: center; gap: 8px; }
+            .perm-module-name i { color: #a0b4c8; width: 18px; }
+            .perm-toggle-group { display: flex; gap: 6px; }
+            .perm-toggle { display: none; }
+            .perm-toggle + label { padding: 5px 14px; border-radius: 20px; cursor: pointer; font-size: 0.8rem; font-weight: 700; border: 1px solid #223547; transition: all 0.2s; color: #556; background: #0d1826; }
+            .perm-toggle:checked[value="none"] + label { background: #2a0000; color: #ff6b6b; border-color: #ff4444; }
+            .perm-toggle:checked[value="view"] + label { background: #0d2a3d; color: #4fc3f7; border-color: #1e88e5; }
+            .perm-toggle:checked[value="edit"] + label { background: #0d2a1f; color: #2AD07A; border-color: #2AD07A; }
+            .perm-section-header { color: #a0b4c8; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; padding: 12px 15px 6px 15px; }
+            .perfil-tab { padding: 10px 16px; border-radius: 8px; cursor: pointer; color: #a0b4c8; border: 1px solid transparent; transition: all 0.2s; font-weight: 600; font-size: 0.9rem; display: flex; align-items: center; gap: 10px; }
+            .perfil-tab:hover { background: #1a3045; color: #fff; }
+            .perfil-tab.active { background: #1e4e8c; color: #fff; border-color: #3e7cb1; }
+        </style>
+
+        <div style="display: grid; grid-template-columns: 230px 1fr; gap: 20px;">
+            <div>
+                <div style="background: #111b24; border-radius: 10px; border: 1px solid #1a3045; padding: 15px;">
+                    <p style="margin: 0 0 12px 0; color: #a0b4c8; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;">Selecione o Perfil</p>
+                    <div id="lista-perfis-permissoes" style="display: flex; flex-direction: column; gap: 6px;"></div>
+                </div>
+                <div style="margin-top: 15px; background: rgba(62,124,177,0.08); border-radius: 8px; border: 1px solid rgba(62,124,177,0.2); padding: 12px;">
+                    <p style="margin: 0; font-size: 0.8rem; color: #a0b4c8;"><i class="fa-solid fa-circle-info" style="color:#3e7cb1;"></i> O <strong style="color:#fff;">Administrador</strong> sempre tem acesso total.</p>
+                </div>
             </div>
             <div>
-                <h2 style="margin:0; font-size:1.4rem; color:#fff;">Permissões de Perfis (RBAC)</h2>
-                    <p style="margin:0; color:#a0b4c8; font-size:0.9rem;">Defina quais seções cada perfil pode acessar no sistema.</p>
-                </div>
-            </div>
-            
-            <div style="display:grid; grid-template-columns: 250px 1fr; gap: 20px; background:#111b24; padding:20px; border-radius:8px; border:1px solid #1a3045;">
-                
-                <!-- Lista de Perfis (Esquerda) -->
-                <div>
-                    <h4 style="margin-top:0; margin-bottom:15px; color:#a0b4c8;">Selecione o Perfil:</h4>
-                    <div id="lista-perfis-permissoes" style="display:flex; flex-direction:column; gap:8px;">
-                        <!-- JS vai popular os perfis aqui -->
+                <div style="background: #111b24; border-radius: 10px; border: 1px solid #1a3045; padding: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+                        <div>
+                            <h3 style="margin: 0; color: #fff;">Configurando: <span id="perfil-selecionado-lbl" style="color: #4fc3f7;">— Selecione um perfil —</span></h3>
+                            <p id="msg-admin-lock" style="display:none; margin: 4px 0 0 0; font-size: 0.85rem; color: #2AD07A;"><i class="fa-solid fa-lock"></i> Este perfil tem acesso irrestrito a tudo.</p>
+                        </div>
+                        <button class="btn-primary" onclick="salvarPermissoesPerfil()" id="btn-salvar-permissoes" style="display:none;">
+                            <i class="fa-solid fa-floppy-disk"></i> Salvar Permissões
+                        </button>
                     </div>
-                </div>
-                
-                <!-- Checkboxes de Permissão (Direita) -->
-                <div>
-                    <h4 style="margin-top:0; margin-bottom:15px; color:#a0b4c8;">Permissões do Perfil: <strong id="perfil-selecionado-lbl" style="color:#fff;">Nenhum</strong></h4>
-                    <p id="msg-admin-lock" style="display:none; color:#2AD07A; font-size:0.9rem; padding:10px; background:rgba(42,208,122,0.1); border-radius:6px; margin-bottom:15px;">
-                        <i class="fa-solid fa-check-circle"></i> O Administrador sempre possui acesso total.
-                    </p>
-                    
-                    <div id="grid-permissoes" style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
-                        <!-- Menu Lateral -->
-                        <label class="perm-checkbox" style="color:#fff;"><input type="checkbox" value="view_lme"> Relatório Diário (LME)</label>
-                        <label class="perm-checkbox" style="color:#fff;"><input type="checkbox" value="view_precos"> Tabela de Preços</label>
-                        <label class="perm-checkbox" style="color:#fff;"><input type="checkbox" value="view_catalogo"> Catálogo de Materiais</label>
-                        <label class="perm-checkbox" style="color:#fff;"><input type="checkbox" value="view_fornecedores"> Gestão de Fornecedores</label>
-                        <label class="perm-checkbox" style="color:#fff;"><input type="checkbox" value="view_clientes"> Gestão de Clientes</label>
-                        <label class="perm-checkbox" style="color:#fff;"><input type="checkbox" value="view_laboratorio"> Controle de Amostras</label>
-                        <label class="perm-checkbox" style="color:#fff;"><input type="checkbox" value="view_planejamento"> Planejamento de Carga</label>
-                        <label class="perm-checkbox" style="color:#fff;"><input type="checkbox" value="view_estrategico"> Dashboard Estratégico</label>
-                        <label class="perm-checkbox" style="color:#fff;"><input type="checkbox" value="view_pedidos"> Pedidos de Venda</label>
-                        <label class="perm-checkbox" style="color:#fff;"><input type="checkbox" value="view_estoque"> Gestão de Estoque</label>
-                        <label class="perm-checkbox" style="color:#fff;"><input type="checkbox" value="view_financeiro"> Módulo Financeiro</label>
-                        <label class="perm-checkbox" style="color:#fff;"><input type="checkbox" value="view_bi"> Dashboard Interativo (BI)</label>
-                        <label class="perm-checkbox" style="color:#fff;"><input type="checkbox" value="view_site"> Configurações do Site</label>
-                        <label class="perm-checkbox" style="color:#fff;"><input type="checkbox" value="view_usuarios"> Usuários e PCP</label>
-                        <label class="perm-checkbox" style="color:#fff;"><input type="checkbox" value="view_permissoes"> Permissões (RBAC)</label>
-                        
-                        <div style="grid-column: 1 / -1; border-top:1px dashed #223547; margin: 10px 0;"></div>
-                        
-                        <!-- Ações Específicas -->
-                        <label class="perm-checkbox" style="color:#f0b800;"><input type="checkbox" value="edit_financeiro"> [Financeiro] Ver Custos/Margens</label>
-                        <label class="perm-checkbox" style="color:#f0b800;"><input type="checkbox" value="edit_producao"> [Produção] Botões de PCP/Desmonte</label>
-                    </div>
-                </div>
-            </div>
+                    <div id="grid-permissoes" style="opacity: 0.4; pointer-events: none;">
+                        <p class="perm-section-header"><i class="fa-solid fa-table-columns"></i> Módulos Principais</p>
 
-            <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
-                <button class="btn-primary" onclick="salvarPermissoesPerfil()"><i class="fa-solid fa-save"></i> Salvar Permissões</button>
+                        <!-- Módulos -->
+                        <div class="perm-module-row"><span class="perm-module-name"><i class="fa-solid fa-chart-line"></i> Relatório LME</span><div class="perm-toggle-group" data-module="lme"><input type="radio" class="perm-toggle" name="perm_lme" id="perm_lme_none" value="none" checked><label for="perm_lme_none">Sem Acesso</label><input type="radio" class="perm-toggle" name="perm_lme" id="perm_lme_view" value="view"><label for="perm_lme_view">Visualizar</label><input type="radio" class="perm-toggle" name="perm_lme" id="perm_lme_edit" value="edit"><label for="perm_lme_edit">Editar</label></div></div>
+                        <div class="perm-module-row"><span class="perm-module-name"><i class="fa-solid fa-tags"></i> Tabela de Preços</span><div class="perm-toggle-group" data-module="precos"><input type="radio" class="perm-toggle" name="perm_precos" id="perm_precos_none" value="none" checked><label for="perm_precos_none">Sem Acesso</label><input type="radio" class="perm-toggle" name="perm_precos" id="perm_precos_view" value="view"><label for="perm_precos_view">Visualizar</label><input type="radio" class="perm-toggle" name="perm_precos" id="perm_precos_edit" value="edit"><label for="perm_precos_edit">Editar</label></div></div>
+                        <div class="perm-module-row"><span class="perm-module-name"><i class="fa-solid fa-box-archive"></i> Catálogo de Materiais</span><div class="perm-toggle-group" data-module="catalogo"><input type="radio" class="perm-toggle" name="perm_catalogo" id="perm_catalogo_none" value="none" checked><label for="perm_catalogo_none">Sem Acesso</label><input type="radio" class="perm-toggle" name="perm_catalogo" id="perm_catalogo_view" value="view"><label for="perm_catalogo_view">Visualizar</label><input type="radio" class="perm-toggle" name="perm_catalogo" id="perm_catalogo_edit" value="edit"><label for="perm_catalogo_edit">Editar</label></div></div>
+                        <div class="perm-module-row"><span class="perm-module-name"><i class="fa-solid fa-truck"></i> Fornecedores</span><div class="perm-toggle-group" data-module="fornecedores"><input type="radio" class="perm-toggle" name="perm_fornecedores" id="perm_fornecedores_none" value="none" checked><label for="perm_fornecedores_none">Sem Acesso</label><input type="radio" class="perm-toggle" name="perm_fornecedores" id="perm_fornecedores_view" value="view"><label for="perm_fornecedores_view">Visualizar</label><input type="radio" class="perm-toggle" name="perm_fornecedores" id="perm_fornecedores_edit" value="edit"><label for="perm_fornecedores_edit">Editar</label></div></div>
+                        <div class="perm-module-row"><span class="perm-module-name"><i class="fa-solid fa-users"></i> Clientes</span><div class="perm-toggle-group" data-module="clientes"><input type="radio" class="perm-toggle" name="perm_clientes" id="perm_clientes_none" value="none" checked><label for="perm_clientes_none">Sem Acesso</label><input type="radio" class="perm-toggle" name="perm_clientes" id="perm_clientes_view" value="view"><label for="perm_clientes_view">Visualizar</label><input type="radio" class="perm-toggle" name="perm_clientes" id="perm_clientes_edit" value="edit"><label for="perm_clientes_edit">Editar</label></div></div>
+                        <div class="perm-module-row"><span class="perm-module-name"><i class="fa-solid fa-flask"></i> Laboratório / Amostras</span><div class="perm-toggle-group" data-module="laboratorio"><input type="radio" class="perm-toggle" name="perm_laboratorio" id="perm_laboratorio_none" value="none" checked><label for="perm_laboratorio_none">Sem Acesso</label><input type="radio" class="perm-toggle" name="perm_laboratorio" id="perm_laboratorio_view" value="view"><label for="perm_laboratorio_view">Visualizar</label><input type="radio" class="perm-toggle" name="perm_laboratorio" id="perm_laboratorio_edit" value="edit"><label for="perm_laboratorio_edit">Editar</label></div></div>
+                        <div class="perm-module-row"><span class="perm-module-name"><i class="fa-solid fa-warehouse"></i> Estoque</span><div class="perm-toggle-group" data-module="estoque"><input type="radio" class="perm-toggle" name="perm_estoque" id="perm_estoque_none" value="none" checked><label for="perm_estoque_none">Sem Acesso</label><input type="radio" class="perm-toggle" name="perm_estoque" id="perm_estoque_view" value="view"><label for="perm_estoque_view">Visualizar</label><input type="radio" class="perm-toggle" name="perm_estoque" id="perm_estoque_edit" value="edit"><label for="perm_estoque_edit">Editar</label></div></div>
+
+                        <p class="perm-section-header" style="margin-top:10px;"><i class="fa-solid fa-file-invoice"></i> Pedidos</p>
+                        <div class="perm-module-row"><span class="perm-module-name"><i class="fa-solid fa-cart-arrow-down"></i> Pedidos de Compra</span><div class="perm-toggle-group" data-module="pedidos_compra"><input type="radio" class="perm-toggle" name="perm_pedidos_compra" id="perm_pedidos_compra_none" value="none" checked><label for="perm_pedidos_compra_none">Sem Acesso</label><input type="radio" class="perm-toggle" name="perm_pedidos_compra" id="perm_pedidos_compra_view" value="view"><label for="perm_pedidos_compra_view">Visualizar</label><input type="radio" class="perm-toggle" name="perm_pedidos_compra" id="perm_pedidos_compra_edit" value="edit"><label for="perm_pedidos_compra_edit">Editar</label></div></div>
+                        <div class="perm-module-row"><span class="perm-module-name"><i class="fa-solid fa-file-invoice-dollar"></i> Pedidos de Venda</span><div class="perm-toggle-group" data-module="pedidos"><input type="radio" class="perm-toggle" name="perm_pedidos" id="perm_pedidos_none" value="none" checked><label for="perm_pedidos_none">Sem Acesso</label><input type="radio" class="perm-toggle" name="perm_pedidos" id="perm_pedidos_view" value="view"><label for="perm_pedidos_view">Visualizar</label><input type="radio" class="perm-toggle" name="perm_pedidos" id="perm_pedidos_edit" value="edit"><label for="perm_pedidos_edit">Editar</label></div></div>
+
+                        <p class="perm-section-header" style="margin-top:10px;"><i class="fa-solid fa-brain"></i> Inteligência &amp; Gestão</p>
+                        <div class="perm-module-row"><span class="perm-module-name"><i class="fa-solid fa-wand-magic-sparkles"></i> Dashboard Estratégico</span><div class="perm-toggle-group" data-module="estrategico"><input type="radio" class="perm-toggle" name="perm_estrategico" id="perm_estrategico_none" value="none" checked><label for="perm_estrategico_none">Sem Acesso</label><input type="radio" class="perm-toggle" name="perm_estrategico" id="perm_estrategico_view" value="view"><label for="perm_estrategico_view">Visualizar</label><input type="radio" class="perm-toggle" name="perm_estrategico" id="perm_estrategico_edit" value="edit"><label for="perm_estrategico_edit">Editar</label></div></div>
+                        <div class="perm-module-row"><span class="perm-module-name"><i class="fa-solid fa-chart-pie"></i> BI / Análises</span><div class="perm-toggle-group" data-module="bi"><input type="radio" class="perm-toggle" name="perm_bi" id="perm_bi_none" value="none" checked><label for="perm_bi_none">Sem Acesso</label><input type="radio" class="perm-toggle" name="perm_bi" id="perm_bi_view" value="view"><label for="perm_bi_view">Visualizar</label><input type="radio" class="perm-toggle" name="perm_bi" id="perm_bi_edit" value="edit"><label for="perm_bi_edit">Editar</label></div></div>
+                        <div class="perm-module-row"><span class="perm-module-name"><i class="fa-solid fa-coins"></i> Financeiro (Margens/Custos)</span><div class="perm-toggle-group" data-module="financeiro"><input type="radio" class="perm-toggle" name="perm_financeiro" id="perm_financeiro_none" value="none" checked><label for="perm_financeiro_none">Sem Acesso</label><input type="radio" class="perm-toggle" name="perm_financeiro" id="perm_financeiro_view" value="view"><label for="perm_financeiro_view">Visualizar</label><input type="radio" class="perm-toggle" name="perm_financeiro" id="perm_financeiro_edit" value="edit"><label for="perm_financeiro_edit">Editar</label></div></div>
+                        <div class="perm-module-row"><span class="perm-module-name"><i class="fa-solid fa-gears"></i> Planejamento de Produção</span><div class="perm-toggle-group" data-module="planejamento"><input type="radio" class="perm-toggle" name="perm_planejamento" id="perm_planejamento_none" value="none" checked><label for="perm_planejamento_none">Sem Acesso</label><input type="radio" class="perm-toggle" name="perm_planejamento" id="perm_planejamento_view" value="view"><label for="perm_planejamento_view">Visualizar</label><input type="radio" class="perm-toggle" name="perm_planejamento" id="perm_planejamento_edit" value="edit"><label for="perm_planejamento_edit">Editar</label></div></div>
+
+                        <p class="perm-section-header" style="margin-top:10px;"><i class="fa-solid fa-crown"></i> Administração</p>
+                        <div class="perm-module-row"><span class="perm-module-name"><i class="fa-solid fa-users-cog"></i> Usuários do Sistema</span><div class="perm-toggle-group" data-module="usuarios"><input type="radio" class="perm-toggle" name="perm_usuarios" id="perm_usuarios_none" value="none" checked><label for="perm_usuarios_none">Sem Acesso</label><input type="radio" class="perm-toggle" name="perm_usuarios" id="perm_usuarios_view" value="view"><label for="perm_usuarios_view">Visualizar</label><input type="radio" class="perm-toggle" name="perm_usuarios" id="perm_usuarios_edit" value="edit"><label for="perm_usuarios_edit">Editar</label></div></div>
+                        <div class="perm-module-row"><span class="perm-module-name"><i class="fa-solid fa-shield-halved"></i> Permissões (RBAC)</span><div class="perm-toggle-group" data-module="permissoes"><input type="radio" class="perm-toggle" name="perm_permissoes" id="perm_permissoes_none" value="none" checked><label for="perm_permissoes_none">Sem Acesso</label><input type="radio" class="perm-toggle" name="perm_permissoes" id="perm_permissoes_view" value="view"><label for="perm_permissoes_view">Visualizar</label><input type="radio" class="perm-toggle" name="perm_permissoes" id="perm_permissoes_edit" value="edit"><label for="perm_permissoes_edit">Editar</label></div></div>
+                        <div class="perm-module-row"><span class="perm-module-name"><i class="fa-solid fa-globe"></i> Config. do Site</span><div class="perm-toggle-group" data-module="site"><input type="radio" class="perm-toggle" name="perm_site" id="perm_site_none" value="none" checked><label for="perm_site_none">Sem Acesso</label><input type="radio" class="perm-toggle" name="perm_site" id="perm_site_view" value="view"><label for="perm_site_view">Visualizar</label><input type="radio" class="perm-toggle" name="perm_site" id="perm_site_edit" value="edit"><label for="perm_site_edit">Editar</label></div></div>
+                    </div>
+                </div>
             </div>
+        </div>
     </section>
 
     <!-- Financeiro View -->
@@ -7097,6 +7168,64 @@ function toggleNavGroup(groupId) {
     });
 })();
 </script>
+
+<!-- Modal Alterar Senha Admin Master -->
+<div id="modal-senha-master" class="modal-overlay" style="display: none; z-index: 9999;">
+    <div class="modal-content" style="max-width: 400px; background: #0c1a25; border: 1px solid #1e4e8c; border-radius: 12px; color: #fff;">
+        <div class="modal-header" style="border-bottom: 1px solid #1e4e8c; padding: 15px 20px; display:flex; justify-content:space-between; align-items:center;">
+            <h2 style="margin: 0; font-size: 1.2rem; color: #ff4d4d;"><i class="fa-solid fa-key"></i> Alterar Senha</h2>
+            <button class="close-modal" onclick="fecharModalSenhaMaster()" style="color: #8eaabf; background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 20px;">
+            <p style="font-size: 0.9rem; color: #aaa; margin-bottom: 20px;">Área exclusiva do Administrador Master para redefinir senhas.</p>
+            <div class="form-group" style="margin-bottom: 15px;">
+                <label style="display: block; font-size: 0.85rem; color: #8eaabf; margin-bottom: 5px;">ID do Usuário:</label>
+                <input type="number" id="master-pwd-user-id" value="1" style="width: 100%; padding: 10px; background: #132433; border: 1px solid #1e4e8c; border-radius: 6px; color: #fff;" />
+                <small style="color: #666; font-size: 0.8rem;">O ID 1 geralmente é o 'admin' principal.</small>
+            </div>
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label style="display: block; font-size: 0.85rem; color: #8eaabf; margin-bottom: 5px;">Nova Senha:</label>
+                <input type="password" id="master-pwd-nova" style="width: 100%; padding: 10px; background: #132433; border: 1px solid #1e4e8c; border-radius: 6px; color: #fff;" />
+            </div>
+            <button onclick="salvarSenhaMaster()" class="btn-primary" style="width: 100%; background: #ff4d4d; color: #fff; padding: 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s;"><i class="fa-solid fa-save"></i> Atualizar Senha</button>
+        </div>
+    </div>
+</div>
+<script>
+function abrirModalSenhaMaster() {
+    const m = document.getElementById('modal-senha-master');
+    if (m) m.style.display = 'flex';
+}
+function fecharModalSenhaMaster() {
+    const m = document.getElementById('modal-senha-master');
+    if (m) m.style.display = 'none';
+}
+async function salvarSenhaMaster() {
+    const id = document.getElementById('master-pwd-user-id').value;
+    const novaSenha = document.getElementById('master-pwd-nova').value;
+    if(!novaSenha) return alert('Digite a nova senha!');
+    
+    try {
+        const token = localStorage.getItem('apex_token') || localStorage.getItem('token');
+        const res = await fetch(`/api/usuarios/${id}/password`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ novaSenha })
+        });
+        const data = await res.json();
+        if(res.ok) {
+            alert('Senha atualizada com sucesso!');
+            fecharModalSenhaMaster();
+            document.getElementById('master-pwd-nova').value = '';
+        } else {
+            alert(data.error || 'Erro ao alterar.');
+        }
+    } catch (err) {
+        alert('Erro de comunicação.');
+    }
+}
+</script>
+
 </body>
 
 </html>

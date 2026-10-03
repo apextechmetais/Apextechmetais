@@ -4086,14 +4086,59 @@ document.addEventListener('DOMContentLoaded', () => {
     function applyRolePermissions() {
         const role = currentSimulatedRole;
 
-        // Se por acaso as permissões ainda não carregaram ou o role não existir, falha fechado (deny all exceto admin)
-        let permissoes = globalRolePermissions[role] || [];
-        if (role === 'Administrador') {
-            // Admin vê tudo.
-            permissoes = ["view_lme", "view_precos", "view_catalogo", "view_fornecedores", "view_laboratorio", "view_planejamento", "view_estoque", "view_bi", "edit_financeiro", "edit_producao", "view_usuarios", "view_permissoes", "view_financeiro", "view_pedidos"];
+        // Controle do menu Administrador Master
+        const masterMenu = document.getElementById('nav-item-admin-master');
+        if (masterMenu) {
+            if (role === 'Administrador' || role === 'Administrador Master' || role === 'Root') {
+                masterMenu.style.display = 'flex';
+            } else {
+                masterMenu.style.display = 'none';
+            }
         }
 
-        const temPermissao = (p) => permissoes.includes(p);
+        // Admin: acesso total
+        if (role === 'Administrador' || role === 'Administrador Master' || role === 'Root') {
+            // Mostra tudo
+            ['nav-fornecedores','nav-materiais','nav-precos','nav-amostras','nav-planejamento',
+             'nav-estoque','nav-bi','nav-usuarios','nav-permissoes','nav-financeiro',
+             'nav-pedidos-venda','nav-pedidos-compra','nav-clientes','nav-planejamento-estrategicov3','nav-pcp'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.style.display = 'flex';
+            });
+            ['.nav-item[data-target="dashboard"]','.nav-item[data-target="relatorio-diario"]',
+             '.nav-item[data-target="lme-email-config"]','.nav-item[data-target="planejamento-estrategicov3-view"]'].forEach(sel => {
+                const el = document.querySelector(sel);
+                if (el) el.style.display = 'flex';
+            });
+            document.querySelectorAll('.restrito-financeiro').forEach(el => el.style.display = '');
+            document.querySelectorAll('.restrito-producao').forEach(el => el.style.display = '');
+            if (activeAmostraIdForDesmonte) {
+                const amostra = localAmostras.find(x => x.id === activeAmostraIdForDesmonte);
+                if (amostra) renderizarBotoesAcoesAmostra(amostra.status);
+            }
+            return;
+        }
+
+        // Resolve permissões para o role atual
+        const rawPerms = globalRolePermissions[role];
+        
+        // Helper que lê AMBOS os formatos:
+        // - Novo:  { modulo: 'none'|'view'|'edit' }
+        // - Legado: ['view_lme', 'edit_financeiro', ...]
+        const temPermissao = (modulo, nivelMinimo = 'view') => {
+            if (!rawPerms) return false;
+            if (Array.isArray(rawPerms)) {
+                // Formato legado
+                if (nivelMinimo === 'view') return rawPerms.includes('view_' + modulo) || rawPerms.includes('edit_' + modulo);
+                if (nivelMinimo === 'edit') return rawPerms.includes('edit_' + modulo);
+                return false;
+            }
+            // Novo formato objeto
+            const nivel = rawPerms[modulo] || 'none';
+            if (nivelMinimo === 'view') return nivel === 'view' || nivel === 'edit';
+            if (nivelMinimo === 'edit') return nivel === 'edit';
+            return nivel !== 'none';
+        };
 
         // Funções auxiliares para esconder/mostrar navegação
         const setNav = (idOrSelector, isVisible) => {
@@ -4101,50 +4146,51 @@ document.addEventListener('DOMContentLoaded', () => {
             if (el) el.style.display = isVisible ? 'flex' : 'none';
         };
 
-        // Tabs Visibility (Apex Gestão)
-        setNav('nav-fornecedores', temPermissao('view_fornecedores'));
-        setNav('nav-materiais', temPermissao('view_catalogo'));
-        setNav('nav-precos', temPermissao('view_precos'));
-        setNav('nav-amostras', temPermissao('view_laboratorio'));
-        setNav('nav-planejamento', temPermissao('view_planejamento'));
-        setNav('nav-estoque', temPermissao('view_estoque'));
-        setNav('nav-bi', temPermissao('view_bi'));
-        setNav('nav-usuarios', temPermissao('view_usuarios'));
-        setNav('nav-permissoes', temPermissao('view_permissoes'));
-        setNav('nav-financeiro', temPermissao('view_financeiro'));
-        setNav('nav-pedidos-venda', temPermissao('view_pedidos') || role === 'Administrador');
+        // Tabs Visibility
+        setNav('nav-fornecedores', temPermissao('fornecedores'));
+        setNav('nav-materiais', temPermissao('catalogo'));
+        setNav('nav-precos', temPermissao('precos'));
+        setNav('nav-amostras', temPermissao('laboratorio'));
+        setNav('nav-planejamento', temPermissao('planejamento'));
+        setNav('nav-pcp', temPermissao('planejamento'));
+        setNav('nav-estoque', temPermissao('estoque'));
+        setNav('nav-bi', temPermissao('bi'));
+        setNav('nav-usuarios', temPermissao('usuarios'));
+        setNav('nav-permissoes', temPermissao('permissoes'));
+        setNav('nav-financeiro', temPermissao('financeiro'));
+        setNav('nav-pedidos-venda', temPermissao('pedidos'));
+        setNav('nav-pedidos-compra', temPermissao('pedidos_compra'));
+        setNav('nav-clientes', temPermissao('clientes'));
+        setNav('.nav-item[data-target="dashboard"]', temPermissao('lme'));
+        setNav('.nav-item[data-target="relatorio-diario"]', temPermissao('lme'));
+        setNav('.nav-item[data-target="lme-email-config"]', temPermissao('lme'));
+        setNav('.nav-item[data-target="planejamento-estrategicov3-view"]', temPermissao('estrategico'));
 
-        // Tabs Visibility (LME - como os originais não tem ID, usamos querySelector)
-        setNav('.nav-item[data-target="dashboard"]', temPermissao('view_lme'));
-        setNav('.nav-item[data-target="relatorio-diario"]', temPermissao('view_lme'));
-        setNav('.nav-item[data-target="lme-email-config"]', temPermissao('view_lme'));
-
-        // Oculta a seção ativa se o usuário perdeu acesso a ela e redireciona para a primeira disponível
+        // Oculta seção ativa se perdeu acesso -> redireciona para a primeira disponível
         const activeNav = document.querySelector('.nav-item.active');
         if (activeNav && activeNav.style.display === 'none') {
             activeNav.classList.remove('active');
             const targetSec = document.getElementById(activeNav.dataset.target);
-            if (targetSec) targetSec.classList.remove('active');
+            if (targetSec) { targetSec.classList.remove('active'); targetSec.style.display = 'none'; }
 
-            const firstAvailable = document.querySelector('.nav-item[style="display: flex;"]');
+            const firstAvailable = document.querySelector('.nav-item:not([style*="display: none"])');
             if (firstAvailable) {
                 firstAvailable.classList.add('active');
                 const targetFirst = document.getElementById(firstAvailable.dataset.target);
-                if (targetFirst) targetFirst.classList.add('active');
+                if (targetFirst) { targetFirst.classList.add('active'); targetFirst.style.display = 'block'; }
             }
         }
 
         // Restrito Financeiro (Valores, margens, custos)
         const restritoFin = document.querySelectorAll('.restrito-financeiro');
         restritoFin.forEach(el => {
-            // Alguns elementos podem usar flex ou table-cell ou block, então restauramos o valor limpo '' em vez de fixar
-            el.style.display = temPermissao('edit_financeiro') ? '' : 'none';
+            el.style.display = temPermissao('financeiro', 'edit') ? '' : 'none';
         });
 
         // Restrito Produção (PCP)
         const restritoProd = document.querySelectorAll('.restrito-producao');
         restritoProd.forEach(el => {
-            el.style.display = temPermissao('edit_producao') ? '' : 'none';
+            el.style.display = temPermissao('planejamento', 'edit') ? '' : 'none';
         });
 
         // Atualiza botões no desmonte se aberto
@@ -13879,22 +13925,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.carregarPermissoesView = function() {
         popularPerfisPermissoes();
-        document.getElementById('grid-permissoes').style.opacity = '0.5';
-        document.getElementById('grid-permissoes').style.pointerEvents = 'none';
-        document.getElementById('perfil-selecionado-lbl').textContent = 'Nenhum';
-        document.getElementById('msg-admin-lock').style.display = 'none';
-        document.querySelectorAll('.perm-checkbox input').forEach(c => c.checked = false);
+        const grid = document.getElementById('grid-permissoes');
+        if (grid) { grid.style.opacity = '0.4'; grid.style.pointerEvents = 'none'; }
+        const lbl = document.getElementById('perfil-selecionado-lbl');
+        if (lbl) lbl.textContent = '— Selecione um perfil —';
+        const msgAdmin = document.getElementById('msg-admin-lock');
+        if (msgAdmin) msgAdmin.style.display = 'none';
+        const btnSalvar = document.getElementById('btn-salvar-permissoes');
+        if (btnSalvar) btnSalvar.style.display = 'none';
+        // Reseta todas as radios para 'none'
+        if (grid) {
+            grid.querySelectorAll('.perm-toggle-group').forEach(group => {
+                const noneRadio = group.querySelector('input[value="none"]');
+                if (noneRadio) noneRadio.checked = true;
+            });
+        }
         perfilSelecionado = null;
     };
 
-    
-
     function popularPerfisPermissoes() {
-        const perfis = ['Administrador', 'Laboratório', 'Compras', 'Produção', 'Financeiro', 'Diretoria'];
+        const perfis = [
+            { nome: 'Laboratório', icon: 'fa-flask', cor: '#2AD07A' },
+            { nome: 'Compras', icon: 'fa-cart-arrow-down', cor: '#e07b39' },
+            { nome: 'Produção', icon: 'fa-gears', cor: '#b0a0c0' },
+            { nome: 'Financeiro', icon: 'fa-coins', cor: '#f0b800' },
+            { nome: 'Diretoria', icon: 'fa-crown', cor: '#4fc3f7' }
+        ];
         const container = document.getElementById('lista-perfis-permissoes');
+        if (!container) return;
         container.innerHTML = perfis.map(p => `
-            <div onclick="selecionarPerfilPermissoes('${p}')" style="padding:10px 15px; border-radius:6px; background:#1a3045; cursor:pointer; color:#fff; border:1px solid transparent; transition:0.2s;" onmouseover="this.style.borderColor='#3e7cb1'" onmouseout="this.style.borderColor='transparent'" id="btn-perfil-${p.toLowerCase().replace(/[^a-z0-9]/g,'')}">
-                <i class="fa-solid fa-user-tag" style="color:#a0b4c8; margin-right:8px;"></i> ${p}
+            <div onclick="selecionarPerfilPermissoes('${p.nome}')" class="perfil-tab" id="btn-perfil-${p.nome.toLowerCase().replace(/[^a-z0-9]/g,'')}">
+                <i class="fa-solid ${p.icon}" style="color:${p.cor}; width:18px;"></i> ${p.nome}
             </div>
         `).join('');
     }
@@ -13903,46 +13964,75 @@ document.addEventListener('DOMContentLoaded', () => {
         perfilSelecionado = perfil;
         
         // Highlights
-        document.querySelectorAll('#lista-perfis-permissoes div').forEach(el => el.style.background = '#1a3045');
+        document.querySelectorAll('#lista-perfis-permissoes .perfil-tab').forEach(el => el.classList.remove('active'));
         const btn = document.getElementById(`btn-perfil-${perfil.toLowerCase().replace(/[^a-z0-9]/g,'')}`);
-        if (btn) btn.style.background = '#223547';
+        if (btn) btn.classList.add('active');
 
-        document.getElementById('perfil-selecionado-lbl').textContent = perfil;
+        const lbl = document.getElementById('perfil-selecionado-lbl');
+        if (lbl) lbl.textContent = perfil;
         
         const grid = document.getElementById('grid-permissoes');
         const msgAdmin = document.getElementById('msg-admin-lock');
-        const checkboxes = grid.querySelectorAll('input[type="checkbox"]');
+        const btnSalvar = document.getElementById('btn-salvar-permissoes');
+
+        // Carrega as permissões do perfil (no novo formato: { modulo: 'none'|'view'|'edit' })
+        // Compatibilidade: se vier como array antigo (view_xxx), converte.
+        const rawPerms = globalRolePermissions[perfil];
+        const permsObj = {};
+        if (Array.isArray(rawPerms)) {
+            rawPerms.forEach(p => {
+                const mod = p.replace(/^(view_|edit_)/, '');
+                permsObj[mod] = p.startsWith('edit_') ? 'edit' : 'view';
+            });
+        } else if (rawPerms && typeof rawPerms === 'object') {
+            Object.assign(permsObj, rawPerms);
+        }
 
         if (perfil === 'Administrador') {
-            grid.style.opacity = '0.5';
-            grid.style.pointerEvents = 'none';
-            msgAdmin.style.display = 'block';
-            checkboxes.forEach(chk => chk.checked = true);
+            if (grid) {
+                grid.style.opacity = '0.6';
+                grid.style.pointerEvents = 'none';
+                grid.querySelectorAll('.perm-toggle-group').forEach(group => {
+                    const editRadio = group.querySelector('input[value="edit"]');
+                    if (editRadio) editRadio.checked = true;
+                });
+            }
+            if (msgAdmin) msgAdmin.style.display = 'block';
+            if (btnSalvar) btnSalvar.style.display = 'none';
         } else {
-            grid.style.opacity = '1';
-            grid.style.pointerEvents = 'auto';
-            msgAdmin.style.display = 'none';
-            
-            const permissoes = globalRolePermissions[perfil] || [];
-            checkboxes.forEach(chk => {
-                chk.checked = permissoes.includes(chk.value);
-            });
+            if (grid) {
+                grid.style.opacity = '1';
+                grid.style.pointerEvents = 'auto';
+                grid.querySelectorAll('.perm-toggle-group').forEach(group => {
+                    const mod = group.dataset.module;
+                    const nivel = permsObj[mod] || 'none';
+                    const radio = group.querySelector(`input[value="${nivel}"]`);
+                    if (radio) radio.checked = true;
+                });
+            }
+            if (msgAdmin) msgAdmin.style.display = 'none';
+            if (btnSalvar) btnSalvar.style.display = 'inline-flex';
         }
     };
 
     window.salvarPermissoesPerfil = async function() {
-        if (!perfilSelecionado) {
-            _apexNotify('Sistema', 'Selecione um perfil primeiro.', 'info');
+        if (!perfilSelecionado || perfilSelecionado === 'Administrador') {
+            _apexNotify('Sistema', 'Selecione um perfil válido (não o Administrador).', 'info');
             return;
         }
         
-        if (perfilSelecionado !== 'Administrador') {
-            const grid = document.getElementById('grid-permissoes');
-            const checkboxes = grid.querySelectorAll('input[type="checkbox"]:checked');
-            const permissoes = Array.from(checkboxes).map(chk => chk.value);
-            
-            globalRolePermissions[perfilSelecionado] = permissoes;
+        // Lê o estado atual das radios e monta o objeto de permissões no NOVO formato
+        const grid = document.getElementById('grid-permissoes');
+        const novasPermissoes = {};
+        if (grid) {
+            grid.querySelectorAll('.perm-toggle-group').forEach(group => {
+                const mod = group.dataset.module;
+                const checkedRadio = group.querySelector('input[type="radio"]:checked');
+                novasPermissoes[mod] = checkedRadio ? checkedRadio.value : 'none';
+            });
         }
+        
+        globalRolePermissions[perfilSelecionado] = novasPermissoes;
 
         try {
             await fetch('/api/settings', {
@@ -13950,7 +14040,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ role_permissions: JSON.stringify(globalRolePermissions) })
             });
-            _apexNotify('Sistema', 'Permissões salvas com sucesso!', 'info');
+            _apexNotify('Permissões', `Permissões do perfil <strong>${perfilSelecionado}</strong> salvas!`, 'info');
             applyRolePermissions();
         } catch (err) {
             console.error('Erro ao salvar permissões:', err);

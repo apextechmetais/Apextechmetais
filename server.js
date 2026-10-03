@@ -248,6 +248,8 @@ const memStore = {
     pedidos_venda_itens: [],
     pedidos_compra: [],
     pedidos_compra_itens: [],
+    estrategiav3_planos: [],
+    estrategiav3_mix: [],
     audit_logs: [],
     tabela_precos_residuos: [],
     tabela_precos_ligas: [],
@@ -7434,6 +7436,293 @@ app.delete('/api/pedidos-compra/:id', async (req, res) => {
         await pool.query('DELETE FROM pedidos_compra WHERE id = $1', [id]);
         res.json({ success: true });
     } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+
+// ─── Master Password Update ──────────────────────────────────────────────────
+app.put('/api/usuarios/:id/password', authMiddleware, async (req, res) => {
+    try {
+        const userRole = (req.user?.perfil || '').trim().toLowerCase();
+        if (!userRole.includes('admin') && !userRole.includes('master')) {
+            return res.status(403).json({ error: 'Acesso negado. Apenas o Administrador Master pode alterar senhas por esta via.' });
+        }
+        const userId = parseInt(req.params.id);
+        const { novaSenha } = req.body;
+        if (!novaSenha) {
+            return res.status(400).json({ error: 'A nova senha é obrigatória.' });
+        }
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(novaSenha, salt);
+
+        if (dbAvailable) {
+            await pool.query('UPDATE usuarios SET pass = $1 WHERE id = $2', [hashedPassword, userId]);
+            return res.json({ success: true, message: 'Senha atualizada com sucesso!' });
+        } else {
+            const u = (memStore.usuarios || []).find(x => x.id === userId);
+            if (!u) return res.status(404).json({ error: 'Usuário não encontrado.' });
+            u.pass = hashedPassword;
+            return res.json({ success: true, message: 'Senha atualizada com sucesso no memStore.' });
+        }
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ─── API: Planejamento Estratégico V3 (Planos e Mix) ─────────────────────────
+app.get('/api/estrategiav3_planos', async (req, res) => {
+    try {
+        if (!dbAvailable) {
+            const planos = memStore.estrategiav3_planos || [];
+            const mix = memStore.estrategiav3_mix || [];
+            const resultado = planos.map(p => ({
+                ...p,
+                itens: mix.filter(m => m.plano_id === p.id)
+            }));
+            return res.json({ success: true, planos: resultado });
+        }
+        const planosRes = await pool.query('SELECT * FROM estrategiav3_planos ORDER BY id DESC');
+        const mixRes = await pool.query('SELECT * FROM estrategiav3_mix');
+        const resultado = planosRes.rows.map(p => ({
+            ...p,
+            itens: mixRes.rows.filter(m => m.plano_id === p.id)
+        }));
+        res.json({ success: true, planos: resultado });
+    } catch (err) {
+        console.warn('⚠️ Erro GET estrategiav3_planos:', err.message);
+        res.status(500).json({ error: 'Erro ao buscar planos' });
+    }
+});
+
+app.post('/api/estrategiav3_planos', async (req, res) => {
+    const { titulo, data_inicial, data_final, frente, meta_faturamento, mix, cenario_conservador_pct, cenario_moderado_pct, cenario_agressivo_pct } = req.body;
+    try {
+        if (!dbAvailable) {
+            if (!memStore.estrategiav3_planos) memStore.estrategiav3_planos = [];
+            if (!memStore.estrategiav3_mix) memStore.estrategiav3_mix = [];
+            const newId = nextId++;
+            const plano = {
+                id: newId,
+                titulo, data_inicial, data_final, frente,
+                meta_faturamento: parseFloat(meta_faturamento || 0),
+                status: 'EM ANDAMENTO',
+                cenario_conservador_pct: cenario_conservador_pct || 80,
+                cenario_moderado_pct: cenario_moderado_pct || 100,
+                cenario_agressivo_pct: cenario_agressivo_pct || 120,
+                criado_em: new Date().toISOString()
+            };
+            memStore.estrategiav3_planos.push(plano);
+            for (let item of (mix || [])) {
+                memStore.estrategiav3_mix.push({
+                    id: nextId++,
+                    plano_id: newId,
+                    material_id: item.material_id,
+                    fracao_pct: item.fracao_pct,
+                    volume_necessario: item.volume_necessario,
+                    faturamento_alvo: item.faturamento_alvo,
+                    investimento_necessario: item.investimento_necessario
+                });
+            }
+            return res.json({ success: true, plano_id: newId });
+        }
+
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+            const planoRes = await client.query(`
+                INSERT INTO estrategiav3_planos (titulo, data_inicial, data_final, frente, meta_faturamento, cenario_conservador_pct, cenario_moderado_pct, cenario_agressivo_pct)
+                VALUES ($1, $2, $3, $4, $5, COALESCE($6, 80), COALESCE($7, 100), COALESCE($8, 120))
+                RETURNING id
+            `, [titulo, data_inicial, data_final, frente, meta_faturamento, cenario_conservador_pct, cenario_moderado_pct, cenario_agressivo_pct]);
+            const planoId = planoRes.rows[0].id;
+
+            for (let item of (mix || [])) {
+                await client.query(`
+                    INSERT INTO estrategiav3_mix (plano_id, material_id, fracao_pct, volume_necessario, faturamento_alvo, investimento_necessario)
+                    VALUES ($1, $2, $3, $4, $5, $6)
+                `, [planoId, item.material_id, item.fracao_pct, item.volume_necessario, item.faturamento_alvo, item.investimento_necessario]);
+            }
+            await client.query('COMMIT');
+            res.json({ success: true, plano_id: planoId });
+        } catch (e) {
+            await client.query('ROLLBACK');
+            throw e;
+        } finally {
+            client.release();
+        }
+    } catch (err) {
+        console.error('⚠️ Erro POST estrategiav3_planos:', err);
+        res.status(500).json({ error: 'Erro ao salvar plano estratégico' });
+    }
+});
+
+app.delete('/api/estrategiav3_planos/:id', async (req, res) => {
+    const id = parseInt(req.params.id);
+    try {
+        if (!dbAvailable) {
+            memStore.estrategiav3_planos = (memStore.estrategiav3_planos || []).filter(x => x.id !== id);
+            memStore.estrategiav3_mix = (memStore.estrategiav3_mix || []).filter(x => x.plano_id !== id);
+            return res.json({ success: true });
+        }
+        await pool.query('DELETE FROM estrategiav3_planos WHERE id = $1', [id]);
+        res.json({ success: true });
+    } catch (err) {
+        console.error('⚠️ Erro DELETE estrategiav3_planos:', err);
+        res.status(500).json({ error: 'Erro ao excluir plano' });
+    }
+});
+
+app.put('/api/estrategiav3_planos/:id/status', async (req, res) => {
+    const id = parseInt(req.params.id);
+    const { status } = req.body;
+    try {
+        if (!dbAvailable) {
+            const p = (memStore.estrategiav3_planos || []).find(x => x.id === id);
+            if (p) p.status = status;
+            return res.json({ success: true });
+        }
+        await pool.query('UPDATE estrategiav3_planos SET status = $1 WHERE id = $2', [status, id]);
+        res.json({ success: true });
+    } catch (err) {
+        console.error('⚠️ Erro PUT STATUS:', err);
+        res.status(500).json({ error: 'Erro ao atualizar status' });
+    }
+});
+
+app.put('/api/estrategiav3_planos/:id/resultado_real', async (req, res) => {
+    const id = parseInt(req.params.id);
+    const { faturamento_realizado, investimento_realizado, volume_realizado, observacoes } = req.body;
+    try {
+        if (!dbAvailable) {
+            const p = (memStore.estrategiav3_planos || []).find(x => x.id === id);
+            if (p) {
+                p.faturamento_realizado = faturamento_realizado;
+                p.investimento_realizado = investimento_realizado;
+                p.volume_realizado = volume_realizado;
+                p.observacoes = observacoes;
+                p.status = 'CONCLUIDO';
+            }
+            return res.json({ success: true });
+        }
+        await pool.query(`
+            UPDATE estrategiav3_planos 
+            SET faturamento_realizado = $1, 
+                investimento_realizado = $2, 
+                volume_realizado = $3, 
+                observacoes = $4,
+                status = 'CONCLUIDO'
+            WHERE id = $5
+        `, [faturamento_realizado, investimento_realizado, volume_realizado, observacoes, id]);
+        res.json({ success: true });
+    } catch (err) {
+        console.error('⚠️ Erro PUT resultado_real:', err);
+        res.status(500).json({ error: 'Erro ao salvar resultado real' });
+    }
+});
+
+app.put('/api/estrategiav3_mix/:id/realizado', async (req, res) => {
+    const id = parseInt(req.params.id);
+    const { faturamento_realizado } = req.body;
+    try {
+        if (!dbAvailable) {
+            const m = (memStore.estrategiav3_mix || []).find(x => x.id === id);
+            if (m) m.faturamento_realizado = faturamento_realizado;
+            return res.json({ success: true });
+        }
+        await pool.query('UPDATE estrategiav3_mix SET faturamento_realizado = $1 WHERE id = $2', [faturamento_realizado, id]);
+        res.json({ success: true });
+    } catch (err) {
+        console.error('⚠️ Erro PUT estrategiav3_mix:', err);
+        res.status(500).json({ error: 'Erro ao atualizar realizado' });
+    }
+});
+
+// ─── API: Forecast e Estratégia de Compras ───────────────────────────────────
+app.get('/api/planejamento/compras/forecast', async (req, res) => {
+    if (!dbAvailable || !pool) {
+        return res.json([]);
+    }
+    try {
+        const queryStr = `
+            SELECT 
+                mc.id, 
+                mc.nome, 
+                mc.categoria,
+                COALESCE(mc.estoque_atual, 0) as estoque_atual, 
+                COALESCE(tp.preco_entregar, 0) as preco_compra, 
+                COALESCE(tp.venda_ref, 0) as preco_venda,
+                (SELECT COALESCE(SUM(pvi.quantidade), 0) 
+                 FROM pedidos_venda_itens pvi 
+                 JOIN pedidos_venda pv ON pvi.pedido_id = pv.id 
+                 WHERE pv.status != 'Cancelado' 
+                 AND pvi.material_id = mc.id 
+                 AND pv.criado_em >= NOW() - INTERVAL '90 days') as demanda_90d,
+                 
+                (SELECT COALESCE(SUM(pci.quantidade), 0) 
+                 FROM pedidos_compra_itens pci 
+                 JOIN pedidos_compra pc ON pci.pedido_id = pc.id 
+                 WHERE pc.status NOT IN ('Cancelado', 'Entregue') 
+                 AND pci.material_id = mc.id) as compras_pendentes
+                 
+            FROM materiais_catalogo mc
+            LEFT JOIN tabela_precos tp ON mc.id = tp.material_id
+            ORDER BY mc.categoria, mc.nome;
+        `;
+        const result = await pool.query(queryStr);
+        const rows = result.rows || [];
+
+        const forecast = rows.map(r => {
+            const pVenda = parseFloat(r.preco_venda || 0);
+            const pCompra = parseFloat(r.preco_compra || 0);
+            const margem = pVenda > 0 ? ((pVenda - pCompra) / pVenda) * 100 : 0;
+            const demanda_mensal_media = parseFloat(r.demanda_90d || 0) / 3.0;
+            const estoque_projetado = parseFloat(r.estoque_atual || 0) + parseFloat(r.compras_pendentes || 0);
+            
+            let sug_conservadora = Math.max(0, demanda_mensal_media - estoque_projetado);
+            let fator_moderado = margem > 20 ? 2.0 : 1.5;
+            let sug_moderada = Math.max(0, (demanda_mensal_media * fator_moderado) - estoque_projetado);
+            let fator_agressivo = margem > 30 ? 4.0 : 3.0;
+            let sug_agressiva = Math.max(0, (demanda_mensal_media * fator_agressivo) - estoque_projetado);
+            
+            let acao = 'AGUARDAR';
+            let motivo = 'Estoque saudável para a demanda atual.';
+            if (sug_conservadora > 0) {
+                acao = 'COMPRAR';
+                motivo = 'Estoque projetado não cobre os próximos 30 dias.';
+            } else if (estoque_projetado > demanda_mensal_media * 5 && demanda_mensal_media > 0) {
+                acao = 'VENDER ESTOQUE';
+                motivo = 'Alto volume de estoque imobilizado (>5 meses).';
+            } else if (sug_moderada > 0 && margem > 25) {
+                acao = 'OPORTUNIDADE';
+                motivo = 'Margem alta, considere formar estoque moderado/agressivo.';
+            }
+
+            return {
+                id: r.id,
+                nome: r.nome,
+                categoria: r.categoria,
+                estoque_atual: parseFloat(r.estoque_atual || 0),
+                compras_pendentes: parseFloat(r.compras_pendentes || 0),
+                estoque_projetado: parseFloat(estoque_projetado.toFixed(2)),
+                demanda_90d: parseFloat(r.demanda_90d || 0),
+                demanda_mensal: parseFloat(demanda_mensal_media.toFixed(2)),
+                preco_compra: pCompra,
+                preco_venda: pVenda,
+                margem_pct: parseFloat(margem.toFixed(2)),
+                acao_recomendada: acao,
+                motivo_acao: motivo,
+                cenarios: {
+                    conservador: parseFloat(sug_conservadora.toFixed(2)),
+                    moderado: parseFloat(sug_moderada.toFixed(2)),
+                    agressivo: parseFloat(sug_agressiva.toFixed(2))
+                }
+            };
+        });
+
+        res.json(forecast);
+    } catch (err) {
+        console.error('⚠️ Erro GET /api/planejamento/compras/forecast:', err);
         res.status(500).json({ error: err.message });
     }
 });

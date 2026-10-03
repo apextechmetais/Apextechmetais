@@ -2532,7 +2532,7 @@ window.excluirCicloV3 = async function(cicloId) {
     };
 
     window.alternarSubAbaEstrategico = function(aba) {
-        const abas = ['margens', 'radar', 'payback', 'compra', 'venda', 'ativos'];
+        const abas = ['margens', 'radar', 'payback', 'compra', 'venda', 'ativos', 'forecast'];
         
         abas.forEach(nome => {
             const btn = document.getElementById(`tab-btn-estr-${nome}`);
@@ -2558,7 +2558,180 @@ window.excluirCicloV3 = async function(cicloId) {
             if (window.renderAnaliseComprarV3) window.renderAnaliseComprarV3();
         } else if (aba === 'venda') {
             if (window.renderAnaliseVenderV3) window.renderAnaliseVenderV3();
+        } else if (aba === 'forecast') {
+            carregarForecastEstrategico();
         }
+    };
+
+    let _forecastData = [];
+    async function carregarForecastEstrategico() {
+        try {
+            const tbody = document.querySelector('#table-estr-forecast tbody');
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">Carregando dados reais de vendas e estoque... <i class="fa-solid fa-spinner fa-spin"></i></td></tr>';
+            
+            const res = await fetch('/api/planejamento/compras/forecast', { cache: 'no-store' });
+            if (!res.ok) throw new Error('Falha ao buscar forecast');
+            const data = await res.json();
+            _forecastData = data;
+            
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">Nenhum dado encontrado ou sem conexão com BD real.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = '';
+            data.forEach(item => {
+                let badgeClass = 'bg-secondary';
+                if (item.acao_recomendada === 'COMPRAR') badgeClass = 'bg-primary';
+                else if (item.acao_recomendada === 'OPORTUNIDADE') badgeClass = 'bg-success';
+                else if (item.acao_recomendada === 'VENDER ESTOQUE') badgeClass = 'bg-danger';
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="font-weight:600;">${item.nome} <br><small style="color:#aaa;">${item.categoria}</small></td>
+                    <td>${item.estoque_projetado} kg</td>
+                    <td style="color:#aaa;">${item.demanda_mensal} kg</td>
+                    <td style="font-weight:bold; color:${item.margem_pct > 25 ? '#2AD07A' : '#fff'};">${item.margem_pct}%</td>
+                    <td style="color:#00e5ff; font-weight:bold;">${item.cenarios.conservador > 0 ? '+ ' + item.cenarios.conservador + ' kg' : 'OK'}</td>
+                    <td style="color:#2AD07A; font-weight:bold;">${item.cenarios.moderado > 0 ? '+ ' + item.cenarios.moderado + ' kg' : 'OK'}</td>
+                    <td style="color:#ffb74d; font-weight:bold;">${item.cenarios.agressivo > 0 ? '+ ' + item.cenarios.agressivo + ' kg' : 'OK'}</td>
+                    <td>
+                        <span class="badge ${badgeClass}">${item.acao_recomendada}</span>
+                        <br><small style="color:#aaa; font-size:0.75rem;">${item.motivo_acao}</small>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        } catch(e) {
+            console.error(e);
+            document.querySelector('#table-estr-forecast tbody').innerHTML = '<tr><td colspan="8" style="text-align:center; color:#ff6b6b;">Erro ao carregar forecast. Verifique os logs.</td></tr>';
+        }
+    }
+
+    window.calcularAlavancagemInteligente = function() {
+        const tipoMeta = document.getElementById('alavancagem-tipo').value;
+        const valorMeta = parseFloat(document.getElementById('alavancagem-valor').value);
+        const resDiv = document.getElementById('alavancagem-resultado');
+
+        if (!valorMeta || valorMeta <= 0) {
+            _apexNotify('Atenção', 'Digite um valor de meta válido.', 'warning');
+            return;
+        }
+        if (!_forecastData || _forecastData.length === 0) {
+            _apexNotify('Erro', 'Os dados do forecast ainda não foram carregados.', 'error');
+            return;
+        }
+
+        // Filtra apenas produtos com histórico de venda (demanda_mensal > 0) e que dão margem positiva
+        let produtosVenda = _forecastData.filter(p => parseFloat(p.demanda_mensal) > 0 && parseFloat(p.margem_pct) > 0 && parseFloat(p.preco_venda) > 0);
+        
+        // Vamos ranquear pela melhor relação: Margem (%) * Demanda (liquidez)
+        // Produtos com alta margem e alta liquidez sobem para o topo da "Lista de Compras Ouro"
+        produtosVenda.sort((a, b) => {
+            let scoreA = parseFloat(a.margem_pct) * parseFloat(a.demanda_mensal);
+            let scoreB = parseFloat(b.margem_pct) * parseFloat(b.demanda_mensal);
+            return scoreB - scoreA;
+        });
+
+        let alvoAtingido = 0;
+        let custoTotal = 0;
+        let comprasIdeais = [];
+
+        for (let p of produtosVenda) {
+            if (alvoAtingido >= valorMeta) break; // Já bateu a meta
+
+            let margemReaisPorKg = parseFloat(p.preco_venda) - parseFloat(p.preco_compra);
+            let fatReaisPorKg = parseFloat(p.preco_venda);
+            
+            // Quanto desse produto eu posso realisticamente vender num "Tiro Curto" (ex: Vender 3 meses da demanda dele)
+            let capacidadeRealisticaKg = parseFloat(p.demanda_mensal) * 3; 
+
+            // Quanto falta pra bater a meta
+            let falta = valorMeta - alvoAtingido;
+
+            let kgNecessarios = 0;
+            if (tipoMeta === 'lucro') {
+                kgNecessarios = falta / margemReaisPorKg;
+            } else {
+                kgNecessarios = falta / fatReaisPorKg;
+            }
+
+            // Eu não devo sugerir comprar 1 milhão de KGs de um produto que vende 10kg por mês. Limitamos à capacidade realista.
+            let kgParaComprar = Math.min(kgNecessarios, capacidadeRealisticaKg);
+            kgParaComprar = Math.ceil(kgParaComprar); // arredonda pra cima
+
+            if (kgParaComprar > 0) {
+                let ganhoNesteProduto = tipoMeta === 'lucro' ? (kgParaComprar * margemReaisPorKg) : (kgParaComprar * fatReaisPorKg);
+                alvoAtingido += ganhoNesteProduto;
+                custoTotal += (kgParaComprar * parseFloat(p.preco_compra));
+                
+                comprasIdeais.push({
+                    nome: p.nome,
+                    kg: kgParaComprar,
+                    custoEstimado: kgParaComprar * parseFloat(p.preco_compra),
+                    lucroEstimado: kgParaComprar * margemReaisPorKg,
+                    fatEstimado: kgParaComprar * fatReaisPorKg
+                });
+            }
+        }
+
+        // Render do Resultado
+        if (comprasIdeais.length === 0) {
+            resDiv.style.display = 'block';
+            resDiv.innerHTML = '<p style="color:#ffb74d;">Não foi possível montar um plano realista com o histórico atual. Venda produtos com maior liquidez primeiro.</p>';
+            return;
+        }
+
+        let htmlOut = `<h4 style="margin:0 0 10px 0; color:#00e5ff;">Plano de Ação para Alcançar R$ ${valorMeta.toLocaleString('pt-BR')} de ${tipoMeta === 'lucro' ? 'Lucro' : 'Faturamento'}</h4>`;
+        htmlOut += `<p style="font-size:0.85rem; color:#aaa; margin-bottom:15px;">Calculado usando Inteligência de Risco (Max 3 meses de demanda histórica por produto para evitar encalhe de estoque).</p>`;
+        
+        htmlOut += `<table class="noble-table" style="font-size:0.85rem;">
+            <thead>
+                <tr>
+                    <th>Material (Os Melhores da Curva ABC)</th>
+                    <th>Comprar (kg)</th>
+                    <th>Investimento (Custo)</th>
+                    <th>Faturamento Projetado</th>
+                    <th>Lucro Líquido Projetado</th>
+                </tr>
+            </thead>
+            <tbody>`;
+        
+        let somaFat = 0;
+        let somaLucro = 0;
+
+        comprasIdeais.forEach(c => {
+            somaFat += c.fatEstimado;
+            somaLucro += c.lucroEstimado;
+            htmlOut += `
+                <tr>
+                    <td style="font-weight:bold;">${c.nome}</td>
+                    <td>${c.kg.toLocaleString('pt-BR')} kg</td>
+                    <td style="color:#ff6b6b;">R$ ${c.custoEstimado.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+                    <td style="color:#4fc3f7;">R$ ${c.fatEstimado.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+                    <td style="color:#2AD07A; font-weight:bold;">R$ ${c.lucroEstimado.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+                </tr>
+            `;
+        });
+
+        htmlOut += `</tbody></table>`;
+        htmlOut += `<div style="margin-top:15px; display:flex; gap:20px; border-top:1px dashed #2a4158; padding-top:10px;">
+            <div>
+                <span style="display:block; color:#aaa; font-size:0.75rem;">Total de Investimento Necessário</span>
+                <span style="color:#ff6b6b; font-weight:bold; font-size:1.1rem;">R$ ${custoTotal.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
+            </div>
+            <div>
+                <span style="display:block; color:#aaa; font-size:0.75rem;">Retorno Bruto (Faturamento)</span>
+                <span style="color:#4fc3f7; font-weight:bold; font-size:1.1rem;">R$ ${somaFat.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
+            </div>
+            <div>
+                <span style="display:block; color:#aaa; font-size:0.75rem;">Retorno Líquido (Lucro)</span>
+                <span style="color:#2AD07A; font-weight:bold; font-size:1.1rem;">R$ ${somaLucro.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
+            </div>
+        </div>`;
+
+        resDiv.innerHTML = htmlOut;
+        resDiv.style.display = 'block';
     };
 
     window.gerarPdfEstrategiaV3 = function(planoId) {
