@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html dir="ltr" lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Cotações LME - ApexTech Metais</title>
+    <link rel="icon" type="image/png" href="assets/img/icon.png">
+    <meta name="description" content="Acompanhe as cotações LME de cobre, zinco, alumínio, chumbo, estanho e níquel em tempo real. ApexTech Metais.">
+    <link rel="icon" type="image/svg+xml" href="assets/img/logo-apextech.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700;800&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css?v=6">
+    <script>window.CURRENT_PAGE = 'cotacoes';</script>
+    <script src="partials.js"></script>
+</head>
+<body>
+
+<div id="page-content">
+
+
+
+    <!-- LME QUOTES -->
+    <section id="cotacoes" class="section-lme" style="padding-top:50px;">
+        <div class="container">
+            <div class="lme-controls">
+                <div class="lme-metals-tabs" id="indices">
+                    <button class="lme-metal-btn active" data-indice="cobre">Cobre</button>
+                    <button class="lme-metal-btn" data-indice="zinco">Zinco</button>
+                    <button class="lme-metal-btn" data-indice="aluminio">Alumínio</button>
+                    <button class="lme-metal-btn" data-indice="chumbo">Chumbo</button>
+                    <button class="lme-metal-btn" data-indice="estanho">Estanho</button>
+                    <button class="lme-metal-btn" data-indice="niquel">Níquel</button>
+                    <button class="lme-metal-btn" data-indice="dolar">Dólar</button>
+                </div>
+                <div class="lme-select-month">
+                    <select id="meslme" style="padding:10px;border:1px solid var(--apex-border);border-radius:4px;"></select>
+                </div>
+            </div>
+
+            <!-- Variações -->
+            <div id="variacao" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin-bottom:20px;"></div>
+
+            <!-- Tabela -->
+            <div class="lme-chart-box" style="overflow-x:auto;">
+                <div style="display:flex;justify-content:space-between;margin-bottom:20px;">
+                    <h4 id="table-title">Tabela LME</h4>
+                    <button id="imprimirlme" class="btn-secondary-apex" style="padding:5px 15px;font-size:0.8rem;">Imprimir</button>
+                </div>
+                <div id="boxtabela">Carregando dados da tabela...</div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;">
+                <div class="lme-chart-box">
+                    <h4 id="titchart-diario">Evolução Diária</h4>
+                    <canvas id="chart-diario"></canvas>
+                </div>
+                <div class="lme-chart-box">
+                    <h4 id="titchart-semanal">Evolução Semanal</h4>
+                    <canvas id="chart-semanal"></canvas>
+                </div>
+            </div>
+        </div>
+    </section>
+
+</div><!-- /#page-content -->
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.js"></script>
+<script src="script.js?v=8"></script>
+    <script src="assets/js/theme-toggle.js"></script>
+</body>
+</html>
+

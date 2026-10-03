@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html dir="ltr" lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Sobre Nós - Apex Tech Metais</title>
+    <link rel="icon" type="image/png" href="assets/img/icon.png">
+    <meta name="description" content="Conheça a história e os valores da ApexTech Metais - Referência no mercado de reciclagem industrial e sucatas de metais.">
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="assets/img/logo-apextech.svg">
+    <link rel="shortcut icon" href="assets/img/logo-apextech.svg">
+    <link rel="apple-touch-icon" href="assets/img/logo-apextech.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700;800&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css?v=6">
+    <script>window.CURRENT_PAGE = 'sobre';</script>
+    <script src="partials.js"></script>
+    <style>
+        /* ── PROPÓSITO · VISÃO · VALORES ── */
+        .sobre-mvv {
+            background: linear-gradient(160deg, #f4faf6 0%, #edf7f1 50%, #f0f9f4 100%);
+            padding: 100px 0 110px;
+            border-bottom: 1px solid #d4eadc;
+        }
+        .sobre-mvv .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 40px;
+        }
+        .section-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: #1fa85a;
+            margin-bottom: 14px;
+            display: block;
+        }
+        .section-title {
+            font-family: 'Raleway', sans-serif;
+            font-size: clamp(1.6rem, 2.8vw, 2.4rem);
+            font-weight: 800;
+            color: #0d2416;
+            line-height: 1.25;
+            margin-bottom: 60px;
+        }
+        .mvv-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 28px;
+            align-items: stretch;
+        }
+
+        /* Card base */
+        .mvv-card {
+            position: relative;
+            overflow: hidden;
+            padding: 44px 32px 40px;
+            background: #ffffff;
+            border-radius: 20px;
+            border: 1px solid rgba(13, 122, 62, 0.10);
+            box-shadow: 0 4px 24px rgba(13, 36, 22, 0.05);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            transition: transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease;
+        }
+        .mvv-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 20px;
+            background: linear-gradient(145deg, rgba(42,208,122,0.04) 0%, rgba(13,122,62,0.02) 100%);
+            pointer-events: none;
+        }
+        /* Linha decorativa inferior animada */
+        .mvv-card::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 50%;
+            transform: translateX(-50%) scaleX(0);
+            width: 70%; height: 3px;
+            background: linear-gradient(90deg, #2ad07a, #0d7a3e);
+            border-radius: 2px 2px 0 0;
+            transition: transform 0.4s ease;
+        }
+        .mvv-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 50px rgba(13,36,22,0.10);
+            border-color: rgba(42,208,122,0.25);
+        }
+        .mvv-card:hover::after {
+            transform: translateX(-50%) scaleX(1);
+        }
+
+        /* Marca d'água do logo — igual ao PDF */
+        .mvv-watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 160px;
+            height: 160px;
+            object-fit: contain;
+            opacity: 0.09;
+            pointer-events: none;
+            user-select: none;
+            filter: grayscale(1);
+            z-index: 0;
+        }
+
+        /* Ícone */
+        .mvv-icon {
+            position: relative;
+            z-index: 1;
+            width: 68px; height: 68px;
+            margin: 0 auto 26px;
+            background: linear-gradient(135deg, rgba(42,208,122,0.15), rgba(13,122,62,0.08));
+            color: #0d7a3e;
+            font-size: 1.7rem;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 50%;
+            border: 1.5px solid rgba(42,208,122,0.25);
+            box-shadow: 0 4px 16px rgba(42,208,122,0.12);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .mvv-card:hover .mvv-icon {
+            transform: scale(1.08);
+            box-shadow: 0 8px 24px rgba(42,208,122,0.22);
+        }
+
+        /* Título */
+        .mvv-title {
+            position: relative;
+            z-index: 1;
+            font-family: 'Raleway', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: #0a1f10;
+            margin: 0 0 6px;
+            letter-spacing: 0.01em;
+        }
+        /* Separador abaixo do título */
+        .mvv-title-sep {
+            position: relative;
+            z-index: 1;
+            display: block;
+            width: 36px;
+            height: 3px;
+            background: linear-gradient(90deg, #2ad07a, #0d7a3e);
+            border-radius: 2px;
+            margin: 0 auto 18px;
+        }
+
+        /* Texto */
+        .mvv-desc {
+            position: relative;
+            z-index: 1;
+            font-size: 0.93rem;
+            color: #4a6655;
+            line-height: 1.75;
+            margin: 0;
+            flex: 1;
+        }
+
+        /* Lista de valores */
+        .mvv-valores-list {
+            position: relative;
+            z-index: 1;
+            list-style: none;
+            padding: 0; margin: 0;
+            text-align: left;
+            width: 100%;
+        }
+        .mvv-valores-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            font-size: 0.88rem;
+            color: #3d5545;
+            line-height: 1.6;
+            padding: 9px 0;
+            border-bottom: 1px solid rgba(13,122,62,0.08);
+        }
+        .mvv-valores-list li:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+        .mvv-valores-list li::before {
+            content: '';
+            flex-shrink: 0;
+            margin-top: 6px;
+            width: 7px; height: 7px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #2ad07a, #0d7a3e);
+        }
+        .mvv-valores-list strong {
+            color: #0a2e18;
+            font-weight: 700;
+        }
+
+        @media (max-width: 960px) {
+            .mvv-grid { grid-template-columns: 1fr; max-width: 480px; margin: 0 auto; }
+            .sobre-mvv .container { padding: 0 20px; }
+        }
+    </style>
+
+</head>
+<body>
+
+<div id="page-content" style="padding-top: var(--header-height);">
+
+    <!-- SOBRE SECTION -->
+    <section id="sobre" class="section_transformando">
+        <div class="container">
+            <div class="transformando-grid">
+                <div class="transformando-img">
+                    <img src="assets/img/img-transformando-residuos.webp"
+                         alt="Transformando Resíduos" class="img-fluid">
+                </div>
+                <div class="transformando-text">
+                    <h2 class="titulo_section_70">Transformando Resíduos em Oportunidades</h2>
+                    <p>Uma referência no mercado de resíduos, baseada em princípios de honestidade, fidelidade e parcerias sólidas. Fundada em 05 de agosto de 2021, nossa visão sempre foi clara: possuir todos os documentos necessários para atender ao mercado, sempre preocupados com o "Por que fazer?" e com o objetivo maior de trazer profissionalismo ao setor de compra de sucata e promover a evolução constante.</p>
+                    <a href="/contato.html" class="btn_saiba_mais">
+                        <p class="mb-0">Fale Conosco</p>
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- PROPÓSITO, MISSÃO E VALORES -->
+    <section class="sobre-mvv" id="mvv">
+        <div class="container">
+            <div class="section-label" style="text-align: center;">Nossa Essência</div>
+            <h2 class="section-title" style="text-align: center; margin-bottom: 50px;">Apex Tech Metais — Tradição e Inovação na Gestão de Resíduos</h2>
+            <div class="mvv-grid">
+
+                <!-- PROPÓSITO -->
+                <div class="mvv-card">
+                    <img src="assets/img/logo (2).png" alt="" class="mvv-watermark" aria-hidden="true">
+                    <div class="mvv-icon"><i class="fa-solid fa-bullseye"></i></div>
+                    <h3 class="mvv-title">Propósito</h3>
+                    <span class="mvv-title-sep"></span>
+                    <p class="mvv-desc">Transformar materiais, pessoas e oportunidades em valor, construindo um futuro sustentável e gerando impacto positivo para todos que fazem parte da nossa jornada.</p>
+                </div>
+
+                <!-- VISÃO -->
+                <div class="mvv-card">
+                    <img src="assets/img/logo (2).png" alt="" class="mvv-watermark" aria-hidden="true">
+                    <div class="mvv-icon"><i class="fa-solid fa-eye"></i></div>
+                    <h3 class="mvv-title">Visão</h3>
+                    <span class="mvv-title-sep"></span>
+                    <p class="mvv-desc">Ser reconhecida como uma empresa que transforma não apenas materiais, mas também relações, oportunidades e futuros.</p>
+                </div>
+
+                <!-- VALORES -->
+                <div class="mvv-card">
+                    <img src="assets/img/logo (2).png" alt="" class="mvv-watermark" aria-hidden="true">
+                    <div class="mvv-icon"><i class="fa-solid fa-gem"></i></div>
+                    <h3 class="mvv-title">Valores</h3>
+                    <span class="mvv-title-sep"></span>
+                    <ul class="mvv-valores-list">
+                        <li><span><strong>Respeito</strong> Valorizamos pessoas antes de processos.</span></li>
+                        <li><span><strong>Transparência</strong> Construímos confiança através da verdade.</span></li>
+                        <li><span><strong>Credibilidade</strong> Nossa palavra possui valor.</span></li>
+                        <li><span><strong>Sustentabilidade</strong> Pensamos no impacto das nossas decisões.</span></li>
+                        <li><span><strong>Evolução</strong> Melhoramos continuamente.</span></li>
+                        <li><span><strong>Conexão</strong> Crescemos juntos.</span></li>
+                    </ul>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+
+    <!-- GALERIA DE FOTOS -->
+    <section id="galeria" class="section-galeria">
+        <div class="container">
+            <div class="galeria-header">
+                <h2 class="titulo_section_solucoes text-center">Galeria de Fotos</h2>
+                <h3 class="titulo_section_40 text-center">Conheça nossa infraestrutura e processos de reciclagem</h3>
+            </div>
+            
+            <div class="galeria-grid" id="galeria-grid">
+                <div class="galeria-loading text-center">
+                    <i class="fa-solid fa-circle-notch fa-spin"></i> Carregando fotos...
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Catalog Product Lightbox Modal (necessary for gallery zoom) -->
+    <div id="catalog-modal" class="catalog-modal" role="dialog" aria-modal="true" aria-label="Foto da Galeria">
+        <div class="catalog-modal-overlay"></div>
+        <div class="catalog-modal-content">
+            <button class="catalog-modal-close" aria-label="Fechar">&times;</button>
+            <div class="catalog-modal-body">
+                <div class="catalog-modal-img-wrap">
+                    <img id="catalog-modal-img" src="" alt="Imagem Ampliada">
+                </div>
+                <div class="catalog-modal-info">
+                    <span class="catalog-modal-badge"><i class="fa-solid fa-camera"></i> Galeria</span>
+                    <h3 id="catalog-modal-title"></h3>
+                    <p id="catalog-modal-desc"></p>
+                    <a href="https://api.whatsapp.com/send?phone=5511940222249" target="_blank" class="catalog-modal-cta" onclick="document.getElementById('catalog-modal').classList.remove('open')">
+                        <i class="fa-brands fa-whatsapp"></i> Falar Conosco
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script src="script.js?v=6"></script>
+    <script src="assets/js/theme-toggle.js"></script>
+</body>
+</html>

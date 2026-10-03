@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html dir="ltr" lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Produtos - ApexTech Metais</title>
+    <link rel="icon" type="image/png" href="assets/img/icon.png">
+    <meta name="description" content="Conheça nosso catálogo de produtos, materiais recicláveis, sucatas industriais, conectores e fios. Baixe nosso PDF.">
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="assets/img/logo-apextech.svg">
+    <link rel="shortcut icon" href="assets/img/logo-apextech.svg">
+    <link rel="apple-touch-icon" href="assets/img/logo-apextech.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700;800&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css?v=6">
+    <script>window.CURRENT_PAGE = 'produtos';</script>
+    <script src="partials.js"></script>
+</head>
+<body>
+
+<div id="page-content" style="padding-top: var(--header-height);">
+
+    <!-- CATÁLOGO -->
+    <section id="catalogo" class="section-catalogo">
+        <div class="container">
+            <h2 class="titulo_section_solucoes text-center">Catálogo</h2>
+            <h3 class="titulo_section_40 text-center">Conheça os materiais que compramos e vendemos</h3>
+
+            <div class="catalogo-grid">
+
+                <div class="catalogo-card">
+                    <div class="catalogo-icon">
+                        <i class="fa-solid fa-plug"></i>
+                    </div>
+                    <h3>Fios e Cabos</h3>
+                    <p>Sucatas de fios elétricos, cabos de cobre, alumínio e outros metais não-ferrosos.</p>
+                </div>
+
+                <div class="catalogo-card">
+                    <div class="catalogo-icon">
+                        <i class="fa-solid fa-microchip"></i>
+                    </div>
+                    <h3>Conectores e Disjuntores</h3>
+                    <p>Resíduos de conectores elétricos e disjuntores industriais de diversas marcas e modelos.</p>
+                </div>
+
+                <div class="catalogo-card">
+                    <div class="catalogo-icon">
+                        <i class="fa-solid fa-industry"></i>
+                    </div>
+                    <h3>Sucatas Industriais</h3>
+                    <p>Resíduos metálicos gerados por processos industriais, incluindo alumínio, cobre e ferro.</p>
+                </div>
+
+                <div class="catalogo-card">
+                    <div class="catalogo-icon">
+                        <i class="fa-solid fa-recycle"></i>
+                    </div>
+                    <h3>Sucatas Eletrônicas</h3>
+                    <p>Placas, componentes eletrônicos, equipamentos obsoletos e seus subprodutos recicláveis.</p>
+                </div>
+
+                <div class="catalogo-card">
+                    <div class="catalogo-icon">
+                        <i class="fa-solid fa-hammer"></i>
+                    </div>
+                    <h3>Resíduos de Obras</h3>
+                    <p>Materiais metálicos provenientes de demolições e construções civis, reformas e instalações.</p>
+                </div>
+
+                <div class="catalogo-card">
+                    <div class="catalogo-icon">
+                        <i class="fa-solid fa-bolt"></i>
+                    </div>
+                    <h3>Materiais Elétricos</h3>
+                    <p>Transformadores, motores elétricos, bobinas e demais equipamentos elétricos fora de uso.</p>
+                </div>
+
+            </div>
+
+            <!-- Flip-book interativo -->
+            <div class="catalogo-flipbook">
+                <div class="flipbook-wrapper">
+                    <iframe
+                        allowfullscreen=""
+                        allow="clipboard-write"
+                        scrolling="no"
+                        class="fp-iframe"
+                        title="Catálogo ApexTech Metais"
+                        src="https://heyzine.com/flip-book/80f9fed343.html">
+                    </iframe>
+                </div>
+                <div class="flipbook-actions">
+                    <a href="/assets/Catálogo de Produtos APEXTECH.pdf" download="Catalogo-Apex-Tech-Metais.pdf" class="flipbook-btn-download" id="btn-download-catalogo">
+                        <i class="fa-solid fa-file-pdf"></i>
+                        <span>Baixar Catálogo em PDF</span>
+                    </a>
+                    <a href="https://heyzine.com/flip-book/80f9fed343.html" target="_blank" rel="noopener noreferrer" class="flipbook-btn-fullscreen">
+                        <i class="fa-solid fa-expand"></i>
+                        <span>Tela Cheia</span>
+                    </a>
+                </div>
+            </div>
+
+            <div class="catalogo-cta">
+                <p>Tem algum material para vender ou quer adquirir matéria-prima reciclada?</p>
+                <a href="/contato.html" class="btn_saiba_mais">
+                    <p class="mb-0">Entre em contato</p>
+                    <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Catalog Product Lightbox Modal -->
+    <div id="catalog-modal" class="catalog-modal" role="dialog" aria-modal="true" aria-label="Foto do Produto">
+        <div class="catalog-modal-overlay"></div>
+        <div class="catalog-modal-content">
+            <button class="catalog-modal-close" aria-label="Fechar">&times;</button>
+            <div class="catalog-modal-body">
+                <div class="catalog-modal-img-wrap">
+                    <img id="catalog-modal-img" src="" alt="Imagem do Produto">
+                </div>
+                <div class="catalog-modal-info">
+                    <span class="catalog-modal-badge"><i class="fa-solid fa-recycle"></i> Material</span>
+                    <h3 id="catalog-modal-title"></h3>
+                    <p id="catalog-modal-desc"></p>
+                    <a href="/contato.html" class="catalog-modal-cta" onclick="document.getElementById('catalog-modal').classList.remove('open')">
+                        <i class="fa-brands fa-whatsapp"></i> Quero vender este material
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script src="script.js?v=6"></script>
+    <script src="assets/js/theme-toggle.js"></script>
+</body>
+</html>

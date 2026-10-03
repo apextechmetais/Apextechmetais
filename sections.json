@@ -1,0 +1,194 @@
+[
+  {
+    "line": 12,
+    "text": "// ─── TOGGLE MENU LATERAL RECOLHÍVEL (DESKTOP) ──────────────────────────────"
+  },
+  {
+    "line": 52,
+    "text": "// ─── Utilitário global: formata número no padrão brasileiro com 2 casas ───"
+  },
+  {
+    "line": 59,
+    "text": "// ─── SISTEMA DE NOTIFICAÇÃO GLASSMORPHISM (substitui alert nativo) ────────"
+  },
+  {
+    "line": 98,
+    "text": "// ─────────────────────────────────────────────────────────────────────────"
+  },
+  {
+    "line": 115,
+    "text": "// ─── Tecla ESC (Escape) para cancelar/fechar qualquer modal ou dropdown ───"
+  },
+  {
+    "line": 147,
+    "text": "// ─────────────────────────────────────────────────────────────────────────"
+  },
+  {
+    "line": 149,
+    "text": "// ─────────────────────────────────────────────────────────────────────────"
+  },
+  {
+    "line": 154,
+    "text": "// ─────────────────────────────────────────────────────────────────────────"
+  },
+  {
+    "line": 156,
+    "text": "// ─────────────────────────────────────────────────────────────────────────"
+  },
+  {
+    "line": 214,
+    "text": "// ─────────────────────────────────────────────────────────────────────────"
+  },
+  {
+    "line": 216,
+    "text": "// ─────────────────────────────────────────────────────────────────────────"
+  },
+  {
+    "line": 278,
+    "text": "// ─── HELPERS ────────────────────────────────────────────────────"
+  },
+  {
+    "line": 296,
+    "text": "// ─── LOAD DATA ──────────────────────────────────────────────────"
+  },
+  {
+    "line": 346,
+    "text": "// ─── RENDER PREVIEW TABLE ────────────────────────────────────────"
+  },
+  {
+    "line": 509,
+    "text": "// ─── EVENT LISTENERS ─────────────────────────────────────────────"
+  },
+  {
+    "line": 619,
+    "text": "// ─── INITIAL LOAD ────────────────────────────────────────────────"
+  },
+  {
+    "line": 688,
+    "text": "// ─── Init LME Dashboard ────────────────────────────────────────────────────"
+  },
+  {
+    "line": 847,
+    "text": "// ─── Compute Stats ─────────────────────────────────────────────────────────"
+  },
+  {
+    "line": 912,
+    "text": "// ─── Render All ────────────────────────────────────────────────────────────"
+  },
+  {
+    "line": 2249,
+    "text": "// ─── 1. MÓDULO LME ──────────────────────────────────────────────────"
+  },
+  {
+    "line": 2398,
+    "text": "// ─── 2. MÓDULO TABELA GERAL COMPLETA & TABELA DO FORNECEDOR ──────────"
+  },
+  {
+    "line": 4049,
+    "text": "// ─────────────────────────────────────────────────────────────────────────"
+  },
+  {
+    "line": 4051,
+    "text": "// ─────────────────────────────────────────────────────────────────────────"
+  },
+  {
+    "line": 5498,
+    "text": "// ─── Calendário Visual Interativo de Vigência ───"
+  },
+  {
+    "line": 5993,
+    "text": "// ─── COTAÇÕES AO VIVO DÓLAR & LME (USD / BRL) ─────────────────────────────"
+  },
+  {
+    "line": 6033,
+    "text": "// ─── MOTOR DE NOTIFICAÇÕES DO SININHO (DIRETORIA / ADM) ─────────────────────"
+  },
+  {
+    "line": 6286,
+    "text": "// ─── FOTOS DO RECEBIMENTO (Etapa 1 — Múltiplas fotos via arquivo ou webcam) ─────────────────"
+  },
+  {
+    "line": 6394,
+    "text": "// ─── NAVEGAÇÃO DE TELAS ESTILO ERP ENTERPRISE (SAP / ORACLE / SANKHYA) ──────"
+  },
+  {
+    "line": 6395,
+    "text": "// ─── NAVEGAÇÃO DE TELAS ESTILO ERP ENTERPRISE (SAP / ORACLE / SANKHYA) ──────"
+  },
+  {
+    "line": 6438,
+    "text": "// ─── ETIQUETA QR CODE FISICA DE LOTE ─────────────────────────────────────────"
+  },
+  {
+    "line": 6481,
+    "text": "// ─── EXPORTAÇÃO EM BATCH DE LAUDOS PDF EM ZIP ───────────────────────────────"
+  },
+  {
+    "line": 6792,
+    "text": "// ─── UPLOAD REAL DE FOTOS ───────────────────────────────────────────────────"
+  },
+  {
+    "line": 6882,
+    "text": "// ─── CALCULADORA FIDC ────────────────────────────────────────────────────────"
+  },
+  {
+    "line": 6962,
+    "text": "// ─── TRILHA DE AUDITORIA ─────────────────────────────────────────────────────"
+  },
+  {
+    "line": 7402,
+    "text": "// ─── PRÉVIA VISUAL DO LAUDO ─────────────────────────────────────────────────"
+  },
+  {
+    "line": 7835,
+    "text": "// ─── SEÇÃO 1: DADOS COMPLETOS DO FORNECEDOR E REGISTRO DO LOTE ─────────"
+  },
+  {
+    "line": 7916,
+    "text": "// ─── SEÇÃO 2: REGISTRO FOTOGRÁFICO POR ETAPA E COMPONENTE ──────────────────────────────────"
+  },
+  {
+    "line": 8086,
+    "text": "// ─── SEÇÃO 3: RESULTADO DA ANÁLISE FÍSICA E DESMONTE ────────────────────"
+  },
+  {
+    "line": 8168,
+    "text": "// ─── SEÇÃO 4: PARECERES TÉCNICOS E DECISÃO DE COMPRA ───────────────────"
+  },
+  {
+    "line": 8236,
+    "text": "// ─── SEÇÃO 5: ASSINATURAS E RASTREABILIDADE DIGITAL / ELETRÔNICA ────────"
+  },
+  {
+    "line": 8312,
+    "text": "// ─── KPIs ───"
+  },
+  {
+    "line": 8567,
+    "text": "// ─── 5. PLANEJAMENTO MENSAL DE FORNECEDORES & MOTOR PREDITIVO DE CENÁRIOS ───"
+  },
+  {
+    "line": 8861,
+    "text": "// ─── Modal & Motor de Simulação Preditiva ───"
+  },
+  {
+    "line": 9918,
+    "text": "// ─── Estado do simulador de produção ───────────────────────────────────"
+  },
+  {
+    "line": 10208,
+    "text": "// ─── Extrato de Produção & Movimentações ──────────────────────────────────"
+  },
+  {
+    "line": 13518,
+    "text": "// ─────────────────────────────────────────────────────────────────────────"
+  },
+  {
+    "line": 13520,
+    "text": "// ─────────────────────────────────────────────────────────────────────────"
+  },
+  {
+    "line": 15916,
+    "text": "// ─── MÓDULO DE PLANEJAMENTO ESTRATÉGICO V3 (TESTE META FATURAMENTO -> INSUMO) ─────────"
+  }
+]

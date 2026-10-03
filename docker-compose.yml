@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: apextech_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: apex_local_password
+      POSTGRES_DB: apextech
+    ports:
+      - "5432:5432"
+    volumes:
+      - apextech_pgdata:/var/lib/postgresql/data
+
+  api:
+    build: 
+      context: .
+      dockerfile: Dockerfile.local
+    container_name: apextech_api
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - DATABASE_URL=postgresql://postgres:apex_local_password@db:5432/apextech
+      - JWT_SECRET=apextech_secret_key_2026_safe
+      - NODE_ENV=production
+    depends_on:
+      - db
+    volumes:
+      - ./logs:/usr/src/app/logs
+
+volumes:
+  apextech_pgdata:
