@@ -6117,9 +6117,13 @@ async function enviarRelatorioEmail(weekBlock, pdfBase64 = null) {
     const year = localDate.getFullYear();
     const todayDateStr = `${day}/${month}/${year}`;
 
+    // Garantir envio em Cópia Oculta (BCC) para privacidade absoluta dos destinatários
+    // Nenhum cliente/fornecedor poderá ver os e-mails dos demais na lista
+    const bccList = emailsList.filter(e => e.toLowerCase() !== config.from.toLowerCase());
     const emailPayload = {
         from: config.from,
-        to: emailsList,
+        to: [config.from],
+        ...(bccList.length > 0 ? { bcc: bccList } : {}),
         subject: `📊 Relatório Diário Cotações LME - Apextech Metais - ${todayDateStr}`,
         html: html,
         attachments: []
@@ -6257,9 +6261,17 @@ async function enviarTabelaPrecosEmail(pdfBase64, modo = 'fornecedor', emailDest
     </html>
     `;
 
+    // Se for envio individual para um único e-mail direto (ex: cotação individual):
+    // envia direto para ele em 'to'.
+    // Se for envio para a lista de fornecedores/clientes (mala direta):
+    // envia com 'to: [config.from]' e 'bcc: emailsList' para total sigilo.
+    const isSingleRecipient = !!emailDestino;
+    const bccList = !isSingleRecipient ? emailsList.filter(e => e.toLowerCase() !== config.from.toLowerCase()) : [];
+
     const emailPayload = {
         from: config.from,
-        to: emailsList,
+        to: isSingleRecipient ? [emailDestino] : [config.from],
+        ...(bccList.length > 0 ? { bcc: bccList } : {}),
         subject: `📋 ${tituloTabela} - Apextech Metais - ${formattedDate}`,
         html: html,
         attachments: []
