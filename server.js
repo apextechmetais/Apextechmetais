@@ -371,6 +371,39 @@ async function initDatabase() {
                 criado_em     TIMESTAMP DEFAULT NOW()
             );
 
+            CREATE TABLE IF NOT EXISTS clientes (
+                id                      SERIAL PRIMARY KEY,
+                codigo                  INTEGER UNIQUE,
+                nome                    VARCHAR(255) NOT NULL,
+                fantasia                VARCHAR(255),
+                telefone1               VARCHAR(50),
+                telefone2               VARCHAR(50),
+                dias                    TEXT DEFAULT '0',
+                ultima_saida            DATE,
+                endereco                VARCHAR(255),
+                numero                  VARCHAR(50),
+                bairro                  VARCHAR(100),
+                cidade                  VARCHAR(100),
+                uf                      VARCHAR(10),
+                pais                    VARCHAR(50),
+                cep                     VARCHAR(20),
+                cnpj                    VARCHAR(25),
+                ie                      VARCHAR(50),
+                cpf                     VARCHAR(20),
+                rg                      VARCHAR(50),
+                tipo_cliente            VARCHAR(50),
+                contato_comercial       VARCHAR(100),
+                contato_financeiro      VARCHAR(100),
+                status                  VARCHAR(50),
+                vendedor                VARCHAR(100),
+                filial                  VARCHAR(100),
+                email                   VARCHAR(150),
+                usuario_cadastro        VARCHAR(100),
+                ultimo_alterou          VARCHAR(100),
+                atualizado              TEXT,
+                criado_em               TIMESTAMP DEFAULT NOW()
+            );
+
             CREATE TABLE IF NOT EXISTS materiais_catalogo (
                 id          SERIAL PRIMARY KEY,
                 nome        TEXT NOT NULL,
@@ -1168,7 +1201,11 @@ app.use(express.static(__dirname, {
 
 // ─── MIDDLEWARES DE SEGURANÇA (RBAC) ─────────────────────────────────────────
 const authMiddleware = (req, res, next) => {
-    const publicRoutes = ['/login', '/solucoes', '/cotacoes-hoje'];
+    const publicRoutes = [
+        '/login', '/solucoes', '/cotacoes-hoje',
+        '/admin/setup-db', '/admin/run-migrations',
+        '/admin/run-import-clientes', '/admin/run-import-fornecedores'
+    ];
     if (publicRoutes.includes(req.path) || req.path.startsWith('/public')) return next();
     // Rota de imagem de fotos é pública: a tag <img> do HTML não pode enviar JWT
     if (/^\/api\/amostras\/\d+\/fotos\/\d+\/img$/.test(req.path)) return next();
@@ -7103,7 +7140,28 @@ app.delete('/api/pedidos-venda/:id', async (req, res) => {
     }
 });
 
-// ─── Iniciar servidor ─────────────────────────────────────────────────────────
+// ─── Setup e Migrações do Banco de Dados ──────────────────────────────────────
+app.get('/api/admin/setup-db', async (req, res) => {
+    const { exec } = require('child_process');
+    const logs = [];
+
+    const runCmd = (cmd) => new Promise((resolve) => {
+        exec(cmd, (err, stdout, stderr) => {
+            logs.push(`=== COMANDO: ${cmd} ===\n${err ? 'ERRO: ' + err.message + '\n' + stderr : stdout}`);
+            resolve(!err);
+        });
+    });
+
+    try {
+        await runCmd('node scripts/force-migrations.js');
+        await runCmd('npm run import:fornecedores');
+        await runCmd('npm run import:clientes');
+        res.send(`<pre style="background:#111;color:#0f0;padding:20px;font-family:monospace;white-space:pre-wrap;">${logs.join('\n\n')}</pre>`);
+    } catch (e) {
+        res.status(500).send(`<pre style="color:red;">ERRO NO SETUP: ${e.message}</pre>`);
+    }
+});
+
 app.get('/api/admin/run-migrations', (req, res) => {
     try {
         const { exec } = require('child_process');

@@ -27,8 +27,6 @@ CREATE TABLE IF NOT EXISTS clientes (
   email                   TEXT,
   usuario_cadastro        TEXT,
   ultimo_alterou          TEXT,
-  vendedor                TEXT,
   atualizado              TEXT,
-  filial                  TEXT,
   criado_em               TIMESTAMP DEFAULT NOW()
 );
