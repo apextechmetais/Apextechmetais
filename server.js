@@ -246,6 +246,8 @@ const memStore = {
     clientes: [],
     pedidos_venda: [],
     pedidos_venda_itens: [],
+    pedidos_compra: [],
+    pedidos_compra_itens: [],
     audit_logs: [],
     tabela_precos_residuos: [],
     tabela_precos_ligas: [],
@@ -348,6 +350,43 @@ async function initDatabase() {
             CREATE TABLE IF NOT EXISTS pedidos_venda_itens (
                 id              SERIAL PRIMARY KEY,
                 pedido_id       INTEGER NOT NULL REFERENCES pedidos_venda(id) ON DELETE CASCADE,
+                material_id     INTEGER,
+                descricao       TEXT NOT NULL,
+                unidade         TEXT DEFAULT 'kg',
+                quantidade      NUMERIC(12,3) NOT NULL,
+                preco_unitario  NUMERIC(10,4) NOT NULL,
+                desconto_item   NUMERIC(5,2) DEFAULT 0.00,
+                total_item      NUMERIC(14,2) NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS pedidos_compra (
+                id                      SERIAL PRIMARY KEY,
+                numero                  VARCHAR(50) NOT NULL UNIQUE,
+                fornecedor_id           INTEGER,
+                fornecedor_nome         TEXT,
+                data_emissao            DATE DEFAULT CURRENT_DATE,
+                data_entrega            DATE,
+                status                  VARCHAR(50) NOT NULL DEFAULT 'Rascunho',
+                condicao_pagamento      TEXT,
+                observacoes             TEXT,
+                desconto_pct            NUMERIC(5,2) DEFAULT 0.00,
+                frete                   NUMERIC(10,2) DEFAULT 0.00,
+                total_itens             NUMERIC(14,2) DEFAULT 0.00,
+                total_geral             NUMERIC(14,2) DEFAULT 0.00,
+                criado_por              TEXT,
+                criado_por_perfil       TEXT,
+                aprovado_por            TEXT,
+                data_aprovacao          TIMESTAMP,
+                endereco_entrega        TEXT,
+                responsavel_recebimento TEXT,
+                tipo_frete              TEXT,
+                criado_em               TIMESTAMP DEFAULT NOW(),
+                atualizado_em           TIMESTAMP DEFAULT NOW()
+            );
+
+            CREATE TABLE IF NOT EXISTS pedidos_compra_itens (
+                id              SERIAL PRIMARY KEY,
+                pedido_id       INTEGER NOT NULL REFERENCES pedidos_compra(id) ON DELETE CASCADE,
                 material_id     INTEGER,
                 descricao       TEXT NOT NULL,
                 unidade         TEXT DEFAULT 'kg',
@@ -7134,6 +7173,265 @@ app.delete('/api/pedidos-venda/:id', async (req, res) => {
             return res.json({ success: true });
         }
         await pool.query('DELETE FROM pedidos_venda WHERE id = $1', [id]);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ─── ROTAS PEDIDOS DE COMPRA ─────────────────────────────────────────────────
+app.get('/api/pedidos-compra/proximo-numero', async (req, res) => {
+    try {
+        if (!dbAvailable) {
+            const count = (memStore.pedidos_compra || []).length;
+            return res.json({ numero: 'PC-' + String(count + 1).padStart(4, '0') });
+        }
+        const r = await pool.query("SELECT numero FROM pedidos_compra WHERE length(numero) <= 10 AND numero LIKE 'PC-%' ORDER BY id DESC LIMIT 1");
+        if (r.rows.length === 0) return res.json({ numero: 'PC-0001' });
+        const last = parseInt((r.rows[0].numero || '').replace(/PC-|PV-/g, '')) || 0;
+        const next = 'PC-' + String(last + 1).padStart(4, '0');
+        return res.json({ numero: next });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/pedidos-compra', async (req, res) => {
+    try {
+        if (!dbAvailable) {
+            const list = (memStore.pedidos_compra || []).map(p => {
+                const forn = (memStore.fornecedores || []).find(f => f.id == p.fornecedor_id);
+                return {
+                    ...p,
+                    fornecedor_nome: p.fornecedor_nome || (forn ? (forn.nome || forn.apelido) : 'Fornecedor Avulso'),
+                    cliente_cnpj: forn ? forn.cnpj : '',
+                    cliente_cidade: forn ? forn.cidade : '',
+                    cliente_uf: forn ? forn.uf : ''
+                };
+            });
+            return res.json(list.sort((a, b) => b.id - a.id));
+        }
+        const r = await pool.query(`
+            SELECT pc.*, COALESCE(f.nome, pc.fornecedor_nome, 'Fornecedor') AS fornecedor_nome,
+                   f.cnpj AS cliente_cnpj, f.cidade AS cliente_cidade, f.uf AS cliente_uf
+            FROM pedidos_compra pc
+            LEFT JOIN fornecedores f ON f.id = pc.fornecedor_id
+            ORDER BY pc.id DESC
+        `);
+        return res.json(r.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/pedidos-compra/:id', async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        if (!dbAvailable) {
+            const p = (memStore.pedidos_compra || []).find(x => x.id === id);
+            if (!p) return res.status(404).json({ error: 'Pedido não encontrado' });
+            const forn = (memStore.fornecedores || []).find(f => f.id == p.fornecedor_id);
+            return res.json({
+                ...p,
+                fornecedor_nome: p.fornecedor_nome || (forn ? (forn.nome || forn.apelido) : ''),
+                cliente_cnpj: forn ? forn.cnpj : '',
+                cliente_telefone: forn ? forn.fone1 : '',
+                cliente_email: forn ? forn.email : '',
+                cliente_endereco: forn ? forn.endereco : '',
+                cliente_cidade: forn ? forn.cidade : '',
+                cliente_uf: forn ? forn.uf : ''
+            });
+        }
+        const pedido = await pool.query(`
+            SELECT pc.*, COALESCE(f.nome, pc.fornecedor_nome, '') AS fornecedor_nome,
+                   f.cnpj AS cliente_cnpj, f.fone1 AS cliente_telefone,
+                   f.email AS cliente_email, f.endereco AS cliente_endereco,
+                   f.cidade AS cliente_cidade, f.uf AS cliente_uf
+            FROM pedidos_compra pc
+            LEFT JOIN fornecedores f ON f.id = pc.fornecedor_id
+            WHERE pc.id = $1
+        `, [id]);
+        if (pedido.rows.length === 0) return res.status(404).json({ error: 'Pedido não encontrado' });
+        const itens = await pool.query('SELECT * FROM pedidos_compra_itens WHERE pedido_id = $1 ORDER BY id', [id]);
+        return res.json({ ...pedido.rows[0], itens: itens.rows });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/pedidos-compra', async (req, res) => {
+    try {
+        const { numero, fornecedor_id, fornecedor_nome, data_emissao, data_entrega, status, condicao_pagamento,
+                observacoes, desconto_pct, frete, itens, criado_por, criado_por_perfil,
+                endereco_entrega, responsavel_recebimento, tipo_frete } = req.body;
+        if (!fornecedor_id && !fornecedor_nome) {
+            return res.status(400).json({ error: 'Fornecedor é obrigatório.' });
+        }
+        if (!itens || itens.length === 0) {
+            return res.status(400).json({ error: 'Ao menos um item é obrigatório.' });
+        }
+        const total_itens = itens.reduce((s, i) => s + parseFloat(i.total_item || 0), 0);
+        const desc = parseFloat(desconto_pct || 0);
+        const fr = parseFloat(frete || 0);
+        const total_geral = total_itens * (1 - desc / 100) + fr;
+        const fid = (fornecedor_id && !isNaN(parseInt(fornecedor_id))) ? parseInt(fornecedor_id) : null;
+
+        if (!dbAvailable) {
+            if (!memStore.pedidos_compra) memStore.pedidos_compra = [];
+            const newId = nextId++;
+            const item = {
+                id: newId,
+                numero: numero || ('PC-' + String(newId).padStart(4, '0')),
+                fornecedor_id: fid,
+                fornecedor_nome: fornecedor_nome || '',
+                data_emissao: data_emissao || new Date().toISOString().split('T')[0],
+                data_entrega: data_entrega || null,
+                status: status || 'Rascunho',
+                condicao_pagamento: condicao_pagamento || '',
+                observacoes: observacoes || '',
+                desconto_pct: desc,
+                frete: fr,
+                total_itens,
+                total_geral,
+                criado_por: criado_por || 'Admin',
+                criado_por_perfil: criado_por_perfil || 'Administrador',
+                endereco_entrega: endereco_entrega || '',
+                responsavel_recebimento: responsavel_recebimento || '',
+                tipo_frete: tipo_frete || 'CIF - Entrega APEXTECH',
+                itens: itens.map((it, idx) => ({ id: idx + 1, ...it })),
+                criado_em: new Date().toISOString()
+            };
+            memStore.pedidos_compra.push(item);
+            return res.json(item);
+        }
+
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+            const pedido = await client.query(`
+                INSERT INTO pedidos_compra (numero, fornecedor_id, fornecedor_nome, data_emissao, data_entrega, status, condicao_pagamento,
+                    observacoes, desconto_pct, frete, total_itens, total_geral, criado_por, criado_por_perfil,
+                    endereco_entrega, responsavel_recebimento, tipo_frete)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+                RETURNING *
+            `, [numero, fid, fornecedor_nome || '', data_emissao || new Date().toISOString().split('T')[0],
+                 data_entrega || null, status || 'Rascunho', condicao_pagamento, observacoes,
+                 desc, fr, total_itens, total_geral, criado_por, criado_por_perfil,
+                 endereco_entrega, responsavel_recebimento, tipo_frete]);
+
+            const pedidoId = pedido.rows[0].id;
+            for (const item of itens) {
+                await client.query(`
+                    INSERT INTO pedidos_compra_itens (pedido_id, material_id, descricao, unidade, quantidade, preco_unitario, desconto_item, total_item)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                `, [pedidoId, item.material_id || null, item.descricao, item.unidade || 'kg',
+                     item.quantidade, item.preco_unitario, item.desconto_item || 0, item.total_item]);
+            }
+
+            await client.query('COMMIT');
+            res.json(pedido.rows[0]);
+        } catch (err) {
+            await client.query('ROLLBACK');
+            throw err;
+        } finally {
+            client.release();
+        }
+    } catch (err) {
+        console.error('Erro ao criar pedido de compra:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.put('/api/pedidos-compra/:id', async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const { fornecedor_id, fornecedor_nome, data_emissao, data_entrega, status, condicao_pagamento,
+                observacoes, desconto_pct, frete, itens, criado_por_perfil,
+                endereco_entrega, responsavel_recebimento, tipo_frete, aprovado_por } = req.body;
+        const total_itens = (itens || []).reduce((s, i) => s + parseFloat(i.total_item || 0), 0);
+        const desc = parseFloat(desconto_pct || 0);
+        const fr = parseFloat(frete || 0);
+        const total_geral = total_itens * (1 - desc / 100) + fr;
+        const fid = (fornecedor_id && !isNaN(parseInt(fornecedor_id))) ? parseInt(fornecedor_id) : null;
+
+        if (!dbAvailable) {
+            const idx = (memStore.pedidos_compra || []).findIndex(x => x.id === id);
+            if (idx === -1) return res.status(404).json({ error: 'Pedido não encontrado' });
+            memStore.pedidos_compra[idx] = {
+                ...memStore.pedidos_compra[idx],
+                fornecedor_id: fid || memStore.pedidos_compra[idx].fornecedor_id,
+                fornecedor_nome: fornecedor_nome !== undefined ? fornecedor_nome : memStore.pedidos_compra[idx].fornecedor_nome,
+                data_emissao,
+                data_entrega,
+                status,
+                condicao_pagamento,
+                observacoes,
+                desconto_pct: desc,
+                frete: fr,
+                total_itens,
+                total_geral,
+                criado_por_perfil,
+                endereco_entrega,
+                responsavel_recebimento,
+                tipo_frete,
+                itens: (itens || []).map((it, i) => ({ id: i + 1, ...it })),
+                atualizado_em: new Date().toISOString()
+            };
+            return res.json(memStore.pedidos_compra[idx]);
+        }
+
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+            let updateAprovacao = '';
+            let params = [fid, fornecedor_nome || '', data_emissao, data_entrega || null, status, condicao_pagamento,
+                 observacoes, desc, fr, total_itens, total_geral, criado_por_perfil,
+                 endereco_entrega, responsavel_recebimento, tipo_frete];
+            
+            if (aprovado_por) {
+                params.push(aprovado_por);
+                updateAprovacao = `, aprovado_por=$${params.length}, data_aprovacao=NOW()`;
+            }
+            params.push(id);
+
+            await client.query(`
+                UPDATE pedidos_compra SET fornecedor_id=$1, fornecedor_nome=$2, data_emissao=$3, data_entrega=$4, status=$5,
+                    condicao_pagamento=$6, observacoes=$7, desconto_pct=$8, frete=$9,
+                    total_itens=$10, total_geral=$11, criado_por_perfil=$12, endereco_entrega=$13,
+                    responsavel_recebimento=$14, tipo_frete=$15, atualizado_em=NOW()${updateAprovacao}
+                WHERE id=$${params.length}
+            `, params);
+
+            await client.query('DELETE FROM pedidos_compra_itens WHERE pedido_id = $1', [id]);
+            for (const item of (itens || [])) {
+                await client.query(`
+                    INSERT INTO pedidos_compra_itens (pedido_id, material_id, descricao, unidade, quantidade, preco_unitario, desconto_item, total_item)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                `, [id, item.material_id || null, item.descricao, item.unidade || 'kg',
+                     item.quantidade, item.preco_unitario, item.desconto_item || 0, item.total_item]);
+            }
+            await client.query('COMMIT');
+            const updRows = await pool.query('SELECT * FROM pedidos_compra WHERE id = $1 LIMIT 1', [id]);
+            res.json(updRows.rows[0]);
+        } catch (err) {
+            await client.query('ROLLBACK');
+            throw err;
+        } finally {
+            client.release();
+        }
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/api/pedidos-compra/:id', async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        if (!dbAvailable) {
+            memStore.pedidos_compra = (memStore.pedidos_compra || []).filter(x => x.id !== id);
+            return res.json({ success: true });
+        }
+        await pool.query('DELETE FROM pedidos_compra WHERE id = $1', [id]);
         res.json({ success: true });
     } catch (err) {
         res.status(500).json({ error: err.message });

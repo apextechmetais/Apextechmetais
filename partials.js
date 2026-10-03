@@ -40,7 +40,7 @@
                 <!-- Logo -->
                 <div class="logo-wrap">
                     <a href="/index.html" class="link_logo">
-                        <img src="https://apextechmetais.com.br/wp-content/uploads/2024/07/logo-apextech.svg"
+                        <img src="/assets/img/logo-apextech.svg"
                              alt="ApexTech Metais" title="ApexTech Metais" class="img-logo-desktop">
                     </a>
                 </div>
@@ -83,7 +83,7 @@
     <!-- Mobile / Full Menu Drawer -->
     <div class="mobile-drawer" id="mobile-drawer">
         <div class="mobile-drawer-header">
-            <img src="https://apextechmetais.com.br/wp-content/uploads/2024/07/logo-apextech.svg" alt="ApexTech Metais" class="mobile-logo">
+            <img src="/assets/img/logo-apextech.svg" alt="ApexTech Metais" class="mobile-logo">
             <button class="btn-close-menu" id="btn-close-menu" aria-label="Fechar menu">
                 <i class="fa-solid fa-xmark"></i>
             </button>
@@ -115,7 +115,7 @@
             <!-- Logo + Social -->
             <div class="footer-col footer-col-logo">
                 <div class="footer_column footer_column_1">
-                    <img src="https://apextechmetais.com.br/wp-content/uploads/2024/07/logo-apextech.svg"
+                    <img src="/assets/img/logo-apextech.svg"
                          alt="ApexTech Metais" class="footer-logo">
                     <ul class="redes-sociais footer-social">
                         <li class="rede-social-facebook-item">

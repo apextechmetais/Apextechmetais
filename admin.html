@@ -305,6 +305,10 @@
                     <i class="fa-solid fa-file-invoice-dollar" style="color:#34d399;"></i>
                     <span>Pedidos de Venda</span>
                 </a>
+                <a href="#" class="nav-item" data-target="pedidos-compra-view" id="nav-pedidos-compra" data-tooltip="Pedidos de Compra">
+                    <i class="fa-solid fa-cart-shopping" style="color:#2AD07A;"></i>
+                    <span>Pedidos de Compra</span>
+                </a>
                 <a href="#" class="nav-item" data-target="financeiro-view" id="nav-financeiro" data-tooltip="Módulo Financeiro">
                     <i class="fa-solid fa-coins" style="color:#f0c040;"></i>
                     <span>Módulo Financeiro</span>
@@ -4025,6 +4029,61 @@
         </div>
     </section>
 
+    <!-- ========================================== -->
+    <!-- TELA: PEDIDOS DE COMPRA                    -->
+    <!-- ========================================== -->
+    <section id="pedidos-compra-view" class="view-section" style="padding:20px;">
+        <header class="section-header">
+            <div class="section-header-row">
+                <div>
+                    <h1><i class="fa-solid fa-cart-shopping" style="color:#2AD07A;"></i> Pedidos de Compra</h1>
+                    <p>Emita e gerencie pedidos vinculados aos fornecedores cadastrados.</p>
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <button type="button" class="btn-primary" onclick="document.getElementById('modal-pedido-compra').style.display='flex'; if(window.abrirNovoPedidoCompra) window.abrirNovoPedidoCompra();">
+                        <i class="fa-solid fa-plus"></i> Novo Pedido
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Filtros -->
+        <div style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap; align-items:center;">
+            <input type="text" id="pedidosc-search" class="noble-input" placeholder="🔍 Buscar por número, fornecedor..." style="flex:1; min-width:200px;" oninput="filtrarPedidosCompra()">
+            <select id="pedidosc-status-filter" class="noble-input" style="width:160px;" onchange="filtrarPedidosCompra()">
+                <option value="">Todos os Status</option>
+                <option value="Rascunho">Rascunho</option>
+                <option value="Aguardando Aprovação">Aguardando Aprovação</option>
+                <option value="Aprovado">Aprovado</option>
+                <option value="Confirmado">Confirmado</option>
+                <option value="Em Separação">Em Separação</option>
+                <option value="Faturado">Faturado</option>
+                <option value="Entregue">Entregue</option>
+                <option value="Cancelado">Cancelado</option>
+            </select>
+        </div>
+
+        <!-- Tabela de pedidos -->
+        <div class="table-container" style="border-radius:10px; overflow:hidden;">
+            <table class="data-table" style="width:100%;">
+                <thead>
+                    <tr>
+                        <th>Número</th>
+                        <th>Fornecedor (Origem)</th>
+                        <th>Emissor / Perfil</th>
+                        <th>Entrega & Logística</th>
+                        <th>Status / Aprovação</th>
+                        <th style="text-align:right;">Total</th>
+                        <th style="width:100px; text-align:center;">Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="pedidos-compra-tbody">
+                    <tr><td colspan="7" style="text-align:center; padding:30px; color:#5a738e;"><i class="fa-solid fa-circle-notch fa-spin"></i> Carregando pedidos de compra...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
             <!-- ========================================== -->
             <!-- TELA: PLANEJAMENTOS ATIVOS                 -->
             <!-- ========================================== -->
@@ -5902,6 +5961,206 @@
         </div>
     </div>
 
+        <div id="modal-pedido-compra" class="fullscreen-overlay" style="display:none; align-items:flex-start; justify-content:center; z-index:1100; padding-top:20px; overflow-y:auto;">
+        <div style="width:1200px; max-width:98vw; background:#0d1a26; border:1px solid #1e4e8c; border-radius:12px; padding:0; margin-bottom:30px;">
+            <!-- Header do modal -->
+            <div style="display:flex; justify-content:space-between; align-items:center; background:#101a24; border-radius:12px 12px 0 0; padding:18px 24px; border-bottom:1px solid #223547;">
+                <h3 style="margin:0; color:#fff; font-size:1.1rem;"><i class="fa-solid fa-file-invoice-dollar" style="color:#2AD07A;"></i> <span id="modal-pedido-titulo-compra">Novo Pedido de Compra</span></h3>
+                <button onclick="fecharModalPedidoCompra()" style="background:none; border:none; color:#aaa; font-size:1.3rem; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <form id="form-pedido-compra" onsubmit="salvarPedidoCompra(event)" style="padding:24px;">
+                <input type="hidden" id="pedidoc-id">
+
+                <!-- Bloco: Emissor & Status do Pedido -->
+                <div style="background:#101a24; border-radius:10px; padding:14px 18px; margin-bottom:18px; border:1px solid #1e4e8c; display:grid; grid-template-columns:100px 1fr 120px 150px; gap:12px; align-items:center;">
+                    <div class="form-group" style="margin:0;">
+                        <label style="font-size:0.78rem; color:#aaa; margin-bottom:2px;">Número *</label>
+                        <input type="text" id="pedidoc-numero" class="noble-input" readonly style="background:#162432; color:#2AD07A; font-weight:bold; padding:6px 10px;">
+                    </div>
+                    <div class="form-group" style="margin:0;">
+                        <label style="font-size:0.78rem; color:#aaa; margin-bottom:2px;">Vendedor/Emissor</label>
+                        <input type="text" id="pedidoc-vendedor" class="noble-input" readonly style="background:#162432; color:#fff; font-weight:600; padding:6px 10px;">
+                    </div>
+                    <div class="form-group" style="margin:0;">
+                        <input type="text" id="pedidoc-status-header" class="noble-input" readonly style="background:#162432; color:#7fa8c8; font-weight:bold; padding:6px 10px;">
+                    </div>
+                    <div class="form-group" style="margin:0;">
+                        <label style="font-size:0.78rem; color:#aaa; margin-bottom:2px;">Data Emissão *</label>
+                        <input type="date" id="pedidoc-data-emissao" onclick="this.showPicker()" class="noble-input" style="padding:6px 8px; font-size:0.85rem;" required>
+                    </div>
+
+                </div>
+
+                <!-- Rastreamento do Pedido -->
+                <div id="pedidoc-rastreamento-box" style="display:none; background:rgba(42,208,122,0.05); border-radius:8px; padding:10px 15px; margin-bottom:18px; border:1px solid rgba(42,208,122,0.2); font-size:0.8rem; color:#888; display:flex; gap:20px; flex-wrap:wrap;">
+                    <div><strong>Criado em:</strong> <span id="pedidoc-criado-em">-</span></div>
+                    <div><strong>Última Atualização:</strong> <span id="pedidoc-atualizado-em">-</span></div>
+                    <div><strong>Aprovado por:</strong> <span id="pedidoc-aprovado-por">-</span> <span id="pedidoc-data-aprovacao"></span></div>
+                </div>
+
+                <!-- Linha 2: Cliente & Cadastro -->
+                <div style="margin-bottom:18px;">
+                    <label style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                        <span style="color:#fff; font-weight:bold;"><i class="fa-solid fa-user-tie" style="color:#2AD07A;"></i> Fornecedor (Origem) *</span>
+                        <button type="button" onclick="redirecionarParaCadastroFornecedor('')" style="background:#1b382b; border:1px solid #2AD07A; color:#2AD07A; padding:4px 12px; border-radius:6px; font-size:0.82rem; cursor:pointer; font-weight:600;"><i class="fa-solid fa-user-plus"></i> + Cadastrar Novo Cliente</button>
+                    </label>
+                    <div style="position:relative;">
+                        <input type="text" id="pedidoc-fornecedor-busca" class="noble-input" placeholder="🔍 Digite o nome, fantasia ou CNPJ do cliente..." autocomplete="off" onfocus="buscarFornecedorPedido(this.value)" oninput="buscarFornecedorPedido(this.value)" onkeyup="buscarFornecedorPedido(this.value)" required>
+                        <input type="hidden" id="pedidoc-fornecedor-id">
+                        <div id="pedidoc-fornecedor-dropdown" style="display:none; position:absolute; top:100%; left:0; right:0; background:#0d1a26; border:1px solid #1e4e8c; border-radius:8px; z-index:1200; max-height:260px; overflow-y:auto; box-shadow:0 8px 24px rgba(0,0,0,0.6);"></div>
+                    </div>
+
+                    <!-- Card do cliente selecionado -->
+                    <div id="pedidoc-fornecedor-card" style="display:none; margin-top:10px; background:#162432; border-radius:8px; padding:14px; border-left:4px solid #2AD07A; border-top:1px solid #223547; border-right:1px solid #223547; border-bottom:1px solid #223547;">
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                            <div>
+                                <div style="display:flex; align-items:center; gap:10px; margin-bottom:4px;">
+                                    <strong id="fc-nome" style="color:#fff; font-size:1.05rem;"></strong>
+                                    <span id="fc-status-badge" style="background:#1b382b; color:#2AD07A; border:1px solid #2AD07A; padding:2px 8px; border-radius:4px; font-size:0.75rem; font-weight:bold;">FORNECEDOR CADASTRADO NO SISTEMA</span>
+                                </div>
+                                <div style="color:#7fa8c8; font-size:0.83rem; margin-top:3px;">
+                                    <strong>CNPJ/CPF:</strong> <span id="fc-cnpj"></span> | <strong>Cidade/UF:</strong> <span id="fc-cidade"></span>-<span id="fc-uf"></span> | <strong>Endereço Fiscal:</strong> <span id="fc-endereco"></span>
+                                </div>
+                                <div style="color:#7fa8c8; font-size:0.83rem; margin-top:2px;">
+                                    <strong>Telefone/WhatsApp:</strong> <span id="fc-tel"></span> | <strong>E-mail:</strong> <span id="fc-email"></span>
+                                </div>
+                            </div>
+                            <button type="button" onclick="limparFornecedorPedido()" style="background:none; border:none; color:#aaa; cursor:pointer; font-size:1.1rem;" title="Remover Cliente"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bloco: Logística, Destino e Responsável pela Entrega -->
+                <div style="background:#101a24; border-radius:10px; padding:15px; margin-bottom:18px; border:1px solid #223547;">
+                    <h4 style="margin:0 0 12px 0; color:#fff; font-size:0.92rem;"><i class="fa-solid fa-truck-ramp-box" style="color:#2AD07A;"></i> Logística, Destino e Entrega</h4>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:10px;">
+                        <div class="form-group" style="margin:0;">
+                            <label style="font-size:0.8rem;">Endereço de Entrega / Local de Descarregamento</label>
+                            <input type="text" id="pedidoc-endereco-entrega" class="noble-input" placeholder="Rua, número, bairro, cidade-UF (Deixe vazio para usar endereço de cadastro)">
+                        </div>
+                        <div class="form-group" style="margin:0;">
+                            <label style="font-size:0.8rem;">Responsável / Quem vai Receber no Destino</label>
+                            <input type="text" id="pedidoc-responsavel-recebimento" class="noble-input" placeholder="Ex: Sr. Carlos (Almoxarifado) - (11) 99999-8888">
+                        </div>
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
+                        <div class="form-group" style="margin:0;">
+                            <label style="font-size:0.8rem;">Tipo de Frete / Logística</label>
+                            <select id="pedidoc-tipo-frete" class="noble-input">
+                                <option value="CIF - Entrega pelo Fornecedor">CIF - Entrega pelo Fornecedor (Frete Incluso)</option>
+                                <option value="FOB - Retirada pela APEXTECH">FOB - Retirada pela APEXTECH (Nosso caminhão busca)</option>
+                                <option value="Transportadora Terceira">Transportadora Terceira / Redespacho</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin:0;">
+                            <label style="font-size:0.8rem;">Data Prevista de Entrega</label>
+                            <input type="date" id="pedidoc-data-entrega" onclick="this.showPicker()" class="noble-input">
+                        </div>
+                        <div class="form-group" style="margin:0;">
+                            <label style="font-size:0.8rem;">Condição de Pagamento</label>
+                            <select id="pedidoc-condicao" class="noble-input" onchange="document.getElementById('pedidoc-condicao-custom').style.display = this.value === 'CUSTOM' ? 'block' : 'none'">
+                                <option value="">Selecione...</option>
+                                <option value="À Vista">À Vista</option>
+                                <option value="7 dias">7 dias</option>
+                                <option value="14 dias">14 dias</option>
+                                <option value="21 dias">21 dias</option>
+                                <option value="28 dias">28 dias</option>
+                                <option value="30 dias">30 dias</option>
+                                <option value="45 dias">45 dias</option>
+                                <option value="60 dias">60 dias</option>
+                                <option value="90 dias">90 dias</option>
+                                <option value="Antecipação FIDC">Antecipação FIDC</option>
+                                <option value="CUSTOM">Outro (Escolher data)</option>
+                            </select>
+                            <input type="date" id="pedidoc-condicao-custom" onclick="this.showPicker()" class="noble-input" style="display:none; margin-top:8px;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bloco: Status de Aprovação -->
+                <div style="margin-bottom:18px; display:grid; grid-template-columns:1fr; gap:12px;">
+                    <div class="form-group" style="margin:0;">
+                        <label style="color:#fff; font-weight:bold;"><i class="fa-solid fa-shield-check" style="color:#2AD07A;"></i> Status e Aprovação do Pedido *</label>
+                        <select id="pedidoc-status" class="noble-input" style="font-weight:600; font-size:0.92rem;">
+                            <option value="Rascunho" style="color:#7fa8c8;">📄 Rascunho (Em Elaboração)</option>
+                            <option value="Aguardando Aprovação" style="color:#ffeb3b;">⚠️ Aguardando Aprovação (Diretoria/Financeiro)</option>
+                            <option value="Aprovado" style="color:#2AD07A;">✅ Aprovado (Liberado para Separação)</option>
+                            <option value="Em Separação" style="color:#4fc3f7;">📦 Em Separação no Estoque</option>
+                            <option value="Faturado" style="color:#2AD07A;">💰 Faturado (Nota Fiscal Emitida)</option>
+                            <option value="Entregue" style="color:#2AD07A;">🚚 Entregue no Destino</option>
+                            <option value="Cancelado" style="color:#ff6b6b;">❌ Cancelado</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Itens do Pedido -->
+                <div style="background:#101a24; border-radius:10px; padding:15px; margin-bottom:18px; border:1px solid #223547;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                        <h4 style="margin:0; color:#fff;"><i class="fa-solid fa-list" style="color:#2AD07A;"></i> Itens do Pedido</h4>
+                        <button type="button" class="btn-primary" onclick="adicionarItemPedidoCompra()" style="padding:6px 14px; font-size:0.82rem;">
+                            <i class="fa-solid fa-plus"></i> Adicionar Item
+                        </button>
+                    </div>
+                    <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+                        <thead>
+                            <tr style="border-bottom:1px solid #223547; color:#7fa8c8;">
+                                <th style="padding:8px 6px; text-align:left;">Descrição *</th>
+                                <th style="padding:8px 6px; text-align:center; width:60px;">Und</th>
+                                <th style="padding:8px 6px; text-align:right; width:90px;">Qtd</th>
+                                <th style="padding:8px 6px; text-align:right; width:110px;">Preço Unit.</th>
+                                <th style="padding:8px 6px; text-align:right; width:90px;">Desc%</th>
+                                <th style="padding:8px 6px; text-align:right; width:110px;">Total</th>
+                                <th style="width:40px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="itens-pedidoc-tbody">
+                        </tbody>
+                    </table>
+                    <div id="itens-pedidoc-vazio" style="text-align:center; padding:20px; color:#5a738e; font-size:0.9rem;">
+                        <i class="fa-solid fa-box-open"></i> Adicione ao menos um item ao pedido.
+                    </div>
+                </div>
+
+                <!-- Totais -->
+                <div style="display:flex; justify-content:flex-end; margin-bottom:18px;">
+                    <div style="background:#162432; border-radius:10px; padding:15px 20px; min-width:280px; border:1px solid #223547;">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:0.9rem;">
+                            <span style="color:#aaa;">Subtotal Itens:</span>
+                            <span id="pedidoc-total-itens" style="color:#fff;">R$ 0,00</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; font-size:0.9rem;">
+                            <span style="color:#aaa;">Desconto Geral (%):</span>
+                            <input type="number" id="pedidoc-desconto" class="noble-input" value="0" min="0" max="100" step="0.01" style="width:80px; text-align:right; padding:4px 8px; font-size:0.85rem;" oninput="recalcularPedidoCompra()">
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; font-size:0.9rem;">
+                            <span style="color:#aaa;">Frete (R$):</span>
+                            <input type="number" id="pedidoc-frete" class="noble-input" value="0" min="0" step="0.01" style="width:100px; text-align:right; padding:4px 8px; font-size:0.85rem;" oninput="recalcularPedidoCompra()">
+                        </div>
+                        <div style="display:flex; justify-content:space-between; padding-top:10px; border-top:1px solid #223547; font-size:1.1rem; font-weight:bold;">
+                            <span style="color:#fff;">Total Geral:</span>
+                            <span id="pedidoc-total-geral" style="color:#2AD07A;">R$ 0,00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Observações -->
+                <div class="form-group" style="margin-bottom:20px;">
+                    <label>Observações</label>
+                    <textarea id="pedidoc-obs" class="noble-input" rows="3" style="height:auto;" placeholder="Instruções de entrega, condições especiais..."></textarea>
+                </div>
+
+                <!-- Botões -->
+                <div style="display:flex; gap:10px; justify-content:flex-end;">
+                    <button type="button" class="btn-secondary" onclick="fecharModalPedidoCompra()"><i class="fa-solid fa-xmark"></i> Cancelar</button>
+                    <button type="button" class="btn-secondary" onclick="imprimirPedidoCompra()" style="background:#3e7cb1;"><i class="fa-solid fa-print"></i> Imprimir PDF</button>
+                    <button type="button" id="btnc-aprovar-pedido" class="btn-primary" onclick="aprovarPedidoCompra()" style="display:none; background:#2AD07A; color:#000;"><i class="fa-solid fa-check-double"></i> Aprovar Pedido</button>
+                    <button type="submit" id="btnc-salvar-pedido" class="btn-primary"><i class="fa-solid fa-save"></i> Salvar Pedido</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Modal Webcam criado dinamicamente pelo admin.js -->
 
     <script src="lib/calculationEngine.js?v=2"></script>
@@ -5912,6 +6171,7 @@
     <script defer src="assets/js/modules/admin_auditoria.js?v=7_cache_bust"></script>
     <script defer src="assets/js/modules/admin_planejamento_v4.js?v=4"></script>
     <script defer src="assets/js/modules/pcp_live.js?v=1"></script>
+    <script defer src="assets/js/modules/admin_compras.js"></script>
     <script src="assets/js/theme-toggle.js?v=3"></script>
 
     <!-- ── MODAL GLASSMORPHISM DE NOTIFICAÇÃO (substitui alert nativo) ── -->

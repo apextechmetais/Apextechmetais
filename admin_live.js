@@ -197,6 +197,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (item.dataset.target === 'pedidos-venda-view' && window.initApexPedidos) {
                     window.initApexPedidos();
                 }
+                if (item.dataset.target === 'pedidos-compra-view' && window.initApexPedidosCompra) {
+                    window.initApexPedidosCompra();
+                }
                 if (item.dataset.target === 'planejamento-estrategicov3-view' && window.carregarPlanejamentoEstrategicov3) {
                     window.carregarPlanejamentoEstrategicov3();
                 }
@@ -16952,7 +16955,12 @@ window.carregarFinanceiroView = async function() {
         if (nota) nota.style.display = 'block';
 
         _renderizarCiclosV3();
-        (window._apexNotify ? window._apexNotify('Notificação', `✅ Ciclo salvo! Período: ${new Date(dataInicio + 'T12:00:00', 'info') : alert(`✅ Ciclo salvo! Período: ${new Date(dataInicio + 'T12:00:00')).toLocaleDateString('pt-BR')} a ${new Date(dataFim + 'T12:00:00').toLocaleDateString('pt-BR')}\nMeta: R$ ${metaFat.toLocaleString('pt-BR', {minimumFractionDigits:2})}`);
+        const msgCicloSalvo = `✅ Ciclo salvo! Período: ${new Date(dataInicio + 'T12:00:00').toLocaleDateString('pt-BR')} a ${new Date(dataFim + 'T12:00:00').toLocaleDateString('pt-BR')}\nMeta: R$ ${metaFat.toLocaleString('pt-BR', {minimumFractionDigits:2})}`;
+        if (window._apexNotify) {
+            window._apexNotify('Notificação', msgCicloSalvo, 'info');
+        } else {
+            alert(msgCicloSalvo);
+        }
     };
 
     window.abrirModalResultadoRealV3 = function(cicloId) {
