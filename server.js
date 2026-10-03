@@ -6142,16 +6142,21 @@ async function enviarRelatorioEmail(weekBlock, pdfBase64 = null) {
         console.warn('⚠️ Não foi possível anexar o PDF ao e-mail.');
     }
 
-    // Send using Resend API via axios POST request
-    const response = await axios.post('https://api.resend.com/emails', emailPayload, {
-        headers: {
-            'Authorization': `Bearer ${config.apiKey}`,
-            'Content-Type': 'application/json'
-        }
-    });
+    try {
+        const response = await axios.post('https://api.resend.com/emails', emailPayload, {
+            headers: {
+                'Authorization': `Bearer ${config.apiKey}`,
+                'Content-Type': 'application/json'
+            }
+        });
 
-    console.log(`✅ Relatório enviado por e-mail via Resend para [${emailsList.join(', ')}]:`, response.data.id);
-    return response.data;
+        console.log(`✅ Relatório enviado por e-mail via Resend para [${emailsList.join(', ')}]:`, response.data.id);
+        return response.data;
+    } catch (axiosErr) {
+        const resendMsg = axiosErr.response?.data?.message || axiosErr.response?.data?.error || axiosErr.message;
+        console.error('❌ Erro da API do Resend:', axiosErr.response?.data || axiosErr.message);
+        throw new Error(resendMsg);
+    }
 }
 
 async function gerarPdfTabelaPrecosViaHeadless(modo = 'fornecedor') {
@@ -6270,15 +6275,21 @@ async function enviarTabelaPrecosEmail(pdfBase64, modo = 'fornecedor', emailDest
         console.warn('⚠️ Não foi possível anexar o PDF da Tabela de Preços.');
     }
 
-    const response = await axios.post('https://api.resend.com/emails', emailPayload, {
-        headers: {
-            'Authorization': `Bearer ${config.apiKey}`,
-            'Content-Type': 'application/json'
-        }
-    });
+    try {
+        const response = await axios.post('https://api.resend.com/emails', emailPayload, {
+            headers: {
+                'Authorization': `Bearer ${config.apiKey}`,
+                'Content-Type': 'application/json'
+            }
+        });
 
-    console.log(`✅ ${tituloTabela} enviada por e-mail via Resend para [${emailsList.join(', ')}]:`, response.data.id);
-    return response.data;
+        console.log(`✅ ${tituloTabela} enviada por e-mail via Resend para [${emailsList.join(', ')}]:`, response.data.id);
+        return response.data;
+    } catch (axiosErr) {
+        const resendMsg = axiosErr.response?.data?.message || axiosErr.response?.data?.error || axiosErr.message;
+        console.error('❌ Erro da API do Resend:', axiosErr.response?.data || axiosErr.message);
+        throw new Error(resendMsg);
+    }
 }
 
 // ─── Agendador Automático de E-mails ──────────────────────────────────────────
