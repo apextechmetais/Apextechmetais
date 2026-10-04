@@ -39,6 +39,39 @@ class WhatsappManager {
 
     setMemStore(memStore) {
         this.memStore = memStore;
+        this.restaurarSessoesSalvas();
+    }
+
+    async restaurarSessoesSalvas() {
+        try {
+            if (!fs.existsSync(sessionsDir)) return;
+            const folders = fs.readdirSync(sessionsDir);
+            for (const folder of folders) {
+                const credsPath = path.join(sessionsDir, folder, 'creds.json');
+                if (fs.existsSync(credsPath)) {
+                    console.log(`[WhatsApp Manager] Restaurando sessão salva do WhatsApp Web para ${folder}...`);
+                    if (this.memStore && this.memStore.whatsapp_instancias) {
+                        let inst = this.memStore.whatsapp_instancias.find(i => i.id === folder);
+                        if (!inst) {
+                            this.memStore.whatsapp_instancias.push({
+                                id: folder,
+                                nome: `Celular Conectado (${folder})`,
+                                numero: 'Reconectando...',
+                                responsavel: 'Funcionário / Empresa',
+                                status: 'reconectando',
+                                qr_code: null,
+                                criado_em: new Date().toISOString()
+                            });
+                        }
+                    }
+                    this.iniciarInstancia(folder).catch(err => {
+                        console.error(`[WhatsApp Manager] Erro ao auto-restaurar ${folder}:`, err.message);
+                    });
+                }
+            }
+        } catch (e) {
+            console.error('[WhatsApp Manager] Erro ao buscar sessões salvas:', e);
+        }
     }
 
     async iniciarInstancia(instanciaId) {
@@ -92,18 +125,28 @@ class WhatsappManager {
 
                 if (connection === 'close') {
                     const statusCode = lastDisconnect?.error?.output?.statusCode;
-                    const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
-                    console.log(`[WhatsApp Manager] Conexão fechada para ${instanciaId}, motivo: ${statusCode}, reconectando: ${shouldReconnect}`);
+                    const isLoggedOut = statusCode === DisconnectReason.loggedOut;
+                    console.log(`[WhatsApp Manager] Conexão fechada para ${instanciaId}, statusCode: ${statusCode}, deslogadoPeloCelular: ${isLoggedOut}`);
                     
-                    this.statuses.set(instanciaId, 'desconectado');
                     this.qrCodes.delete(instanciaId);
-                    this.atualizarMemStoreInstancia(instanciaId, 'desconectado', null);
 
-                    if (shouldReconnect) {
-                        setTimeout(() => this.iniciarInstancia(instanciaId), 5000);
+                    if (isLoggedOut) {
+                        console.log(`[WhatsApp Manager] Sessão encerrada/deslogada pelo celular para ${instanciaId}. Removendo sessão...`);
+                        this.statuses.set(instanciaId, 'desconectado');
+                        this.sockets.delete(instanciaId);
+                        this.atualizarMemStoreInstancia(instanciaId, 'desconectado', null);
+                        try {
+                            fs.rmSync(instanceSessionDir, { recursive: true, force: true });
+                        } catch (e) {}
+                    } else {
+                        // Manter conectado continuamente - reconectar em caso de instabilidade de rede ou reinício
+                        this.statuses.set(instanciaId, 'reconectando');
+                        this.atualizarMemStoreInstancia(instanciaId, 'reconectando', null);
+                        console.log(`[WhatsApp Manager] Reconectando automaticamente ${instanciaId} em 3 segundos (Sessão mantida)...`);
+                        setTimeout(() => this.iniciarInstancia(instanciaId), 3000);
                     }
                 } else if (connection === 'open') {
-                    console.log(`[WhatsApp Manager] CONECTADO E ESPELHADO COM SUCESSO para ${instanciaId}!`);
+                    console.log(`[WhatsApp Manager] CONECTADO E ESPELHADO COM SUCESSO 24/7 para ${instanciaId}!`);
                     this.statuses.set(instanciaId, 'conectado');
                     this.qrCodes.delete(instanciaId);
 
@@ -112,7 +155,7 @@ class WhatsappManager {
                 }
             });
 
-            // ─── 1. SINCRONIZAÇÃO HISTÓRICA DO WHATSAPP WEB (HISTÓRICO COMPLETO) ───
+            // ─── 1. SINCRONIZAÇÃO HISTÓRICA DO WHATSAPP WEB ───
             sock.ev.on('messaging-history.set', async ({ contacts, messages }) => {
                 console.log(`[WhatsApp Manager] Sincronizando histórico do celular para ${instanciaId}...`);
                 if (contacts && Array.isArray(contacts)) {
@@ -141,7 +184,7 @@ class WhatsappManager {
                 }
             });
 
-            // ─── 3. ESPELHAMENTO EM TEMPO REAL DE MENSAGENS E MÍDIAS (IMAGENS, PDFS, ARQUIVOS) ───
+            // ─── 3. ESPELHAMENTO EM TEMPO REAL DE MENSAGENS E MÍDIAS ───
             sock.ev.on('messages.upsert', async (m) => {
                 try {
                     if (!m.messages) return;
@@ -337,6 +380,10 @@ class WhatsappManager {
             this.qrCodes.delete(instanciaId);
             this.statuses.set(instanciaId, 'desconectado');
             this.atualizarMemStoreInstancia(instanciaId, 'desconectado', null);
+            const instanceSessionDir = path.join(sessionsDir, instanciaId);
+            try {
+                fs.rmSync(instanceSessionDir, { recursive: true, force: true });
+            } catch (e) {}
         }
     }
 }
