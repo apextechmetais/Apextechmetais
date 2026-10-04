@@ -112,26 +112,59 @@
         });
     };
 
-    window.abrirQrCodeScannerWhatsapp = function(id) {
+    let _qrPollTimer = null;
+
+    window.abrirQrCodeScannerWhatsapp = async function(id) {
         _instanciaEmConexaoId = id;
         const inst = _instancias.find(i => i.id === id);
         const nomeEl = document.getElementById('wa-qr-conta-nome');
         const imgEl = document.getElementById('wa-qr-code-img');
 
         if (nomeEl) nomeEl.textContent = `Conta / Celular: ${inst ? inst.nome + ' (' + inst.responsavel + ')' : 'Celular Empresa'}`;
-        
-        // Gera a imagem do QR Code dinamicamente para escaneamento autêntico
-        const seed = inst ? inst.id : 'wa_inst_' + Date.now();
-        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=2%40${seed}%2C${Date.now()}%2CAPEX_WA_AUTH`;
-        if (imgEl) imgEl.src = qrUrl;
+        if (imgEl) imgEl.src = '';
 
         const modal = document.getElementById('modal-wa-qrcode-scanner');
         if (modal) modal.style.display = 'flex';
+
+        // Inicia escuta do Baileys para a instância
+        try {
+            await fetch(`/api/whatsapp/instancias/${id}/conectar`, { method: 'POST' });
+        } catch (e) {}
+
+        const buscarQrCode = async () => {
+            if (!_instanciaEmConexaoId || _instanciaEmConexaoId !== id) return;
+            try {
+                const res = await fetch(`/api/whatsapp/instancias/${id}/qr`);
+                const data = await res.json();
+
+                if (data.status === 'conectado') {
+                    window.fecharModalQrScannerWhatsapp();
+                    await window.carregarInstanciasWhatsapp();
+                    if (window._apexNotify) window._apexNotify('WhatsApp Web Conectado!', 'Celular emparelhado com sucesso via WhatsApp Web!', 'success');
+                    return;
+                }
+
+                if (data.qr && imgEl) {
+                    imgEl.src = data.qr;
+                }
+            } catch (e) {
+                console.warn('[WhatsApp QR] Aguardando QR Code...', e);
+            }
+        };
+
+        await buscarQrCode();
+
+        if (_qrPollTimer) clearInterval(_qrPollTimer);
+        _qrPollTimer = setInterval(buscarQrCode, 2500);
     };
 
     window.fecharModalQrScannerWhatsapp = function() {
         const modal = document.getElementById('modal-wa-qrcode-scanner');
         if (modal) modal.style.display = 'none';
+        if (_qrPollTimer) {
+            clearInterval(_qrPollTimer);
+            _qrPollTimer = null;
+        }
         _instanciaEmConexaoId = null;
     };
 

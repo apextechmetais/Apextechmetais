@@ -1,7 +1,10 @@
 const express = require('express');
+const whatsappManager = require('../services/whatsappManager');
 
 module.exports = function(pool, dbAvailable, memStore) {
     const router = express.Router();
+
+    whatsappManager.setMemStore(memStore);
 
     // ─── ESTRUTURAS DE MEMÓRIA (INSTÂNCIAS, CONTATOS, CONVERSAS E MENSAGENS) ───
     if (!memStore.whatsapp_instancias) {
@@ -11,7 +14,7 @@ module.exports = function(pool, dbAvailable, memStore) {
                 nome: 'WhatsApp Geral Empresa',
                 numero: '+55 11 99999-0000',
                 responsavel: 'Administração Apex',
-                status: 'conectado',
+                status: 'desconectado',
                 qr_code: null,
                 criado_em: new Date().toISOString()
             },
@@ -20,7 +23,7 @@ module.exports = function(pool, dbAvailable, memStore) {
                 nome: 'Celular Vendas 01',
                 numero: '+55 11 99999-0001',
                 responsavel: 'Vendedor João',
-                status: 'conectado',
+                status: 'desconectado',
                 qr_code: null,
                 criado_em: new Date().toISOString()
             },
@@ -29,7 +32,7 @@ module.exports = function(pool, dbAvailable, memStore) {
                 nome: 'Celular Compras 02',
                 numero: '+55 19 98888-0002',
                 responsavel: 'Atendente Maria',
-                status: 'conectado',
+                status: 'desconectado',
                 qr_code: null,
                 criado_em: new Date().toISOString()
             }
@@ -135,37 +138,57 @@ module.exports = function(pool, dbAvailable, memStore) {
         res.json({ success: true, instancias: memStore.whatsapp_instancias || [] });
     });
 
-    router.post('/instancias', (req, res) => {
+    router.post('/instancias', async (req, res) => {
         const { nome, numero, responsavel } = req.body;
         if (!nome) return res.status(400).json({ error: 'Nome da conta/celular é obrigatório' });
 
+        const id = 'inst_' + Date.now();
         const novaInstancia = {
-            id: 'inst_' + Date.now(),
+            id,
             nome: nome,
             numero: numero || 'Pendente',
             responsavel: responsavel || 'Funcionário',
             status: 'desconectado',
-            qr_code: `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=APEX_WA_${Date.now()}`,
+            qr_code: null,
             criado_em: new Date().toISOString()
         };
 
         memStore.whatsapp_instancias.push(novaInstancia);
+        await whatsappManager.iniciarInstancia(id);
         res.json({ success: true, instancia: novaInstancia });
     });
 
-    router.post('/instancias/:id/conectar', (req, res) => {
-        const id = req.params.id;
-        const inst = memStore.whatsapp_instancias.find(i => i.id === id);
-        if (!inst) return res.status(404).json({ error: 'Instância não encontrada' });
-
-        // Simula a geração do QR Code ou confirmação de conexão
-        inst.status = 'conectado';
-        inst.qr_code = null;
-        res.json({ success: true, instancia: inst });
+    router.get('/instancias/:id/qr', async (req, res) => {
+        try {
+            const id = req.params.id;
+            const info = await whatsappManager.obterQrCode(id);
+            const inst = memStore.whatsapp_instancias.find(i => i.id === id);
+            res.json({
+                success: true,
+                status: info.status || (inst ? inst.status : 'desconectado'),
+                qr: info.qr || (inst ? inst.qr_code : null)
+            });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
     });
 
-    router.delete('/instancias/:id', (req, res) => {
+    router.post('/instancias/:id/conectar', async (req, res) => {
+        try {
+            const id = req.params.id;
+            const inst = memStore.whatsapp_instancias.find(i => i.id === id);
+            if (!inst) return res.status(404).json({ error: 'Instância não encontrada' });
+
+            const info = await whatsappManager.iniciarInstancia(id);
+            res.json({ success: true, status: info.status, qr: info.qr, instancia: inst });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+
+    router.delete('/instancias/:id', async (req, res) => {
         const id = req.params.id;
+        await whatsappManager.desconectar(id);
         memStore.whatsapp_instancias = (memStore.whatsapp_instancias || []).filter(i => i.id !== id);
         res.json({ success: true });
     });
