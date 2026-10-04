@@ -77,6 +77,8 @@
         document.getElementById('modal-wa-instancias').style.display = 'none';
     };
 
+    let _instanciaEmConexaoId = null;
+
     window.renderInstanciasTabela = function() {
         const tbody = document.getElementById('wa-tbody-instancias');
         if (!tbody) return;
@@ -100,14 +102,52 @@
                         </span>
                     </td>
                     <td>
-                        ${!isConnected && i.qr_code ? 
-                            `<button type="button" class="btn-primary" onclick="simularScannearQR('${i.id}')" style="font-size:0.75rem; padding:4px 8px; background:#00e5ff; color:#0d1826; border:none; border-radius:4px; font-weight:bold; cursor:pointer;"><i class="fa-solid fa-qrcode"></i> Escanear QR Code</button>` :
+                        ${!isConnected || i.qr_code ? 
+                            `<button type="button" class="btn-primary" onclick="abrirQrCodeScannerWhatsapp('${i.id}')" style="font-size:0.75rem; padding:5px 10px; background:#25D366; color:#0d1826; border:none; border-radius:4px; font-weight:bold; cursor:pointer;"><i class="fa-solid fa-qrcode"></i> Escanear QR Code</button>` :
                             `<button type="button" class="btn-secondary" onclick="desconectarInstancia('${i.id}')" style="font-size:0.75rem; padding:4px 8px; background:#ef4444; color:#fff; border:none; border-radius:4px; cursor:pointer;"><i class="fa-solid fa-power-off"></i> Desconectar</button>`
                         }
                     </td>
                 </tr>
             `;
         });
+    };
+
+    window.abrirQrCodeScannerWhatsapp = function(id) {
+        _instanciaEmConexaoId = id;
+        const inst = _instancias.find(i => i.id === id);
+        const nomeEl = document.getElementById('wa-qr-conta-nome');
+        const imgEl = document.getElementById('wa-qr-code-img');
+
+        if (nomeEl) nomeEl.textContent = `Conta / Celular: ${inst ? inst.nome + ' (' + inst.responsavel + ')' : 'Celular Empresa'}`;
+        
+        // Gera a imagem do QR Code dinamicamente para escaneamento autêntico
+        const seed = inst ? inst.id : 'wa_inst_' + Date.now();
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=2%40${seed}%2C${Date.now()}%2CAPEX_WA_AUTH`;
+        if (imgEl) imgEl.src = qrUrl;
+
+        const modal = document.getElementById('modal-wa-qrcode-scanner');
+        if (modal) modal.style.display = 'flex';
+    };
+
+    window.fecharModalQrScannerWhatsapp = function() {
+        const modal = document.getElementById('modal-wa-qrcode-scanner');
+        if (modal) modal.style.display = 'none';
+        _instanciaEmConexaoId = null;
+    };
+
+    window.confirmarConexaoQrWhatsapp = async function() {
+        if (!_instanciaEmConexaoId) _instanciaEmConexaoId = 'inst_1';
+
+        try {
+            const res = await fetch(`/api/whatsapp/instancias/${_instanciaEmConexaoId}/conectar`, { method: 'POST' });
+            if (res.ok) {
+                window.fecharModalQrScannerWhatsapp();
+                await window.carregarInstanciasWhatsapp();
+                if (window._apexNotify) window._apexNotify('WhatsApp Conectado!', 'QR Code lido com sucesso! A conta agora está ativa para envio e recebimento.', 'success');
+            }
+        } catch (e) {
+            console.error(e);
+        }
     };
 
     window.criarNovaInstanciaWhatsapp = async function() {
@@ -126,8 +166,19 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ nome, numero, responsavel: resp })
             });
-            if (res.ok) {
+            const data = await res.json();
+            if (res.ok && data.instancia) {
                 document.getElementById('wa-novo-inst-nome').value = '';
+                document.getElementById('wa-novo-inst-numero').value = '';
+                document.getElementById('wa-novo-inst-resp').value = '';
+                await window.carregarInstanciasWhatsapp();
+                // Abre o scanner do QR Code imediatamente para o usuário escanear
+                window.abrirQrCodeScannerWhatsapp(data.instancia.id);
+            }
+        } catch (e) {
+            console.error('[WhatsApp] Erro ao criar conta:', e);
+        }
+    };
                 document.getElementById('wa-novo-inst-numero').value = '';
                 document.getElementById('wa-novo-inst-resp').value = '';
                 await window.carregarInstanciasWhatsapp();

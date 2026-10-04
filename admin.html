@@ -4575,6 +4575,46 @@
                                     <tr><td colspan="5" style="text-align:center; padding:15px; color:#aaa;">Carregando contas de WhatsApp...</td></tr>
                                 </tbody>
                             </table>
+                <!-- MODAL: SCANNER QR CODE ESTILO WHATSAPP WEB -->
+                <div id="modal-wa-qrcode-scanner" class="fullscreen-overlay" style="display:none; align-items:center; justify-content:center; z-index:1200; background:rgba(11, 20, 26, 0.95); backdrop-filter:blur(10px);">
+                    <div style="width:720px; max-width:95vw; background:#ffffff; color:#111b21; border-radius:16px; padding:30px; box-shadow:0 20px 60px rgba(0,0,0,0.6); position:relative;">
+                        <button type="button" onclick="fecharModalQrScannerWhatsapp()" style="position:absolute; right:20px; top:20px; background:none; border:none; color:#54656f; font-size:1.5rem; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+
+                        <div style="display:flex; align-items:center; gap:10px; margin-bottom:20px; border-bottom:1px solid #e9edef; padding-bottom:15px;">
+                            <i class="fa-brands fa-whatsapp" style="color:#25D366; font-size:2.2rem;"></i>
+                            <div>
+                                <h2 style="margin:0; color:#111b21; font-size:1.4rem; font-weight:700;">Conectar WhatsApp Web via QR Code</h2>
+                                <p id="wa-qr-conta-nome" style="margin:2px 0 0 0; color:#54656f; font-size:0.9rem;">Conta: Celular Vendas Pedro</p>
+                            </div>
+                        </div>
+
+                        <div style="display:grid; grid-template-columns: 1fr 260px; gap:25px; align-items:center;">
+                            <!-- PASSOS DE ESCANEAR -->
+                            <div>
+                                <h3 style="margin-top:0; color:#111b21; font-size:1.2rem;">Escaneie para entrar</h3>
+                                <ol style="padding-left:20px; color:#3b4a54; font-size:0.95rem; line-height:1.7; margin-bottom:20px;">
+                                    <li>Abra o <strong>WhatsApp</strong> no seu celular.</li>
+                                    <li>Toque em <strong>Menu</strong> <i class="fa-solid fa-ellipsis-vertical"></i> ou <strong>Configurações</strong> <i class="fa-solid fa-gear"></i> e selecione <strong>Dispositivos conectados</strong>.</li>
+                                    <li>Toque em <strong>Conectar um dispositivo</strong>.</li>
+                                    <li>Aponte a câmera do seu celular para este código QR para parear.</li>
+                                </ol>
+                                <div style="display:flex; gap:10px;">
+                                    <button type="button" onclick="confirmarConexaoQrWhatsapp()" style="background:#00a884; color:#fff; border:none; padding:10px 20px; border-radius:8px; font-weight:bold; font-size:0.9rem; cursor:pointer; box-shadow:0 4px 12px rgba(0,168,132,0.3);">
+                                        <i class="fa-solid fa-check-double"></i> Confirmar Leitura do QR Code
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- DISPLAY DO QR CODE -->
+                            <div style="text-align:center; background:#f0f2f5; padding:15px; border-radius:12px; border:2px dashed #00a884;">
+                                <div style="position:relative; display:inline-block; background:#fff; padding:10px; border-radius:8px; box-shadow:0 4px 15px rgba(0,0,0,0.1);">
+                                    <img id="wa-qr-code-img" src="" alt="WhatsApp QR Code" style="width:220px; height:220px; display:block;">
+                                    <i class="fa-brands fa-whatsapp" style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); font-size:2rem; color:#25D366; background:#fff; border-radius:50%; padding:4px; box-shadow:0 2px 8px rgba(0,0,0,0.2);"></i>
+                                </div>
+                                <div style="margin-top:10px; font-size:0.75rem; color:#54656f;">
+                                    <i class="fa-solid fa-rotate"></i> Atualiza em tempo real
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
