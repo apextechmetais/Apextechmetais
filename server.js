@@ -1250,8 +1250,13 @@ const authMiddleware = (req, res, next) => {
     const publicRoutes = [
         '/login', '/solucoes', '/cotacoes-hoje',
         '/admin/setup-db', '/admin/run-migrations',
-        '/admin/run-import-clientes', '/admin/run-import-fornecedores'
+        '/admin/run-import-clientes', '/admin/run-import-fornecedores',
+        '/lme/cron-trigger'
     ];
+    // Configurações do site são públicas (para temas, ocultar menus etc)
+    if (req.path === '/settings' && req.method === 'GET') return next();
+    // Rotas de cotação LME são públicas (usadas na página cotacoes.html e home sem login)
+    if (req.path.startsWith('/lme/tabela') || req.path.startsWith('/lme/graflme') || req.path.startsWith('/lme/varialme') || req.path === '/cotacoes-hoje') return next();
     if (publicRoutes.includes(req.path) || req.path.startsWith('/public')) return next();
     // Rota de imagem de fotos é pública: a tag <img> do HTML não pode enviar JWT
     if (/^\/api\/amostras\/\d+\/fotos\/\d+\/img$/.test(req.path)) return next();
@@ -1354,7 +1359,13 @@ app.get('/api/estrategiav3_mix', requireRole(['Diretoria', 'Compras', 'Financeir
 app.post('/api/estrategiav3_mix', requireRole(['Diretoria']));
 app.put('/api/estrategiav3_mix/:id/realizado', requireRole(['Diretoria']));
 app.delete('/api/estrategiav3_mix/:id', requireRole(['Diretoria']));
-app.use('/api/lme', requireRole(['Diretoria', 'Compras']));
+// Nota: /api/lme/tabela, /api/lme/graflme e /api/lme/varialme são públicas (isentas no authMiddleware).
+// Rotas administrativas do LME (gerar-excel, envio, etc.) continuam exigindo login via authMiddleware:
+app.use('/api/lme/destinatarios', requireRole(['Diretoria', 'Compras', 'Administrador']));
+app.use('/api/lme/enviar-email-manual', requireRole(['Diretoria', 'Compras', 'Administrador']));
+app.use('/api/lme/gerar-excel', requireRole(['Diretoria', 'Compras', 'Administrador']));
+app.use('/api/lme/relatorio-semanal', requireRole(['Diretoria', 'Compras', 'Administrador']));
+app.use('/api/lme/relatorio-email', requireRole(['Diretoria', 'Compras', 'Administrador']));
 app.use('/api/cotacoes', requireRole(['Diretoria', 'Compras']));
 app.use('/api/fornecedores', requireRole(['Diretoria', 'Compras', 'Laboratório', 'Produção']));
 app.use('/api/clientes', requireRole(['Diretoria', 'Comercial']));
@@ -5043,28 +5054,34 @@ function getPreviousMonthStr(mesStr) {
 
 
 
+// ─── Cache em memória para LME (TTL: 10 minutos) ────────────────────────────
+const lmeCache = new Map(); // key -> { data, ts }
+const LME_CACHE_TTL = 10 * 60 * 1000; // 10 minutos
+
+async function fetchLMEWithCache(url) {
+    const now = Date.now();
+    const cached = lmeCache.get(url);
+    if (cached && (now - cached.ts) < LME_CACHE_TTL) {
+        return cached.data;
+    }
+    const { data } = await axios.get(url, {
+        timeout: 15000,
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
+    });
+    lmeCache.set(url, { data, ts: now });
+    return data;
+}
+
 async function generateRelatorioSemanas(mes) {
     // 1. Busca dados do mês atual
     let targetUrl = mes === 'atual' ? `https://shockmetais.com.br/lme/` : `https://shockmetais.com.br/lme/${mes}`;
     let html;
     try {
-        const response = await axios.get(targetUrl, {
-            timeout: 15000,
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-            }
-        });
-        html = response.data;
+        html = await fetchLMEWithCache(targetUrl);
     } catch (err) {
         console.warn(`Erro no agendador ao buscar ${targetUrl}, tentando fallback para a home:`, err.message);
         targetUrl = `https://shockmetais.com.br/lme/`;
-        const response = await axios.get(targetUrl, {
-            timeout: 15000,
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-            }
-        });
-        html = response.data;
+        html = await fetchLMEWithCache(targetUrl);
     }
     const $ = cheerio.load(html);
 
@@ -6719,27 +6736,15 @@ app.post('/api/lme/gerar-excel', async (req, res) => {
 app.get('/api/lme/tabela/:mes', async (req, res) => {
     try {
         const mes = req.params.mes;
-        let targetUrl = mes === 'atual' ? `https://shockmetais.com.br/lme/` : `https://shockmetais.com.br/lme/${mes}`;
-        
-        let response;
+        const targetUrl = mes === 'atual' ? 'https://shockmetais.com.br/lme/' : `https://shockmetais.com.br/lme/${mes}`;
+        let html;
         try {
-            response = await axios.get(targetUrl, { 
-                timeout: 10000,
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-                }
-            });
+            html = await fetchLMEWithCache(targetUrl);
         } catch (err) {
             console.warn(`Erro ao buscar ${targetUrl}, tentando fallback para a home:`, err.message);
-            targetUrl = `https://shockmetais.com.br/lme/`;
-            response = await axios.get(targetUrl, {
-                timeout: 10000,
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-                }
-            });
+            html = await fetchLMEWithCache('https://shockmetais.com.br/lme/');
         }
-        const $ = cheerio.load(response.data);
+        const $ = cheerio.load(html);
         
         const cotacoes = [];
         $('#boxtabela table tbody tr').each((index, element) => {
@@ -6775,7 +6780,11 @@ app.get('/api/lme/tabela/:mes', async (req, res) => {
 app.post('/api/lme/graflme', async (req, res) => {
     try {
         const response = await axios.post('https://shockmetais.com.br/lme/graflme', new URLSearchParams(req.body), {
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+            timeout: 15000,
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
         });
         res.json(response.data);
     } catch (err) {
@@ -6787,7 +6796,11 @@ app.post('/api/lme/graflme', async (req, res) => {
 app.post('/api/lme/varialme', async (req, res) => {
     try {
         const response = await axios.post('https://shockmetais.com.br/lme/varialme', new URLSearchParams(req.body), {
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+            timeout: 15000,
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
         });
         const $ = cheerio.load(response.data);
         const variaveis = [];
