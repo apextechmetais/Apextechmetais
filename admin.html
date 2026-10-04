@@ -4393,16 +4393,16 @@
                             </p>
                         </div>
                         <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                            <button type="button" class="btn-noble" onclick="abrirModalInstanciasWhatsapp()" style="background:#00e5ff; color:#0d1826; font-weight:bold; padding:8px 14px; border-radius:6px; cursor:pointer;">
+                            <button type="button" class="btn-noble" onclick="window.abrirModalInstanciasWhatsapp && window.abrirModalInstanciasWhatsapp()" style="background:#00e5ff; color:#0d1826; font-weight:bold; padding:8px 14px; border-radius:6px; cursor:pointer;">
                                 <i class="fa-solid fa-qrcode"></i> Conectar Celulares / QR Code
                             </button>
-                            <button type="button" class="btn-noble" onclick="abrirModalContatosWhatsapp()" style="background:#38bdf8; color:#0d1826; font-weight:bold; padding:8px 14px; border-radius:6px; cursor:pointer;">
+                            <button type="button" class="btn-noble" onclick="window.abrirModalContatosWhatsapp && window.abrirModalContatosWhatsapp()" style="background:#38bdf8; color:#0d1826; font-weight:bold; padding:8px 14px; border-radius:6px; cursor:pointer;">
                                 <i class="fa-solid fa-address-book"></i> Importar Contatos
                             </button>
-                            <button type="button" class="btn-noble" onclick="abrirModalDisparoMassaWhatsapp()" style="background:#ffb74d; color:#0d1826; font-weight:bold; padding:8px 14px; border-radius:6px; cursor:pointer;">
+                            <button type="button" class="btn-noble" onclick="window.abrirModalDisparoMassaWhatsapp && window.abrirModalDisparoMassaWhatsapp()" style="background:#ffb74d; color:#0d1826; font-weight:bold; padding:8px 14px; border-radius:6px; cursor:pointer;">
                                 <i class="fa-solid fa-bullhorn"></i> Disparo em Massa
                             </button>
-                            <button type="button" class="btn-noble" onclick="carregarWhatsappModulo()" style="background:#25D366; color:#0d1826; font-weight:bold; padding:8px 14px; border-radius:6px; cursor:pointer;">
+                            <button type="button" class="btn-noble" onclick="window.carregarWhatsappModulo && window.carregarWhatsappModulo()" style="background:#25D366; color:#0d1826; font-weight:bold; padding:8px 14px; border-radius:6px; cursor:pointer;">
                                 <i class="fa-solid fa-rotate-right"></i> Atualizar
                             </button>
                         </div>
@@ -4575,6 +4575,10 @@
                                     <tr><td colspan="5" style="text-align:center; padding:15px; color:#aaa;">Carregando contas de WhatsApp...</td></tr>
                                 </tbody>
                             </table>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- MODAL: SCANNER QR CODE ESTILO WHATSAPP WEB -->
                 <div id="modal-wa-qrcode-scanner" class="fullscreen-overlay" style="display:none; align-items:center; justify-content:center; z-index:1200; background:rgba(11, 20, 26, 0.95); backdrop-filter:blur(10px);">
                     <div style="width:720px; max-width:95vw; background:#ffffff; color:#111b21; border-radius:16px; padding:30px; box-shadow:0 20px 60px rgba(0,0,0,0.6); position:relative;">
@@ -6595,7 +6599,7 @@
     <script defer src="assets/js/modules/admin_planejamento_v4.js?v=4"></script>
     <script defer src="assets/js/modules/pcp_live.js?v=1"></script>
     <script defer src="assets/js/modules/admin_compras.js"></script>
-    <script defer src="assets/js/modules/admin_whatsapp.js?v=1"></script>
+    <script defer src="assets/js/modules/admin_whatsapp.js?v=2"></script>
     <script src="assets/js/theme-toggle.js?v=3"></script>
 
     <!-- ── MODAL GLASSMORPHISM DE NOTIFICAÇÃO (substitui alert nativo) ── -->

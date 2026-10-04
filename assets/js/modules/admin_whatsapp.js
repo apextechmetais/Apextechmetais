@@ -179,15 +179,6 @@
             console.error('[WhatsApp] Erro ao criar conta:', e);
         }
     };
-                document.getElementById('wa-novo-inst-numero').value = '';
-                document.getElementById('wa-novo-inst-resp').value = '';
-                await window.carregarInstanciasWhatsapp();
-                if (window._apexNotify) window._apexNotify('Sucesso', 'Nova conta criada com sucesso!', 'success');
-            }
-        } catch (e) {
-            console.error('[WhatsApp] Erro ao criar conta:', e);
-        }
-    };
 
     window.simularScannearQR = async function(id) {
         try {
