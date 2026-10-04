@@ -239,7 +239,7 @@
         if (!selectConsulta || !tbody) return;
 
         const matId = parseInt(selectConsulta.value);
-        const tp = _listTabelaPrecosEstrategica.find(x => x.material_id === matId);
+        const tp = _listTabelaPrecosEstrategica.find(x => x.material_id == matId);
 
         if (!tp) {
             tbody.innerHTML = `
@@ -295,13 +295,13 @@
             return;
         }
 
-        let tp = _listTabelaPrecosEstrategica.find(x => x.material_id === matId);
+        let tp = _listTabelaPrecosEstrategica.find(x => x.material_id == matId);
         if (!tp) {
             const materialNome = document.querySelector(`#plestv3-consulta-material option[value="${matId}"]`)?.textContent || 'Produto sem preço';
             tp = { material_id: matId, material_nome: materialNome, preco_venda: 0, preco_compra: 0 };
         }
 
-        if (_mixSimulacaoV3.some(x => x.material_id === matId)) {
+        if (_mixSimulacaoV3.some(x => x.material_id == matId)) {
             _apexNotify('Aviso', 'Este produto já está incluído no mix de simulação.', 'warning');
             return;
         }
@@ -327,7 +327,7 @@
 
     window.onChangeFracaoSimulacaoV3 = function(matId, val) {
         const parsed = parseFloat(val) || 0;
-        const item = _mixSimulacaoV3.find(x => x.material_id === matId);
+        const item = _mixSimulacaoV3.find(x => x.material_id == matId);
         if (item) {
             item.fracaoPct = parsed;
         }
@@ -398,7 +398,7 @@
         let totalInvestimentoNecessario = 0;
 
         _mixSimulacaoV3.forEach((mixItem) => {
-            let tp = _listTabelaPrecosEstrategica.find(x => x.material_id === mixItem.material_id);
+            let tp = _listTabelaPrecosEstrategica.find(x => x.material_id == mixItem.material_id);
             if (!tp) {
                 const materialNome = document.querySelector(`#plestv3-consulta-material option[value="${mixItem.material_id}"]`)?.textContent || 'Produto Indefinido';
                 tp = { material_id: mixItem.material_id, material_nome: materialNome, preco_venda: 0, preco_compra: 0 };
@@ -471,7 +471,7 @@
         let totalVendaLiquidaCalculada = 0;
 
         _mixSimulacaoV3.forEach((mixItem) => {
-            let tp = _listTabelaPrecosEstrategica.find(x => x.material_id === mixItem.material_id);
+            let tp = _listTabelaPrecosEstrategica.find(x => x.material_id == mixItem.material_id);
             if (!tp) tp = { preco_venda: 0, preco_compra: 0 };
             const faturamentoAlvoProduto = fatTotalAlvo * (mixItem.fracaoPct / 100);
             const pRef = frente === 'venda'
@@ -860,8 +860,8 @@ window.excluirCicloV3 = async function(cicloId) {
         if (tableBody) tableBody.innerHTML = '';
 
         _listTabelaPrecosEstrategica.forEach(tp => {
-            const meta = metasMes.find(m => m.material_id === tp.material_id);
-            if (meta || tp.material_id === targetMatId) {
+            const meta = metasMes.find(m => m.material_id == tp.material_id);
+            if (meta || tp.material_id == targetMatId) {
                 const mFat = meta ? parseFloat(meta.meta_faturamento || 0) : 0;
                 const mMargem = meta ? parseFloat(meta.margem_desejada || 0) : 0;
                 const op = meta ? meta.operacao : 'entrega';
@@ -955,8 +955,8 @@ window.excluirCicloV3 = async function(cicloId) {
         const prBody = document.getElementById('plestv3-planejado-realizado-tbody');
         if (!container || !cenBody || !prBody) return;
 
-        const preco = _listTabelaPrecosEstrategica.find(x => x.material_id === matId);
-        const meta = _listMetasV3.find(m => m.material_id === matId && m.mes === mes);
+        const preco = _listTabelaPrecosEstrategica.find(x => x.material_id == matId);
+        const meta = _listMetasV3.find(m => m.material_id == matId && m.mes === mes);
 
         if (!preco) {
             container.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:15px; color:#aaa; font-size:0.85rem;">Selecione um produto acima para calcular faturamento, custos e volumes consolidados.</div>`;
@@ -1269,7 +1269,7 @@ window.excluirCicloV3 = async function(cicloId) {
     window.onSelectModalMaterialv3 = function() {
         const matId = parseInt(document.getElementById('metaestv3-material-id').value);
         const op = document.getElementById('metaestv3-operacao').value;
-        const tp = _listTabelaPrecosEstrategica.find(x => x.material_id === matId);
+        const tp = _listTabelaPrecosEstrategica.find(x => x.material_id == matId);
         if (tp) {
             const comissao = parseFloat(tp.comissao || 0);
             const pisCofins = parseFloat(tp.pis_cofins || 0);
@@ -1305,7 +1305,7 @@ window.excluirCicloV3 = async function(cicloId) {
         const lblTeto = document.getElementById('metaestv3-lbl-teto-custo');
         const lblQtd = document.getElementById('metaestv3-lbl-qtd-calculada');
 
-        const tp = _listTabelaPrecosEstrategica.find(x => x.material_id === matId);
+        const tp = _listTabelaPrecosEstrategica.find(x => x.material_id == matId);
         if (tp) {
             const pInsumo = op === 'retirada'
                 ? parseFloat(tp.preco_coletar || tp.preco_compra || 0)
