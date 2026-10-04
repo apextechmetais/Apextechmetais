@@ -4379,38 +4379,59 @@
             </section>
 
             <!-- ═══════════════════════════════════════════════════════════
-                 TELA: WHATSAPP EMPRESARIAL (WA-AKG INTEGRATION)
+                 TELA: WHATSAPP EMPRESARIAL (WA-AKG MULTI-ACCOUNT INTEGRATION)
             ═══════════════════════════════════════════════════════════ -->
             <section id="whatsapp-view" class="view-section" style="display:none; padding:20px;">
                 <header class="section-header" style="margin-bottom:15px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap:wrap; gap:10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap:wrap; gap:12px;">
                         <div>
                             <h1 style="margin: 0; color:#fff; font-size:1.6rem;">
-                                <i class="fa-brands fa-whatsapp" style="color:#25D366;"></i> WhatsApp Empresarial & Central de Transmissão
+                                <i class="fa-brands fa-whatsapp" style="color:#25D366;"></i> WhatsApp Empresarial & Central de Transmissão (Multi-Celulares)
                             </h1>
                             <p style="color: #a0aec0; margin: 4px 0 0 0; font-size: 0.9rem;">
-                                Módulo de atendimento unificado para funcionários e monitoramento em tempo real pela diretoria (WA-AKG)
+                                Conecte todos os celulares da equipe via QR Code, envie tabelas do sistema e monitore tudo como ADM Master.
                             </p>
                         </div>
-                        <div style="display:flex; gap:10px; align-items:center;">
-                            <span id="wa-status-badge" class="badge bg-success" style="font-size:0.85rem; padding:8px 12px; border-radius:20px;">
-                                <i class="fa-solid fa-circle-check"></i> Instância Conectada
-                            </span>
-                            <button type="button" class="btn-noble" onclick="carregarWhatsappModulo()" style="background:#25D366; color:#0d1826; font-weight:bold; padding:8px 16px; border-radius:6px; cursor:pointer;">
-                                <i class="fa-solid fa-rotate-right"></i> Atualizar Mensagens
+                        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                            <button type="button" class="btn-noble" onclick="abrirModalInstanciasWhatsapp()" style="background:#00e5ff; color:#0d1826; font-weight:bold; padding:8px 14px; border-radius:6px; cursor:pointer;">
+                                <i class="fa-solid fa-qrcode"></i> Conectar Celulares / QR Code
+                            </button>
+                            <button type="button" class="btn-noble" onclick="abrirModalContatosWhatsapp()" style="background:#38bdf8; color:#0d1826; font-weight:bold; padding:8px 14px; border-radius:6px; cursor:pointer;">
+                                <i class="fa-solid fa-address-book"></i> Importar Contatos
+                            </button>
+                            <button type="button" class="btn-noble" onclick="abrirModalDisparoMassaWhatsapp()" style="background:#ffb74d; color:#0d1826; font-weight:bold; padding:8px 14px; border-radius:6px; cursor:pointer;">
+                                <i class="fa-solid fa-bullhorn"></i> Disparo em Massa
+                            </button>
+                            <button type="button" class="btn-noble" onclick="carregarWhatsappModulo()" style="background:#25D366; color:#0d1826; font-weight:bold; padding:8px 14px; border-radius:6px; cursor:pointer;">
+                                <i class="fa-solid fa-rotate-right"></i> Atualizar
                             </button>
                         </div>
                     </div>
                 </header>
 
+                <!-- BARRA DE SELEÇÃO DE CONTA / CELULAR (VISÃO ADM MASTER) -->
+                <div style="background:#0e1a26; padding:12px 18px; border-radius:8px; border:1px solid #1e3a5f; margin-bottom:15px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+                    <div style="display:flex; align-items:center; gap:12px; flex:1; min-width:280px;">
+                        <span style="color:#00e5ff; font-weight:bold; font-size:0.9rem; white-space:nowrap;">
+                            <i class="fa-solid fa-mobile-screen-button"></i> Filtrar por Celular / Conta:
+                        </span>
+                        <select id="wa-select-instancia-filtro" class="noble-input" style="flex:1; max-width:350px; font-size:0.9rem; background:#102235; color:#fff;" onchange="carregarConversasWhatsapp()">
+                            <option value="">📱 Todas as Contas (Visão Geral ADM Master)</option>
+                        </select>
+                    </div>
+                    <div id="wa-instancias-resumo-badges" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                        <span class="badge bg-success" style="font-size:0.75rem; padding:6px 10px;"><i class="fa-solid fa-circle-check"></i> 3 Celulares Conectados</span>
+                    </div>
+                </div>
+
                 <!-- LAYOUT 3 COLUNAS -->
-                <div style="display:grid; grid-template-columns: 320px 1fr 340px; gap:15px; height: calc(100vh - 220px); min-height: 550px;">
+                <div style="display:grid; grid-template-columns: 320px 1fr 340px; gap:15px; height: calc(100vh - 270px); min-height: 550px;">
                     
                     <!-- PAINEL ESQUERDO: LISTA DE CONVERSAS -->
                     <div style="background:#0e1b26; border:1px solid #1e3a5f; border-radius:10px; display:flex; flex-direction:column; overflow:hidden;">
                         <div style="padding:12px; background:#132333; border-bottom:1px solid #1e3a5f;">
                             <div style="position:relative;">
-                                <input type="text" id="wa-busca-contato" placeholder="Buscar conversa ou telefone..." class="noble-input" style="width:100%; padding-left:32px; font-size:0.85rem;" oninput="carregarConversasWhatsapp()">
+                                <input type="text" id="wa-busca-contato" placeholder="Buscar conversa, empresa ou fone..." class="noble-input" style="width:100%; padding-left:32px; font-size:0.85rem;" oninput="carregarConversasWhatsapp()">
                                 <i class="fa-solid fa-magnifying-glass" style="position:absolute; left:10px; top:10px; color:#aaa; font-size:0.85rem;"></i>
                             </div>
                         </div>
@@ -4428,8 +4449,8 @@
                                 <small id="wa-header-telefone" style="color:#aaa; font-size:0.8rem;">-</small>
                             </div>
                             <div style="text-align:right;">
-                                <span style="font-size:0.75rem; color:#aaa;">Atendente:</span>
-                                <span id="wa-header-atendente" style="font-weight:bold; color:#38bdf8; font-size:0.85rem;">-</span>
+                                <span style="font-size:0.75rem; color:#aaa;">Conta / Atendente:</span>
+                                <div id="wa-header-atendente" style="font-weight:bold; color:#38bdf8; font-size:0.85rem;">-</div>
                             </div>
                         </div>
 
@@ -4440,6 +4461,9 @@
 
                         <!-- CHAT FOOTER / COMPOSER -->
                         <div style="padding:12px; background:#162433; border-top:1px solid #1e3a5f; display:flex; gap:10px; align-items:center;">
+                            <select id="wa-select-responder-como" class="noble-input" style="width:170px; font-size:0.75rem; background:#0d1826; color:#00e5ff;">
+                                <option value="inst_1">📱 Responder p/ WhatsApp Empresa</option>
+                            </select>
                             <input type="text" id="wa-input-mensagem" placeholder="Digite uma mensagem para o cliente..." class="noble-input" style="flex:1; background:#0d1826; border-color:#1e4e8c; color:#fff;" onkeypress="if(event.key==='Enter') enviarMensagemWhatsapp()">
                             <button type="button" class="btn-noble" onclick="enviarMensagemWhatsapp()" style="background:#25D366; color:#0d1826; font-weight:bold; padding:8px 18px; border-radius:6px; cursor:pointer;">
                                 <i class="fa-solid fa-paper-plane"></i> Enviar
@@ -4447,14 +4471,14 @@
                         </div>
                     </div>
 
-                    <!-- PAINEL DIREITO: DISPARADOR DE TABELAS & AUDITORIA -->
+                    <!-- PAINEL DIREITO: DISPARADOR DE TABELAS & AUDITORIA MASTER -->
                     <div style="background:#0e1b26; border:1px solid #1e3a5f; border-radius:10px; padding:15px; display:flex; flex-direction:column; gap:15px; overflow-y:auto;">
                         <!-- TRANSMISSÃO DE TABELAS DO SISTEMA -->
                         <div style="background:#132333; padding:15px; border-radius:8px; border-left:4px solid #25D366;">
                             <h3 style="margin:0 0 10px 0; color:#25D366; font-size:1rem;">
                                 <i class="fa-solid fa-share-nodes"></i> Enviar Tabela pelo WhatsApp
                             </h3>
-                            <p style="color:#aaa; font-size:0.75rem; margin-bottom:10px;">Compartilhe instantaneamente os dados e relatórios do sistema com o contato ativo.</p>
+                            <p style="color:#aaa; font-size:0.75rem; margin-bottom:10px;">Compartilhe os dados e relatórios do sistema com o contato selecionado.</p>
                             
                             <div class="form-group" style="margin-bottom:10px;">
                                 <label style="color:#aaa; font-size:0.75rem; display:block; margin-bottom:4px;">Selecione a Tabela/Relatório</label>
@@ -4478,26 +4502,25 @@
                             </button>
                         </div>
 
-                        <!-- AUDITORIA DE CONVERSAS DOS FUNCIONÁRIOS (ADM) -->
+                        <!-- AUDITORIA DE CONVERSAS DOS FUNCIONÁRIOS (ADM MASTER) -->
                         <div style="background:#132333; padding:15px; border-radius:8px; border-left:4px solid #00e5ff;">
                             <h3 style="margin:0 0 10px 0; color:#00e5ff; font-size:1rem;">
-                                <i class="fa-solid fa-eye"></i> Auditoria & Registro ADM
+                                <i class="fa-solid fa-eye"></i> Auditoria & Controle ADM Master
                             </h3>
-                            <p style="color:#aaa; font-size:0.75rem; margin-bottom:10px;">Histórico unificado de todas as conversas atendidas pelos funcionários para conformidade e controle.</p>
+                            <p style="color:#aaa; font-size:0.75rem; margin-bottom:10px;">Monitore todas as conversas atendidas em qualquer celular da empresa.</p>
                             
                             <div style="max-height:220px; overflow-y:auto; border:1px solid #1e3a5f; border-radius:6px;">
                                 <table class="admin-table" style="width:100%; border-collapse:collapse; font-size:0.75rem;">
                                     <thead>
                                         <tr style="background:#162433; color:#fff;">
                                             <th style="padding:6px;">Contato</th>
-                                            <th style="padding:6px;">Atendente</th>
+                                            <th style="padding:6px;">Celular/Conta</th>
                                             <th style="padding:6px; text-align:center;">Msgs</th>
                                             <th style="padding:6px;">Última Interação</th>
-                                            <th style="padding:6px; text-align:center;">Status</th>
                                         </tr>
                                     </thead>
                                     <tbody id="wa-tbody-auditoria">
-                                        <tr><td colspan="5" style="text-align:center; padding:10px; color:#aaa;">Carregando logs...</td></tr>
+                                        <tr><td colspan="4" style="text-align:center; padding:10px; color:#aaa;">Carregando logs...</td></tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -4505,6 +4528,120 @@
                     </div>
 
                 </div>
+
+                <!-- MODAL: CONECTAR CELULARES & SCANNAR QR CODE -->
+                <div id="modal-wa-instancias" class="fullscreen-overlay" style="display:none; align-items:center; justify-content:center; z-index:1100;">
+                    <div style="width:700px; max-width:95vw; background:#0d1a26; border:1px solid #00e5ff; border-radius:12px; padding:25px; box-shadow:0 10px 40px rgba(0,0,0,0.8);">
+                        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #1e3a5f; padding-bottom:12px; margin-bottom:20px;">
+                            <h3 style="margin:0; color:#fff;"><i class="fa-solid fa-qrcode" style="color:#00e5ff;"></i> Conectar Celulares do Time (WhatsApp Web / QR Code)</h3>
+                            <button type="button" onclick="fecharModalInstanciasWhatsapp()" style="background:none; border:none; color:#aaa; font-size:1.2rem; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                        
+                        <!-- FORMULARIO NOVO CELULAR -->
+                        <div style="background:#102235; padding:15px; border-radius:8px; margin-bottom:20px; border-left:4px solid #00e5ff;">
+                            <h4 style="margin:0 0 10px 0; color:#fff; font-size:0.9rem;">Cadastrar Novo Celular / Funcionário</h4>
+                            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr auto; gap:10px; align-items:flex-end;">
+                                <div>
+                                    <label style="color:#aaa; font-size:0.75rem; display:block; margin-bottom:4px;">Nome da Conta/Celular</label>
+                                    <input type="text" id="wa-novo-inst-nome" placeholder="Ex: Celular Vendas Pedro" class="noble-input">
+                                </div>
+                                <div>
+                                    <label style="color:#aaa; font-size:0.75rem; display:block; margin-bottom:4px;">Número do Telefone</label>
+                                    <input type="text" id="wa-novo-inst-numero" placeholder="Ex: +55 11 98888-7777" class="noble-input">
+                                </div>
+                                <div>
+                                    <label style="color:#aaa; font-size:0.75rem; display:block; margin-bottom:4px;">Responsável</label>
+                                    <input type="text" id="wa-novo-inst-resp" placeholder="Ex: Pedro Santos" class="noble-input">
+                                </div>
+                                <button type="button" onclick="criarNovaInstanciaWhatsapp()" style="background:#00e5ff; color:#0d1826; font-weight:bold; padding:8px 14px; border-radius:6px; cursor:pointer; height:38px;">
+                                    <i class="fa-solid fa-plus"></i> Criar Conta
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- LISTA DE CELULARES CADASTRADOS & QR CODE DISPLAY -->
+                        <div style="max-height:300px; overflow-y:auto;">
+                            <table class="noble-table" style="width:100%; font-size:0.85rem;">
+                                <thead>
+                                    <tr>
+                                        <th>Nome da Conta</th>
+                                        <th>Telefone</th>
+                                        <th>Responsável</th>
+                                        <th>Status</th>
+                                        <th>Ação / QR Code</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="wa-tbody-instancias">
+                                    <tr><td colspan="5" style="text-align:center; padding:15px; color:#aaa;">Carregando contas de WhatsApp...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MODAL: IMPORTAR / CADASTRAR CONTATOS DO TELEFONE -->
+                <div id="modal-wa-contatos" class="fullscreen-overlay" style="display:none; align-items:center; justify-content:center; z-index:1100;">
+                    <div style="width:650px; max-width:95vw; background:#0d1a26; border:1px solid #38bdf8; border-radius:12px; padding:25px; box-shadow:0 10px 40px rgba(0,0,0,0.8);">
+                        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #1e3a5f; padding-bottom:12px; margin-bottom:20px;">
+                            <h3 style="margin:0; color:#fff;"><i class="fa-solid fa-address-book" style="color:#38bdf8;"></i> Cadastrar & Importar Contatos do Telefone</h3>
+                            <button type="button" onclick="fecharModalContatosWhatsapp()" style="background:none; border:none; color:#aaa; font-size:1.2rem; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                        
+                        <div style="margin-bottom:15px;">
+                            <label style="color:#aaa; font-size:0.85rem; display:block; margin-bottom:6px;">Cole seus Contatos em Massa (Nome, Telefone, Empresa por linha):</label>
+                            <textarea id="wa-importar-texto" placeholder="Exemplo:&#10;João Silva, +55 11 99999-1111, Metalúrgica ABC&#10;Maria Souza, +55 19 98888-2222, Indústria XYZ" class="noble-input" style="width:100%; height:140px; font-size:0.85rem; font-family:monospace;"></textarea>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span id="wa-total-contatos-badge" style="color:#aaa; font-size:0.85rem;">Total no catálogo: 4 contatos</span>
+                            <button type="button" onclick="processarImportacaoContatosWhatsapp()" style="background:#38bdf8; color:#0d1826; font-weight:bold; padding:10px 20px; border-radius:6px; cursor:pointer;">
+                                <i class="fa-solid fa-file-import"></i> Importar Todos os Contatos
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MODAL: DISPARO EM MASSA PARA TODOS OS CONTATOS -->
+                <div id="modal-wa-disparo-massa" class="fullscreen-overlay" style="display:none; align-items:center; justify-content:center; z-index:1100;">
+                    <div style="width:650px; max-width:95vw; background:#0d1a26; border:1px solid #ffb74d; border-radius:12px; padding:25px; box-shadow:0 10px 40px rgba(0,0,0,0.8);">
+                        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #1e3a5f; padding-bottom:12px; margin-bottom:20px;">
+                            <h3 style="margin:0; color:#fff;"><i class="fa-solid fa-bullhorn" style="color:#ffb74d;"></i> Transmissão & Disparo em Massa (Todos os Contatos)</h3>
+                            <button type="button" onclick="fecharModalDisparoMassaWhatsapp()" style="background:none; border:none; color:#aaa; font-size:1.2rem; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                        
+                        <div style="background:#20180a; padding:12px; border-radius:8px; border-left:4px solid #ffb74d; margin-bottom:15px; font-size:0.85rem; color:#ffb74d;">
+                            <i class="fa-solid fa-triangle-exclamation"></i> Esta mensagem ou tabela será enviada para <strong>TODOS os contatos</strong> do catálogo cadastrado.
+                        </div>
+
+                        <div class="form-group" style="margin-bottom:12px;">
+                            <label style="color:#aaa; font-size:0.85rem; display:block; margin-bottom:4px;">Enviar Através de Qual Celular?</label>
+                            <select id="wa-disparo-select-instancia" class="noble-input" style="width:100%;">
+                                <option value="inst_1">📱 WhatsApp Empresa Principal</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group" style="margin-bottom:12px;">
+                            <label style="color:#aaa; font-size:0.85rem; display:block; margin-bottom:4px;">Anexar Tabela do Sistema (Opcional)</label>
+                            <select id="wa-disparo-select-tabela" class="noble-input" style="width:100%;">
+                                <option value="">Nenhuma Tabela (Apenas Mensagem)</option>
+                                <option value="precos_venda">📊 Tabela de Preços de Venda</option>
+                                <option value="lme_boletim">📈 Boletim Oficial LME e Dólar</option>
+                                <option value="pcp_producao">🏭 Relatório PCP de Produção</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group" style="margin-bottom:15px;">
+                            <label style="color:#aaa; font-size:0.85rem; display:block; margin-bottom:4px;">Mensagem de Transmissão</label>
+                            <textarea id="wa-disparo-mensagem-texto" placeholder="Digite o comunicado para todos os contatos..." class="noble-input" style="width:100%; height:100px; font-size:0.85rem;"></textarea>
+                        </div>
+
+                        <div style="text-align:right;">
+                            <button type="button" onclick="executarDisparoEmMassaWhatsapp()" style="background:#ffb74d; color:#0d1826; font-weight:bold; padding:12px 24px; border-radius:6px; cursor:pointer;">
+                                <i class="fa-solid fa-paper-plane"></i> Iniciar Disparo em Massa Agora
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
             </section>
         </main>
     </div>

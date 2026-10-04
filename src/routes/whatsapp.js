@@ -3,11 +3,54 @@ const express = require('express');
 module.exports = function(pool, dbAvailable, memStore) {
     const router = express.Router();
 
-    // In-Memory store fallback for WhatsApp module data
+    // ─── ESTRUTURAS DE MEMÓRIA (INSTÂNCIAS, CONTATOS, CONVERSAS E MENSAGENS) ───
+    if (!memStore.whatsapp_instancias) {
+        memStore.whatsapp_instancias = [
+            {
+                id: 'inst_1',
+                nome: 'WhatsApp Geral Empresa',
+                numero: '+55 11 99999-0000',
+                responsavel: 'Administração Apex',
+                status: 'conectado',
+                qr_code: null,
+                criado_em: new Date().toISOString()
+            },
+            {
+                id: 'inst_2',
+                nome: 'Celular Vendas 01',
+                numero: '+55 11 99999-0001',
+                responsavel: 'Vendedor João',
+                status: 'conectado',
+                qr_code: null,
+                criado_em: new Date().toISOString()
+            },
+            {
+                id: 'inst_3',
+                nome: 'Celular Compras 02',
+                numero: '+55 19 98888-0002',
+                responsavel: 'Atendente Maria',
+                status: 'conectado',
+                qr_code: null,
+                criado_em: new Date().toISOString()
+            }
+        ];
+    }
+
+    if (!memStore.whatsapp_contatos) {
+        memStore.whatsapp_contatos = [
+            { id: 1, nome: 'Metais Brasil Ltda', telefone: '+55 11 99999-0001', empresa: 'Metais Brasil', categoria: 'Cliente', cidade: 'São Paulo/SP' },
+            { id: 2, nome: 'Fundição Indaiatuba', telefone: '+55 19 98888-0002', empresa: 'Fundição Indaiatuba', categoria: 'Fornecedor', cidade: 'Indaiatuba/SP' },
+            { id: 3, nome: 'Reciclagem Sul S/A', telefone: '+55 47 97777-0003', empresa: 'Reciclagem Sul', categoria: 'Cliente', cidade: 'Joinville/SC' },
+            { id: 4, nome: 'Copper & Alloys Ltd', telefone: '+55 11 96666-0004', empresa: 'Copper Alloys', categoria: 'Comercial', cidade: 'Campinas/SP' }
+        ];
+    }
+
     if (!memStore.whatsapp_conversas) {
         memStore.whatsapp_conversas = [
             {
                 id: '5511999990001',
+                instancia_id: 'inst_2',
+                instancia_nome: 'Celular Vendas 01',
                 contato_nome: 'Metais Brasil Ltda',
                 telefone: '+55 11 99999-0001',
                 atendente_id: 1,
@@ -18,6 +61,8 @@ module.exports = function(pool, dbAvailable, memStore) {
             },
             {
                 id: '5519988880002',
+                instancia_id: 'inst_3',
+                instancia_nome: 'Celular Compras 02',
                 contato_nome: 'Fundição Indaiatuba',
                 telefone: '+55 19 98888-0002',
                 atendente_id: 2,
@@ -28,6 +73,8 @@ module.exports = function(pool, dbAvailable, memStore) {
             },
             {
                 id: '5547977770003',
+                instancia_id: 'inst_2',
+                instancia_nome: 'Celular Vendas 01',
                 contato_nome: 'Reciclagem Sul S/A',
                 telefone: '+55 47 97777-0003',
                 atendente_id: 1,
@@ -44,6 +91,7 @@ module.exports = function(pool, dbAvailable, memStore) {
             {
                 id: 1,
                 conversa_id: '5511999990001',
+                instancia_id: 'inst_2',
                 remetente: 'cliente',
                 remetente_nome: 'Metais Brasil Ltda',
                 mensagem: 'Olá, gostaria de receber a tabela de preços atualizada de alumínio e cobre.',
@@ -51,41 +99,134 @@ module.exports = function(pool, dbAvailable, memStore) {
                 anexo_url: null,
                 tabela_tipo: null,
                 enviado_por: null,
-                criado_em: new Date().toISOString()
+                criado_em: new Date(Date.now() - 300000).toISOString()
             },
             {
                 id: 2,
-                conversa_id: '5519988880002',
-                remetente: 'sistema',
-                remetente_nome: 'Atendente Maria',
-                mensagem: 'Recebido o relatório de amostragem de sucata. Obrigado!',
+                conversa_id: '5511999990001',
+                instancia_id: 'inst_2',
+                remetente: 'atendente',
+                remetente_nome: 'Administrador',
+                mensagem: 'olá',
                 tipo: 'texto',
                 anexo_url: null,
                 tabela_tipo: null,
-                enviado_por: 'Atendente Maria',
-                criado_em: new Date(Date.now() - 3600000).toISOString()
+                enviado_por: 'Administrador',
+                criado_em: new Date().toISOString()
             }
         ];
     }
 
-    // 1. Status da Instância WhatsApp
+    // ─── 1. STATUS E GESTÃO DE INSTÂNCIAS (CONTAS / CELULARES) ───
     router.get('/status', (req, res) => {
+        const instancias = memStore.whatsapp_instancias || [];
+        const ativas = instancias.filter(i => i.status === 'conectado').length;
         res.json({
-            status: 'conectado',
-            instancia: 'WA-AKG Multi-Device Admin',
-            modulo: 'WA-AKG (devjohnnydev/WA-AKG)',
+            status: ativas > 0 ? 'conectado' : 'desconectado',
+            instancias_totais: instancias.length,
+            instancias_ativas: ativas,
+            instancias: instancias,
             restauracao_tag: 'before-whatsapp',
-            restauracao_commit: 'dab8553',
-            qr_code_disponivel: false,
-            instancias_ativas: 1,
-            ultima_sincronizacao: new Date().toISOString()
+            restauracao_commit: 'dab8553'
         });
     });
 
-    // 2. Listar Conversas (com suporte a filtro por atendente e busca)
+    router.get('/instancias', (req, res) => {
+        res.json({ success: true, instancias: memStore.whatsapp_instancias || [] });
+    });
+
+    router.post('/instancias', (req, res) => {
+        const { nome, numero, responsavel } = req.body;
+        if (!nome) return res.status(400).json({ error: 'Nome da conta/celular é obrigatório' });
+
+        const novaInstancia = {
+            id: 'inst_' + Date.now(),
+            nome: nome,
+            numero: numero || 'Pendente',
+            responsavel: responsavel || 'Funcionário',
+            status: 'desconectado',
+            qr_code: `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=APEX_WA_${Date.now()}`,
+            criado_em: new Date().toISOString()
+        };
+
+        memStore.whatsapp_instancias.push(novaInstancia);
+        res.json({ success: true, instancia: novaInstancia });
+    });
+
+    router.post('/instancias/:id/conectar', (req, res) => {
+        const id = req.params.id;
+        const inst = memStore.whatsapp_instancias.find(i => i.id === id);
+        if (!inst) return res.status(404).json({ error: 'Instância não encontrada' });
+
+        // Simula a geração do QR Code ou confirmação de conexão
+        inst.status = 'conectado';
+        inst.qr_code = null;
+        res.json({ success: true, instancia: inst });
+    });
+
+    router.delete('/instancias/:id', (req, res) => {
+        const id = req.params.id;
+        memStore.whatsapp_instancias = (memStore.whatsapp_instancias || []).filter(i => i.id !== id);
+        res.json({ success: true });
+    });
+
+    // ─── 2. GESTÃO E IMPORTAÇÃO DE CONTATOS ───
+    router.get('/contatos', (req, res) => {
+        res.json({ success: true, contatos: memStore.whatsapp_contatos || [] });
+    });
+
+    router.post('/contatos', (req, res) => {
+        const { nome, telefone, empresa, categoria } = req.body;
+        if (!nome || !telefone) return res.status(400).json({ error: 'Nome e Telefone são obrigatórios' });
+
+        const novoContato = {
+            id: Date.now(),
+            nome,
+            telefone,
+            empresa: empresa || '',
+            categoria: categoria || 'Geral',
+            cidade: ''
+        };
+
+        memStore.whatsapp_contatos.push(novoContato);
+        res.json({ success: true, contato: novoContato });
+    });
+
+    router.post('/contatos/importar', (req, res) => {
+        const { texto_csv } = req.body;
+        if (!texto_csv) return res.status(400).json({ error: 'Texto para importação vazio.' });
+
+        const linhas = texto_csv.split('\n');
+        let adicionados = 0;
+
+        linhas.forEach(linha => {
+            const partes = linha.split(/[,;\t]/);
+            if (partes.length >= 2) {
+                const nome = partes[0].trim();
+                const telefone = partes[1].trim();
+                const empresa = partes[2] ? partes[2].trim() : '';
+
+                if (nome && telefone) {
+                    memStore.whatsapp_contatos.push({
+                        id: Date.now() + Math.floor(Math.random() * 1000),
+                        nome,
+                        telefone,
+                        empresa,
+                        categoria: 'Importado',
+                        cidade: ''
+                    });
+                    adicionados++;
+                }
+            }
+        });
+
+        res.json({ success: true, adicionados, total: memStore.whatsapp_contatos.length });
+    });
+
+    // ─── 3. LISTAGEM DE CONVERSAS (SUPORTA FILTRO POR INSTÂNCIA / CONTA) ───
     router.get('/conversas', (req, res) => {
         try {
-            const { busca, atendente_id } = req.query;
+            const { busca, atendente_id, instancia_id } = req.query;
             let conversas = memStore.whatsapp_conversas || [];
 
             if (busca) {
@@ -101,29 +242,32 @@ module.exports = function(pool, dbAvailable, memStore) {
                 conversas = conversas.filter(c => c.atendente_id == atendente_id);
             }
 
+            if (instancia_id) {
+                conversas = conversas.filter(c => c.instancia_id === instancia_id);
+            }
+
             res.json({ success: true, conversas });
         } catch (err) {
-            console.error('[WhatsApp API] Erro ao buscar conversas:', err);
+            console.error('[WhatsApp API] Erro conversas:', err);
             res.status(500).json({ error: err.message });
         }
     });
 
-    // 3. Obter Histórico de Mensagens de uma Conversa
     router.get('/conversas/:id/mensagens', (req, res) => {
         try {
             const conversaId = req.params.id;
             const mensagens = (memStore.whatsapp_mensagens || []).filter(m => m.conversa_id === conversaId);
             res.json({ success: true, mensagens });
         } catch (err) {
-            console.error('[WhatsApp API] Erro ao buscar mensagens:', err);
+            console.error('[WhatsApp API] Erro mensagens:', err);
             res.status(500).json({ error: err.message });
         }
     });
 
-    // 4. Enviar Mensagem de Texto Simples
+    // ─── 4. ENVIAR MENSAGEM (COM OPÇÃO DE ESCOLHER A CONTA/INSTÂNCIA QUE RESPONDE) ───
     router.post('/enviar-mensagem', (req, res) => {
         try {
-            const { conversa_id, mensagem, usuario_nome } = req.body;
+            const { conversa_id, mensagem, usuario_nome, instancia_id } = req.body;
             if (!conversa_id || !mensagem) {
                 return res.status(400).json({ error: 'conversa_id e mensagem são obrigatórios' });
             }
@@ -131,23 +275,38 @@ module.exports = function(pool, dbAvailable, memStore) {
             const novaMensagem = {
                 id: Date.now(),
                 conversa_id: String(conversa_id),
+                instancia_id: instancia_id || 'inst_1',
                 remetente: 'atendente',
-                remetente_nome: usuario_nome || 'Funcionário Apex',
+                remetente_nome: usuario_nome || 'Administrador',
                 mensagem: mensagem,
                 tipo: 'texto',
                 anexo_url: null,
                 tabela_tipo: null,
-                enviado_por: usuario_nome || 'Funcionário Apex',
+                enviado_por: usuario_nome || 'Administrador',
                 criado_em: new Date().toISOString()
             };
 
             memStore.whatsapp_mensagens.push(novaMensagem);
 
-            // Atualiza última mensagem na conversa
             const conv = memStore.whatsapp_conversas.find(c => c.id === String(conversa_id));
             if (conv) {
                 conv.ultima_mensagem = mensagem;
                 conv.atualizado_em = new Date().toISOString();
+            } else {
+                // Cria conversa automaticamente se não existir
+                const cont = memStore.whatsapp_contatos.find(k => k.telefone.includes(conversa_id)) || { nome: 'Contato ' + conversa_id, telefone: conversa_id };
+                memStore.whatsapp_conversas.push({
+                    id: String(conversa_id),
+                    instancia_id: instancia_id || 'inst_1',
+                    instancia_nome: 'WhatsApp Geral',
+                    contato_nome: cont.nome,
+                    telefone: cont.telefone,
+                    atendente_id: 1,
+                    atendente_nome: usuario_nome || 'Administrador',
+                    nao_lidas: 0,
+                    ultima_mensagem: mensagem,
+                    atualizado_em: new Date().toISOString()
+                });
             }
 
             res.json({ success: true, mensagem: novaMensagem });
@@ -157,10 +316,10 @@ module.exports = function(pool, dbAvailable, memStore) {
         }
     });
 
-    // 5. Enviar Tabela / Relatório do Sistema via WhatsApp
+    // ─── 5. DISPARAR TABELA / RELATÓRIO DO SISTEMA ───
     router.post('/enviar-tabela', (req, res) => {
         try {
-            const { conversa_id, tabela_tipo, titulo_personalizado, observacoes, usuario_nome } = req.body;
+            const { conversa_id, tabela_tipo, titulo_personalizado, observacoes, usuario_nome, instancia_id } = req.body;
             if (!conversa_id || !tabela_tipo) {
                 return res.status(400).json({ error: 'conversa_id e tabela_tipo são obrigatórios' });
             }
@@ -198,13 +357,14 @@ module.exports = function(pool, dbAvailable, memStore) {
             const novaMensagem = {
                 id: Date.now(),
                 conversa_id: String(conversa_id),
+                instancia_id: instancia_id || 'inst_1',
                 remetente: 'sistema_tabela',
-                remetente_nome: usuario_nome || 'Funcionário Apex',
+                remetente_nome: usuario_nome || 'Administrador',
                 mensagem: msgEnv,
                 tipo: 'tabela_sistema',
                 anexo_url: null,
                 tabela_tipo: tabela_tipo,
-                enviado_por: usuario_nome || 'Funcionário Apex',
+                enviado_por: usuario_nome || 'Administrador',
                 criado_em: new Date().toISOString()
             };
 
@@ -223,7 +383,69 @@ module.exports = function(pool, dbAvailable, memStore) {
         }
     });
 
-    // 6. Auditoria ADM: Visualizar todas as conversas e logs de mensagens de funcionários
+    // ─── 6. DISPARO EM MASSA (BROADCAST PARA TODOS OS CONTATOS) ───
+    router.post('/disparo-massa', (req, res) => {
+        try {
+            const { mensagem, tabela_tipo, contatos_ids, usuario_nome, instancia_id } = req.body;
+            let contatosAlvo = memStore.whatsapp_contatos || [];
+
+            if (contatos_ids && Array.isArray(contatos_ids) && contatos_ids.length > 0) {
+                contatosAlvo = contatosAlvo.filter(c => contatos_ids.includes(c.id));
+            }
+
+            let disparados = 0;
+            contatosAlvo.forEach(contato => {
+                const convId = contato.telefone.replace(/\D/g, '');
+                
+                let msgTexto = mensagem;
+                if (tabela_tipo) {
+                    msgTexto += `\n\n📊 *Transmissão de Tabela Apex Tech* (${tabela_tipo})`;
+                }
+
+                memStore.whatsapp_mensagens.push({
+                    id: Date.now() + Math.floor(Math.random() * 10000),
+                    conversa_id: convId,
+                    instancia_id: instancia_id || 'inst_1',
+                    remetente: 'disparo_massa',
+                    remetente_nome: usuario_nome || 'Administrador',
+                    mensagem: msgTexto,
+                    tipo: 'disparo_massa',
+                    anexo_url: null,
+                    tabela_tipo: tabela_tipo || null,
+                    enviado_por: usuario_nome || 'Administrador',
+                    criado_em: new Date().toISOString()
+                });
+
+                // Atualiza ou cria a conversa
+                let conv = memStore.whatsapp_conversas.find(c => c.id === convId);
+                if (conv) {
+                    conv.ultima_mensagem = `[Disparo em Massa: ${msgTexto.slice(0, 30)}...]`;
+                    conv.atualizado_em = new Date().toISOString();
+                } else {
+                    memStore.whatsapp_conversas.push({
+                        id: convId,
+                        instancia_id: instancia_id || 'inst_1',
+                        instancia_nome: 'Disparo em Massa',
+                        contato_nome: contato.nome,
+                        telefone: contato.telefone,
+                        atendente_id: 1,
+                        atendente_nome: usuario_nome || 'Administrador',
+                        nao_lidas: 0,
+                        ultima_mensagem: msgTexto,
+                        atualizado_em: new Date().toISOString()
+                    });
+                }
+                disparados++;
+            });
+
+            res.json({ success: true, disparados, total_contatos: contatosAlvo.length });
+        } catch (err) {
+            console.error('[WhatsApp API] Erro no disparo em massa:', err);
+            res.status(500).json({ error: err.message });
+        }
+    });
+
+    // ─── 7. AUDITORIA SUPERVISORA ADM ───
     router.get('/auditoria', (req, res) => {
         try {
             const mensagens = memStore.whatsapp_mensagens || [];
@@ -233,6 +455,7 @@ module.exports = function(pool, dbAvailable, memStore) {
                 const msgs = mensagens.filter(m => m.conversa_id === c.id);
                 return {
                     conversa_id: c.id,
+                    instancia_nome: c.instancia_nome || 'Principal',
                     contato_nome: c.contato_nome,
                     telefone: c.telefone,
                     atendente: c.atendente_nome,
@@ -243,13 +466,14 @@ module.exports = function(pool, dbAvailable, memStore) {
 
             res.json({
                 success: true,
+                total_instancias: (memStore.whatsapp_instancias || []).length,
                 total_conversas: conversas.length,
                 total_mensagens: mensagens.length,
                 resumo_conversas: resumo,
                 mensagens_recentes: mensagens.slice(-50)
             });
         } catch (err) {
-            console.error('[WhatsApp API] Erro na auditoria:', err);
+            console.error('[WhatsApp API] Erro auditoria:', err);
             res.status(500).json({ error: err.message });
         }
     });

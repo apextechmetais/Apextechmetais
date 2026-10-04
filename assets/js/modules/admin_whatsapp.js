@@ -1,13 +1,16 @@
-// ─── MÓDULO DE WHATSAPP EMPRESARIAL (WA-AKG INTEGRATION) ─────────────────
+// ─── MÓDULO DE WHATSAPP EMPRESARIAL (WA-AKG MULTI-ACCOUNT & BROADCAST) ───────
 (function() {
+    let _instancias = [];
     let _conversas = [];
+    let _contatos = [];
     let _conversaAtivaId = null;
     let _mensagensAtivas = [];
 
     window.carregarWhatsappModulo = async function() {
         try {
-            console.log('[WhatsApp] Inicializando módulo...');
-            await window.verificarStatusWhatsapp();
+            console.log('[WhatsApp] Inicializando módulo multi-contas...');
+            await window.carregarInstanciasWhatsapp();
+            await window.carregarContatosWhatsapp();
             await window.carregarConversasWhatsapp();
             await window.carregarAuditoriaWhatsapp();
         } catch (e) {
@@ -15,42 +18,216 @@
         }
     };
 
-    window.verificarStatusWhatsapp = async function() {
+    // ─── 1. GESTÃO DE INSTÂNCIAS / CELULARES DO TIME (QR CODE) ───
+    window.carregarInstanciasWhatsapp = async function() {
         try {
-            const res = await fetch('/api/whatsapp/status');
+            const res = await fetch('/api/whatsapp/instancias');
             const data = await res.json();
-            const badgeEl = document.getElementById('wa-status-badge');
-            if (badgeEl) {
-                if (data.status === 'conectado') {
-                    badgeEl.className = 'badge bg-success';
-                    badgeEl.innerHTML = '<i class="fa-solid fa-circle-check"></i> Instância Conectada';
-                } else {
-                    badgeEl.className = 'badge bg-warning text-dark';
-                    badgeEl.innerHTML = '<i class="fa-solid fa-qrcode"></i> Desconectado (Escaneie QR)';
+            if (data.success && Array.isArray(data.instancias)) {
+                _instancias = data.instancias;
+
+                // Popula o filtro de contas no topo e selects dos modais
+                const selFiltro = document.getElementById('wa-select-instancia-filtro');
+                const selResp = document.getElementById('wa-select-responder-como');
+                const selDisp = document.getElementById('wa-disparo-select-instancia');
+
+                if (selFiltro) {
+                    const curVal = selFiltro.value;
+                    selFiltro.innerHTML = '<option value="">📱 Todas as Contas (Visão Geral ADM Master)</option>';
+                    _instancias.forEach(i => {
+                        selFiltro.innerHTML += `<option value="${i.id}">📱 ${i.nome} (${i.responsavel})</option>`;
+                    });
+                    selFiltro.value = curVal;
                 }
+
+                if (selResp) {
+                    selResp.innerHTML = '';
+                    _instancias.forEach(i => {
+                        selResp.innerHTML += `<option value="${i.id}">📱 ${i.nome}</option>`;
+                    });
+                }
+
+                if (selDisp) {
+                    selDisp.innerHTML = '';
+                    _instancias.forEach(i => {
+                        selDisp.innerHTML += `<option value="${i.id}">📱 ${i.nome} (${i.responsavel})</option>`;
+                    });
+                }
+
+                // Badges no topo
+                const badgeContainer = document.getElementById('wa-instancias-resumo-badges');
+                if (badgeContainer) {
+                    const ativas = _instancias.filter(i => i.status === 'conectado').length;
+                    badgeContainer.innerHTML = `<span class="badge bg-success" style="font-size:0.75rem; padding:6px 10px;"><i class="fa-solid fa-circle-check"></i> ${ativas} Celulares Conectados</span>`;
+                }
+
+                window.renderInstanciasTabela();
             }
         } catch (e) {
-            console.warn('[WhatsApp] Erro ao checar status:', e);
+            console.warn('[WhatsApp] Erro ao carregar instâncias:', e);
         }
     };
 
+    window.abrirModalInstanciasWhatsapp = function() {
+        document.getElementById('modal-wa-instancias').style.display = 'flex';
+        window.renderInstanciasTabela();
+    };
+
+    window.fecharModalInstanciasWhatsapp = function() {
+        document.getElementById('modal-wa-instancias').style.display = 'none';
+    };
+
+    window.renderInstanciasTabela = function() {
+        const tbody = document.getElementById('wa-tbody-instancias');
+        if (!tbody) return;
+
+        if (!_instancias || _instancias.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:15px; color:#aaa;">Nenhum celular cadastrado.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = '';
+        _instancias.forEach(i => {
+            const isConnected = i.status === 'conectado';
+            tbody.innerHTML += `
+                <tr>
+                    <td style="font-weight:bold; color:#fff;">${i.nome}</td>
+                    <td style="color:#aaa;">${i.numero}</td>
+                    <td style="color:#38bdf8; font-weight:bold;">${i.responsavel}</td>
+                    <td>
+                        <span class="badge ${isConnected ? 'bg-success' : 'bg-warning text-dark'}" style="font-size:0.75rem;">
+                            ${isConnected ? 'Conectado (WhatsApp Web OK)' : 'Aguardando QR Code'}
+                        </span>
+                    </td>
+                    <td>
+                        ${!isConnected && i.qr_code ? 
+                            `<button type="button" class="btn-primary" onclick="simularScannearQR('${i.id}')" style="font-size:0.75rem; padding:4px 8px; background:#00e5ff; color:#0d1826; border:none; border-radius:4px; font-weight:bold; cursor:pointer;"><i class="fa-solid fa-qrcode"></i> Escanear QR Code</button>` :
+                            `<button type="button" class="btn-secondary" onclick="desconectarInstancia('${i.id}')" style="font-size:0.75rem; padding:4px 8px; background:#ef4444; color:#fff; border:none; border-radius:4px; cursor:pointer;"><i class="fa-solid fa-power-off"></i> Desconectar</button>`
+                        }
+                    </td>
+                </tr>
+            `;
+        });
+    };
+
+    window.criarNovaInstanciaWhatsapp = async function() {
+        const nome = document.getElementById('wa-novo-inst-nome').value;
+        const numero = document.getElementById('wa-novo-inst-numero').value;
+        const resp = document.getElementById('wa-novo-inst-resp').value;
+
+        if (!nome) {
+            if (window._apexNotify) window._apexNotify('Atenção', 'Digite o nome da conta/celular.', 'warning');
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/whatsapp/instancias', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nome, numero, responsavel: resp })
+            });
+            if (res.ok) {
+                document.getElementById('wa-novo-inst-nome').value = '';
+                document.getElementById('wa-novo-inst-numero').value = '';
+                document.getElementById('wa-novo-inst-resp').value = '';
+                await window.carregarInstanciasWhatsapp();
+                if (window._apexNotify) window._apexNotify('Sucesso', 'Nova conta criada com sucesso!', 'success');
+            }
+        } catch (e) {
+            console.error('[WhatsApp] Erro ao criar conta:', e);
+        }
+    };
+
+    window.simularScannearQR = async function(id) {
+        try {
+            const res = await fetch(`/api/whatsapp/instancias/${id}/conectar`, { method: 'POST' });
+            if (res.ok) {
+                await window.carregarInstanciasWhatsapp();
+                if (window._apexNotify) window._apexNotify('Conectado!', 'WhatsApp Web emparelhado via QR Code com sucesso.', 'success');
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    window.desconectarInstancia = async function(id) {
+        try {
+            const res = await fetch(`/api/whatsapp/instancias/${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                await window.carregarInstanciasWhatsapp();
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    // ─── 2. GESTÃO E IMPORTAÇÃO DE CONTATOS ───
+    window.carregarContatosWhatsapp = async function() {
+        try {
+            const res = await fetch('/api/whatsapp/contatos');
+            const data = await res.json();
+            if (data.success && Array.isArray(data.contatos)) {
+                _contatos = data.contatos;
+                const el = document.getElementById('wa-total-contatos-badge');
+                if (el) el.textContent = `Total no catálogo: ${_contatos.length} contatos`;
+            }
+        } catch (e) {
+            console.warn('[WhatsApp] Erro contatos:', e);
+        }
+    };
+
+    window.abrirModalContatosWhatsapp = function() {
+        document.getElementById('modal-wa-contatos').style.display = 'flex';
+    };
+
+    window.fecharModalContatosWhatsapp = function() {
+        document.getElementById('modal-wa-contatos').style.display = 'none';
+    };
+
+    window.processarImportacaoContatosWhatsapp = async function() {
+        const texto = document.getElementById('wa-importar-texto').value;
+        if (!texto || !texto.trim()) {
+            if (window._apexNotify) window._apexNotify('Atenção', 'Cole a lista de contatos para importar.', 'warning');
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/whatsapp/contatos/importar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ texto_csv: texto })
+            });
+            const data = await res.json();
+            if (data.success) {
+                document.getElementById('wa-importar-texto').value = '';
+                await window.carregarContatosWhatsapp();
+                window.fecharModalContatosWhatsapp();
+                if (window._apexNotify) window._apexNotify('Sucesso', `${data.adicionados} novos contatos importados!`, 'success');
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    // ─── 3. LISTA DE CONVERSAS & FILTROS ───
     window.carregarConversasWhatsapp = async function() {
         try {
             const busca = document.getElementById('wa-busca-contato')?.value || '';
-            const res = await fetch(`/api/whatsapp/conversas?busca=${encodeURIComponent(busca)}`);
+            const instId = document.getElementById('wa-select-instancia-filtro')?.value || '';
+            
+            const res = await fetch(`/api/whatsapp/conversas?busca=${encodeURIComponent(busca)}&instancia_id=${encodeURIComponent(instId)}`);
             const data = await res.json();
 
             if (data.success && Array.isArray(data.conversas)) {
                 _conversas = data.conversas;
                 window.renderListaConversas(_conversas);
                 
-                // Se nenhuma conversa selecionada e temos conversas, selecione a primeira
                 if (!_conversaAtivaId && _conversas.length > 0) {
                     window.selecionarConversaWhatsapp(_conversas[0].id);
                 }
             }
         } catch (e) {
-            console.error('[WhatsApp] Erro ao buscar conversas:', e);
+            console.error('[WhatsApp] Erro conversas:', e);
         }
     };
 
@@ -82,8 +259,9 @@
                     <div style="color:#94a3b8; font-size:0.8rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:180px;">${c.ultima_mensagem}</div>
                     ${c.nao_lidas > 0 ? `<span style="background:#25D366; color:#0d1826; font-weight:800; font-size:0.7rem; padding:2px 6px; border-radius:10px;">${c.nao_lidas}</span>` : ''}
                 </div>
-                <div style="margin-top:4px;">
-                    <span style="font-size:0.7rem; color:#38bdf8; background:rgba(56,189,248,0.1); padding:2px 6px; border-radius:4px;"><i class="fa-solid fa-user-gear"></i> ${c.atendente_nome || 'Sem Atendente'}</span>
+                <div style="margin-top:4px; display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-size:0.7rem; color:#38bdf8; background:rgba(56,189,248,0.1); padding:2px 6px; border-radius:4px;"><i class="fa-solid fa-mobile-screen"></i> ${c.instancia_nome || 'WhatsApp'}</span>
+                    <span style="font-size:0.7rem; color:#aaa;">${c.atendente_nome || ''}</span>
                 </div>
             `;
             container.appendChild(div);
@@ -98,7 +276,7 @@
         if (conv) {
             document.getElementById('wa-header-nome').textContent = conv.contato_nome;
             document.getElementById('wa-header-telefone').textContent = conv.telefone;
-            document.getElementById('wa-header-atendente').textContent = conv.atendente_nome || 'Sem Atendente';
+            document.getElementById('wa-header-atendente').textContent = `${conv.instancia_nome} (${conv.atendente_nome || 'Livre'})`;
         }
 
         try {
@@ -109,7 +287,7 @@
                 window.renderMensagensChat(_mensagensAtivas);
             }
         } catch (e) {
-            console.error('[WhatsApp] Erro ao carregar mensagens:', e);
+            console.error('[WhatsApp] Erro mensagens:', e);
         }
     };
 
@@ -118,13 +296,13 @@
         if (!body) return;
 
         if (!mensagens || mensagens.length === 0) {
-            body.innerHTML = '<div style="text-align:center; color:#aaa; margin-top:40px;">Nenhuma mensagem registrada nesta conversa.</div>';
+            body.innerHTML = '<div style="text-align:center; color:#aaa; margin-top:50px;">Selecione uma conversa ao lado para visualizar a troca de mensagens.</div>';
             return;
         }
 
         body.innerHTML = '';
         mensagens.forEach(m => {
-            const isMe = m.remetente === 'atendente' || m.remetente === 'sistema_tabela';
+            const isMe = m.remetente === 'atendente' || m.remetente === 'sistema_tabela' || m.remetente === 'disparo_massa';
             const horaStr = new Date(m.criado_em).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
 
             const wrapper = document.createElement('div');
@@ -136,6 +314,8 @@
             let msgHtml = m.mensagem.replace(/\n/g, '<br>');
             if (m.tipo === 'tabela_sistema') {
                 msgHtml = `<div style="background:#0b141a; padding:10px; border-radius:6px; border-left:3px solid #25D366; margin-bottom:5px;"><i class="fa-solid fa-file-invoice" style="color:#25D366;"></i> <strong>Transmissão de Tabela do Sistema</strong></div>` + msgHtml;
+            } else if (m.tipo === 'disparo_massa') {
+                msgHtml = `<div style="background:#0b141a; padding:10px; border-radius:6px; border-left:3px solid #ffb74d; margin-bottom:5px;"><i class="fa-solid fa-bullhorn" style="color:#ffb74d;"></i> <strong>Disparo em Massa (Broadcast)</strong></div>` + msgHtml;
             }
 
             wrapper.innerHTML = `
@@ -157,6 +337,7 @@
 
         const texto = input.value.trim();
         input.value = '';
+        const instId = document.getElementById('wa-select-responder-como')?.value || 'inst_1';
 
         try {
             const res = await fetch('/api/whatsapp/enviar-mensagem', {
@@ -164,8 +345,9 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     conversa_id: _conversaAtivaId,
+                    instancia_id: instId,
                     mensagem: texto,
-                    usuario_nome: window.currentUser ? window.currentUser.nome : 'Administrador'
+                    usuario_nome: window.currentUser ? window.currentUser.nome : 'Administrador Master'
                 })
             });
             if (res.ok) {
@@ -186,6 +368,7 @@
         const tipoTabela = document.getElementById('wa-select-tabela-tipo').value;
         const titulo = document.getElementById('wa-titulo-disparo').value;
         const obs = document.getElementById('wa-obs-disparo').value;
+        const instId = document.getElementById('wa-select-responder-como')?.value || 'inst_1';
 
         try {
             const res = await fetch('/api/whatsapp/enviar-tabela', {
@@ -193,10 +376,11 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     conversa_id: _conversaAtivaId,
+                    instancia_id: instId,
                     tabela_tipo: tipoTabela,
                     titulo_personalizado: titulo,
                     observacoes: obs,
-                    usuario_nome: window.currentUser ? window.currentUser.nome : 'Administrador'
+                    usuario_nome: window.currentUser ? window.currentUser.nome : 'Administrador Master'
                 })
             });
             if (res.ok) {
@@ -211,6 +395,50 @@
         }
     };
 
+    // ─── 4. DISPARO EM MASSA PARA TODOS OS CONTATOS ───
+    window.abrirModalDisparoMassaWhatsapp = function() {
+        document.getElementById('modal-wa-disparo-massa').style.display = 'flex';
+    };
+
+    window.fecharModalDisparoMassaWhatsapp = function() {
+        document.getElementById('modal-wa-disparo-massa').style.display = 'none';
+    };
+
+    window.executarDisparoEmMassaWhatsapp = async function() {
+        const texto = document.getElementById('wa-disparo-mensagem-texto').value;
+        const tabela = document.getElementById('wa-disparo-select-tabela').value;
+        const instId = document.getElementById('wa-disparo-select-instancia').value;
+
+        if (!texto && !tabela) {
+            if (window._apexNotify) window._apexNotify('Atenção', 'Digite uma mensagem ou selecione uma tabela para o disparo.', 'warning');
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/whatsapp/disparo-massa', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    mensagem: texto,
+                    tabela_tipo: tabela,
+                    instancia_id: instId,
+                    usuario_nome: window.currentUser ? window.currentUser.nome : 'Administrador Master'
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                window.fecharModalDisparoMassaWhatsapp();
+                document.getElementById('wa-disparo-mensagem-texto').value = '';
+                if (window._apexNotify) window._apexNotify('Disparo Concluído', `Mensagem enviada com sucesso para ${data.disparados} contatos!`, 'success');
+                await window.carregarConversasWhatsapp();
+                await window.carregarAuditoriaWhatsapp();
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    // ─── 5. AUDITORIA ADM MASTER ───
     window.carregarAuditoriaWhatsapp = async function() {
         try {
             const res = await fetch('/api/whatsapp/auditoria');
@@ -223,10 +451,9 @@
                     tbody.innerHTML += `
                         <tr>
                             <td style="font-weight:bold; color:#fff;">${r.contato_nome} <br><small style="color:#aaa;">${r.telefone}</small></td>
-                            <td><span style="color:#38bdf8; font-weight:bold;">${r.atendente}</span></td>
-                            <td style="text-align:center;">${r.total_mensagens}</td>
-                            <td>${new Date(r.ultima_interacao).toLocaleString('pt-BR')}</td>
-                            <td style="text-align:center;"><span class="badge bg-success">Registrado</span></td>
+                            <td><span style="color:#00e5ff; font-size:0.75rem;">${r.instancia_nome}</span><br><small style="color:#38bdf8;">${r.atendente}</small></td>
+                            <td style="text-align:center; font-weight:bold; color:#25D366;">${r.total_mensagens}</td>
+                            <td>${new Date(r.ultima_interacao).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}</td>
                         </tr>
                     `;
                 });
