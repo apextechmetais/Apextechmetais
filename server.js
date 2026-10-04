@@ -7909,37 +7909,80 @@ app.put('/api/estrategiav3_mix/:id/realizado', async (req, res) => {
 
 // ─── API: Forecast e Estratégia de Compras ───────────────────────────────────
 app.get('/api/planejamento/compras/forecast', async (req, res) => {
-    if (!dbAvailable || !pool) {
-        return res.json([]);
+    let rows = [];
+    if (dbAvailable && pool) {
+        try {
+            const queryStr = `
+                SELECT 
+                    mc.id, 
+                    mc.nome, 
+                    mc.categoria,
+                    COALESCE(mc.estoque_atual, 0) as estoque_atual, 
+                    COALESCE(tp.preco_entregar, 0) as preco_compra, 
+                    COALESCE(tp.venda_ref, 0) as preco_venda,
+                    (SELECT COALESCE(SUM(pvi.quantidade), 0) 
+                     FROM pedidos_venda_itens pvi 
+                     JOIN pedidos_venda pv ON pvi.pedido_id = pv.id 
+                     WHERE pv.status != 'Cancelado' 
+                     AND pvi.material_id = mc.id 
+                     AND pv.criado_em >= NOW() - INTERVAL '90 days') as demanda_90d,
+                     
+                    (SELECT COALESCE(SUM(pci.quantidade), 0) 
+                     FROM pedidos_compra_itens pci 
+                     JOIN pedidos_compra pc ON pci.pedido_id = pc.id 
+                     WHERE pc.status NOT IN ('Cancelado', 'Entregue') 
+                     AND pci.material_id = mc.id) as compras_pendentes
+                     
+                FROM materiais_catalogo mc
+                LEFT JOIN tabela_precos tp ON mc.id = tp.material_id
+                ORDER BY mc.categoria, mc.nome;
+            `;
+            const result = await pool.query(queryStr);
+            if (result && result.rows) {
+                rows = result.rows;
+            }
+        } catch (err) {
+            console.warn('⚠️ Erro BD Forecast, caindo para memStore:', err.message);
+        }
     }
-    try {
-        const queryStr = `
-            SELECT 
-                mc.id, 
-                mc.nome, 
-                mc.categoria,
-                COALESCE(mc.estoque_atual, 0) as estoque_atual, 
-                COALESCE(tp.preco_entregar, 0) as preco_compra, 
-                COALESCE(tp.venda_ref, 0) as preco_venda,
-                (SELECT COALESCE(SUM(pvi.quantidade), 0) 
-                 FROM pedidos_venda_itens pvi 
-                 JOIN pedidos_venda pv ON pvi.pedido_id = pv.id 
-                 WHERE pv.status != 'Cancelado' 
-                 AND pvi.material_id = mc.id 
-                 AND pv.criado_em >= NOW() - INTERVAL '90 days') as demanda_90d,
-                 
-                (SELECT COALESCE(SUM(pci.quantidade), 0) 
-                 FROM pedidos_compra_itens pci 
-                 JOIN pedidos_compra pc ON pci.pedido_id = pc.id 
-                 WHERE pc.status NOT IN ('Cancelado', 'Entregue') 
-                 AND pci.material_id = mc.id) as compras_pendentes
-                 
-            FROM materiais_catalogo mc
-            LEFT JOIN tabela_precos tp ON mc.id = tp.material_id
-            ORDER BY mc.categoria, mc.nome;
-        `;
-        const result = await pool.query(queryStr);
-        const rows = result.rows || [];
+
+    if (rows.length === 0) {
+        const matList = memStore.materiais_catalogo || [];
+        const tpList = memStore.tabela_precos || [];
+        
+        rows = matList.map(mc => {
+            const tp = tpList.find(x => x.material_id === mc.id) || {};
+            let demanda_90d = 0;
+            let compras_pendentes = 0;
+            
+            (memStore.pedidos_venda || []).forEach(pv => {
+                if (pv.status !== 'Cancelado') {
+                    (pv.itens || []).forEach(i => {
+                        if (i.material_id === mc.id) demanda_90d += i.quantidade;
+                    });
+                }
+            });
+            
+            (memStore.pedidos_compra || []).forEach(pc => {
+                if (pc.status !== 'Cancelado' && pc.status !== 'Entregue') {
+                    (pc.itens || []).forEach(i => {
+                        if (i.material_id === mc.id) compras_pendentes += i.quantidade;
+                    });
+                }
+            });
+
+            return {
+                id: mc.id,
+                nome: mc.nome,
+                categoria: mc.categoria,
+                estoque_atual: mc.estoque_atual || 0,
+                preco_compra: tp.preco_entregar || 0,
+                preco_venda: tp.venda_ref || 0,
+                demanda_90d: demanda_90d,
+                compras_pendentes: compras_pendentes
+            };
+        });
+    }
 
         const forecast = rows.map(r => {
             const pVenda = parseFloat(r.preco_venda || 0);
