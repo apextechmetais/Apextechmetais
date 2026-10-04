@@ -1,4 +1,4 @@
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
 const QRCode = require('qrcode');
 const pino = require('pino');
 const path = require('path');
@@ -7,6 +7,21 @@ const fs = require('fs');
 const sessionsDir = path.join(__dirname, '../../data/whatsapp_sessions');
 if (!fs.existsSync(sessionsDir)) {
     fs.mkdirSync(sessionsDir, { recursive: true });
+}
+
+function extrairTextoMensagem(msg) {
+    if (!msg || !msg.message) return '';
+    const m = msg.message;
+    if (m.conversation) return m.conversation;
+    if (m.extendedTextMessage && m.extendedTextMessage.text) return m.extendedTextMessage.text;
+    if (m.imageMessage) return m.imageMessage.caption || '📷 [Imagem / Foto]';
+    if (m.videoMessage) return m.videoMessage.caption || '🎥 [Vídeo]';
+    if (m.documentMessage) return `📄 [Documento: ${m.documentMessage.fileName || 'Arquivo'}]`;
+    if (m.audioMessage) return '🎵 [Áudio / Mensagem de Voz]';
+    if (m.stickerMessage) return '🎨 [Figurinha]';
+    if (m.contactMessage) return '👤 [Contato Compartilhado]';
+    if (m.locationMessage) return '📍 [Localização]';
+    return '[Mensagem WhatsApp]';
 }
 
 class WhatsappManager {
@@ -23,9 +38,11 @@ class WhatsappManager {
 
     async iniciarInstancia(instanciaId) {
         if (this.sockets.has(instanciaId)) {
-            const existingSock = this.sockets.get(instanciaId);
             if (this.statuses.get(instanciaId) === 'conectado') {
                 return { status: 'conectado', qr: null };
+            }
+            if (this.qrCodes.has(instanciaId)) {
+                return { status: this.statuses.get(instanciaId), qr: this.qrCodes.get(instanciaId) };
             }
         }
 
@@ -61,7 +78,7 @@ class WhatsappManager {
                         const qrDataUrl = await QRCode.toDataURL(qr, { margin: 2, scale: 8 });
                         this.qrCodes.set(instanciaId, qrDataUrl);
                         this.statuses.set(instanciaId, 'aguardando_qr');
-                        console.log(`[WhatsApp Manager] NOVO QR CODE GERADO para ${instanciaId}`);
+                        console.log(`[WhatsApp Manager] NOVO QR CODE GERADO AUTÊNTICO para ${instanciaId}`);
                         this.atualizarMemStoreInstancia(instanciaId, 'aguardando_qr', qrDataUrl);
                     } catch (err) {
                         console.error(`[WhatsApp Manager] Erro ao converter QR code para DataURL:`, err);
@@ -81,7 +98,7 @@ class WhatsappManager {
                         setTimeout(() => this.iniciarInstancia(instanciaId), 5000);
                     }
                 } else if (connection === 'open') {
-                    console.log(`[WhatsApp Manager] CONECTADO com sucesso para ${instanciaId}!`);
+                    console.log(`[WhatsApp Manager] CONECTADO E ESPELHADO COM SUCESSO para ${instanciaId}!`);
                     this.statuses.set(instanciaId, 'conectado');
                     this.qrCodes.delete(instanciaId);
 
@@ -90,23 +107,63 @@ class WhatsappManager {
                 }
             });
 
-            // Escuta mensagens recebidas no WhatsApp
+            // ─── 1. SINCRONIZAÇÃO HISTÓRICA DO WHATSAPP WEB (HISTÓRICO COMPLETO) ───
+            sock.ev.on('messaging-history.set', ({ contacts, messages }) => {
+                console.log(`[WhatsApp Manager] Sincronizando histórico do celular para ${instanciaId}...`);
+                if (contacts && Array.isArray(contacts)) {
+                    for (const c of contacts) {
+                        if (!c.id || c.id.endsWith('@g.us') || c.id === 'status@broadcast') continue;
+                        const num = c.id.split('@')[0];
+                        const nome = c.name || c.notify || c.verifiedName || `+${num}`;
+                        this.sincronizarContatoMirror(num, nome);
+                    }
+                }
+
+                if (messages && Array.isArray(messages)) {
+                    for (const msg of messages) {
+                        const fromJid = msg.key.remoteJid;
+                        if (!fromJid || fromJid.endsWith('@g.us') || fromJid === 'status@broadcast') continue;
+                        const numLimpo = fromJid.split('@')[0];
+                        const isMe = msg.key.fromMe;
+                        const texto = extrairTextoMensagem(msg);
+                        if (!texto) continue;
+                        const pushName = msg.pushName || (isMe ? 'Funcionário' : `+${numLimpo}`);
+                        const ts = msg.messageTimestamp ? (typeof msg.messageTimestamp === 'number' ? msg.messageTimestamp : msg.messageTimestamp.low) : null;
+                        this.sincronizarMensagemMirror(instanciaId, numLimpo, pushName, texto, isMe, ts);
+                    }
+                }
+            });
+
+            // ─── 2. ESPELHAMENTO DE CONTATOS DO TELEFONE ───
+            sock.ev.on('contacts.upsert', (contacts) => {
+                for (const c of contacts) {
+                    if (!c.id || c.id.endsWith('@g.us') || c.id === 'status@broadcast') continue;
+                    const num = c.id.split('@')[0];
+                    const nome = c.name || c.notify || c.verifiedName || `+${num}`;
+                    this.sincronizarContatoMirror(num, nome);
+                }
+            });
+
+            // ─── 3. ESPELHAMENTO EM TEMPO REAL DE MENSAGENS (ENVIADAS DO CELULAR E RECEBIDAS) ───
             sock.ev.on('messages.upsert', async (m) => {
                 try {
-                    if (!m.messages || m.type !== 'notify') return;
+                    if (!m.messages) return;
                     for (const msg of m.messages) {
-                        if (msg.key.fromMe) continue; // Ignora mensagens do próprio bot
                         const fromJid = msg.key.remoteJid;
-                        if (!fromJid || fromJid.endsWith('@g.us')) continue; // Foca em conversas diretas CRM
+                        if (!fromJid || fromJid.endsWith('@g.us') || fromJid === 'status@broadcast') continue;
 
-                        const texto = msg.message?.conversation || msg.message?.extendedTextMessage?.text || '[Mídia / Anexo]';
-                        const pushName = msg.pushName || 'Contato WhatsApp';
                         const numLimpo = fromJid.split('@')[0];
+                        const isMe = msg.key.fromMe;
+                        const texto = extrairTextoMensagem(msg);
+                        if (!texto) continue;
 
-                        this.registrarMensagemRecebida(instanciaId, numLimpo, pushName, texto);
+                        const pushName = msg.pushName || (isMe ? 'Funcionário / Sistema' : `Contato +${numLimpo}`);
+                        const ts = msg.messageTimestamp ? (typeof msg.messageTimestamp === 'number' ? msg.messageTimestamp : msg.messageTimestamp.low) : null;
+
+                        this.sincronizarMensagemMirror(instanciaId, numLimpo, pushName, texto, isMe, ts);
                     }
                 } catch (e) {
-                    console.error('[WhatsApp Manager] Erro ao processar mensagem recebida:', e);
+                    console.error('[WhatsApp Manager] Erro ao espelhar mensagem:', e);
                 }
             });
 
@@ -128,44 +185,77 @@ class WhatsappManager {
         }
     }
 
-    registrarMensagemRecebida(instanciaId, telefoneLimpo, nomeContato, mensagemTexto) {
-        if (!this.memStore) return;
+    sincronizarContatoMirror(telefoneLimpo, nomeContato) {
+        if (!this.memStore || !telefoneLimpo) return;
+        if (!this.memStore.whatsapp_contatos) this.memStore.whatsapp_contatos = [];
         
+        const foneFmt = `+${telefoneLimpo}`;
+        let c = this.memStore.whatsapp_contatos.find(item => item.telefone.replace(/\D/g, '') === telefoneLimpo);
+        if (!c) {
+            this.memStore.whatsapp_contatos.push({
+                id: Date.now() + Math.floor(Math.random() * 10000),
+                nome: nomeContato || foneFmt,
+                telefone: foneFmt,
+                empresa: 'WhatsApp Sync',
+                categoria: 'Contato Telefone',
+                cidade: ''
+            });
+        } else if (nomeContato && nomeContato !== foneFmt && (c.nome.startsWith('+') || c.nome.includes('Contato'))) {
+            c.nome = nomeContato;
+        }
+    }
+
+    sincronizarMensagemMirror(instanciaId, telefoneLimpo, nomeContato, mensagemTexto, enviadaPeloCelular, timestamp) {
+        if (!this.memStore) return;
         const foneFmt = `+${telefoneLimpo}`;
         let conv = this.memStore.whatsapp_conversas.find(c => c.id === telefoneLimpo || c.telefone.replace(/\D/g, '') === telefoneLimpo);
         const inst = this.memStore.whatsapp_instancias.find(i => i.id === instanciaId);
+        const dataHora = timestamp ? new Date(timestamp * 1000).toISOString() : new Date().toISOString();
 
         if (!conv) {
             conv = {
                 id: telefoneLimpo,
                 instancia_id: instanciaId,
                 instancia_nome: inst ? inst.nome : 'WhatsApp',
-                contato_nome: nomeContato,
+                contato_nome: nomeContato || foneFmt,
                 telefone: foneFmt,
                 atendente_id: null,
-                atendente_nome: 'Atendimento CRM',
-                nao_lidas: 1,
+                atendente_nome: enviadaPeloCelular ? (inst ? inst.responsavel : 'Atendente') : 'Cliente',
+                nao_lidas: enviadaPeloCelular ? 0 : 1,
                 ultima_mensagem: mensagemTexto,
-                atualizado_em: new Date().toISOString()
+                atualizado_em: dataHora
             };
             this.memStore.whatsapp_conversas.unshift(conv);
         } else {
-            conv.nao_lidas = (conv.nao_lidas || 0) + 1;
+            if (!enviadaPeloCelular) conv.nao_lidas = (conv.nao_lidas || 0) + 1;
             conv.ultima_mensagem = mensagemTexto;
-            conv.atualizado_em = new Date().toISOString();
+            conv.atualizado_em = dataHora;
+            if (nomeContato && nomeContato !== foneFmt && conv.contato_nome.startsWith('+')) {
+                conv.contato_nome = nomeContato;
+            }
         }
 
         if (!this.memStore.whatsapp_mensagens) this.memStore.whatsapp_mensagens = [];
-        this.memStore.whatsapp_mensagens.push({
-            id: Date.now(),
-            conversa_id: conv.id,
-            instancia_id: instanciaId,
-            remetente: 'cliente',
-            remetente_nome: nomeContato,
-            mensagem: mensagemTexto,
-            tipo: 'texto',
-            criado_em: new Date().toISOString()
-        });
+
+        // Evita mensagens duplicadas
+        const jaExiste = this.memStore.whatsapp_mensagens.some(m => 
+            String(m.conversa_id) === String(conv.id) && m.mensagem === mensagemTexto && Math.abs(new Date(m.criado_em) - new Date(dataHora)) < 5000
+        );
+
+        if (!jaExiste) {
+            this.memStore.whatsapp_mensagens.push({
+                id: Date.now() + Math.floor(Math.random() * 1000),
+                conversa_id: conv.id,
+                instancia_id: instanciaId,
+                remetente: enviadaPeloCelular ? 'atendente' : 'cliente',
+                remetente_nome: enviadaPeloCelular ? (inst ? inst.responsavel : 'Funcionário Celular') : (conv.contato_nome || nomeContato),
+                mensagem: mensagemTexto,
+                tipo: 'texto',
+                criado_em: dataHora
+            });
+        }
+
+        this.sincronizarContatoMirror(telefoneLimpo, conv.contato_nome);
     }
 
     async obterQrCode(instanciaId) {

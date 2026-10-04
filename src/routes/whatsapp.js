@@ -287,18 +287,28 @@ module.exports = function(pool, dbAvailable, memStore) {
         }
     });
 
-    // ─── 4. ENVIAR MENSAGEM (COM OPÇÃO DE ESCOLHER A CONTA/INSTÂNCIA QUE RESPONDE) ───
-    router.post('/enviar-mensagem', (req, res) => {
+    router.post('/enviar-mensagem', async (req, res) => {
         try {
             const { conversa_id, mensagem, usuario_nome, instancia_id } = req.body;
             if (!conversa_id || !mensagem) {
                 return res.status(400).json({ error: 'conversa_id e mensagem são obrigatórios' });
             }
 
+            const instId = instancia_id || 'inst_1';
+            const conv = memStore.whatsapp_conversas.find(c => c.id === String(conversa_id));
+            const telefoneDestino = conv ? conv.telefone : conversa_id;
+
+            // Tenta enviar pelo celular/socket oficial conectado
+            try {
+                await whatsappManager.enviarMensagem(instId, telefoneDestino, mensagem);
+            } catch (e) {
+                console.log(`[WhatsApp Real Send] Socket (${instId}): ${e.message}`);
+            }
+
             const novaMensagem = {
                 id: Date.now(),
                 conversa_id: String(conversa_id),
-                instancia_id: instancia_id || 'inst_1',
+                instancia_id: instId,
                 remetente: 'atendente',
                 remetente_nome: usuario_nome || 'Administrador',
                 mensagem: mensagem,
@@ -311,7 +321,6 @@ module.exports = function(pool, dbAvailable, memStore) {
 
             memStore.whatsapp_mensagens.push(novaMensagem);
 
-            const conv = memStore.whatsapp_conversas.find(c => c.id === String(conversa_id));
             if (conv) {
                 conv.ultima_mensagem = mensagem;
                 conv.atualizado_em = new Date().toISOString();
