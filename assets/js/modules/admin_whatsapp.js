@@ -521,6 +521,31 @@
         }
     };
 
+    window.renomearContatoAtualWhatsapp = async function() {
+        if (!_conversaAtivaId) return;
+        const conv = _conversas.find(c => String(c.id) === String(_conversaAtivaId));
+        const nomeAtual = conv ? conv.contato_nome : '';
+
+        const novoNome = prompt('Digite o nome deste contato no CRM:', nomeAtual);
+        if (!novoNome || !novoNome.trim()) return;
+
+        try {
+            const res = await fetch(`/api/whatsapp/conversas/${_conversaAtivaId}/nome`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ novo_nome: novoNome.trim() })
+            });
+            const data = await res.json();
+            if (data.success) {
+                await window.carregarConversasWhatsapp();
+                window.selecionarConversaWhatsapp(_conversaAtivaId);
+                if (window._apexNotify) window._apexNotify('Contato Atualizado!', `Nome alterado para ${data.contato_nome}`, 'success');
+            }
+        } catch (e) {
+            console.error('[WhatsApp Rename] Erro:', e);
+        }
+    };
+
     window.enviarMensagemWhatsapp = async function() {
         const input = document.getElementById('wa-input-mensagem');
         if (!input || !input.value.trim() || !_conversaAtivaId) return;

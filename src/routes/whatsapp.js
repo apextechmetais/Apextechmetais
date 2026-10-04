@@ -252,6 +252,21 @@ module.exports = function(pool, dbAvailable, memStore) {
             const { busca, atendente_id, instancia_id } = req.query;
             let conversas = memStore.whatsapp_conversas || [];
 
+            // Resolve nomes reais dos contatos
+            conversas.forEach(c => {
+                const cleanNum = c.telefone ? c.telefone.replace(/\D/g, '') : c.id;
+                const matchContato = (memStore.whatsapp_contatos || []).find(ct => ct.telefone && ct.telefone.replace(/\D/g, '') === cleanNum);
+                const nomeManager = whatsappManager.contatosMap ? whatsappManager.contatosMap.get(cleanNum) : null;
+
+                if (matchContato && matchContato.nome && !matchContato.nome.startsWith('+') && matchContato.nome !== 'Funcionário') {
+                    c.contato_nome = matchContato.nome;
+                } else if (nomeManager) {
+                    c.contato_nome = nomeManager;
+                } else if (c.contato_nome === 'Funcionário' || !c.contato_nome) {
+                    c.contato_nome = `Contato +${cleanNum}`;
+                }
+            });
+
             if (busca) {
                 const term = busca.toLowerCase();
                 conversas = conversas.filter(c => 
@@ -272,6 +287,42 @@ module.exports = function(pool, dbAvailable, memStore) {
             res.json({ success: true, conversas });
         } catch (err) {
             console.error('[WhatsApp API] Erro conversas:', err);
+            res.status(500).json({ error: err.message });
+        }
+    });
+
+    router.post('/conversas/:id/nome', (req, res) => {
+        try {
+            const id = req.params.id;
+            const { novo_nome } = req.body;
+            if (!novo_nome) return res.status(400).json({ error: 'novo_nome é obrigatório' });
+
+            const cleanNum = id.replace(/\D/g, '');
+            const conv = (memStore.whatsapp_conversas || []).find(c => String(c.id) === String(id) || String(c.id) === String(cleanNum));
+            if (conv) {
+                conv.contato_nome = novo_nome;
+            }
+
+            let cont = (memStore.whatsapp_contatos || []).find(c => c.telefone && c.telefone.replace(/\D/g, '') === cleanNum);
+            if (cont) {
+                cont.nome = novo_nome;
+            } else {
+                memStore.whatsapp_contatos.push({
+                    id: Date.now(),
+                    nome: novo_nome,
+                    telefone: `+${cleanNum}`,
+                    empresa: '',
+                    categoria: 'Geral',
+                    cidade: ''
+                });
+            }
+
+            if (whatsappManager.contatosMap) {
+                whatsappManager.contatosMap.set(cleanNum, novo_nome);
+            }
+
+            res.json({ success: true, contato_nome: novo_nome });
+        } catch (err) {
             res.status(500).json({ error: err.message });
         }
     });

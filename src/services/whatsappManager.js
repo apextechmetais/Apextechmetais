@@ -34,6 +34,7 @@ class WhatsappManager {
         this.sockets = new Map();
         this.qrCodes = new Map();
         this.statuses = new Map();
+        this.contatosMap = new Map();
         this.memStore = null;
     }
 
@@ -260,17 +261,23 @@ class WhatsappManager {
         if (!this.memStore.whatsapp_contatos) this.memStore.whatsapp_contatos = [];
         
         const foneFmt = `+${telefoneLimpo}`;
+        const ehNomeValido = nomeContato && !nomeContato.startsWith('+') && nomeContato !== 'Funcionário' && nomeContato !== 'Atendente';
+
+        if (ehNomeValido) {
+            this.contatosMap.set(telefoneLimpo, nomeContato);
+        }
+
         let c = this.memStore.whatsapp_contatos.find(item => item.telefone.replace(/\D/g, '') === telefoneLimpo);
         if (!c) {
             this.memStore.whatsapp_contatos.push({
                 id: Date.now() + Math.floor(Math.random() * 10000),
-                nome: nomeContato || foneFmt,
+                nome: (ehNomeValido ? nomeContato : foneFmt),
                 telefone: foneFmt,
                 empresa: 'WhatsApp Sync',
                 categoria: 'Contato Telefone',
                 cidade: ''
             });
-        } else if (nomeContato && nomeContato !== foneFmt && (c.nome.startsWith('+') || c.nome.includes('Contato'))) {
+        } else if (ehNomeValido && (c.nome.startsWith('+') || c.nome.includes('Contato') || c.nome === 'Funcionário')) {
             c.nome = nomeContato;
         }
     }
@@ -282,12 +289,18 @@ class WhatsappManager {
         const inst = this.memStore.whatsapp_instancias.find(i => i.id === instanciaId);
         const dataHora = timestamp ? new Date(timestamp * 1000).toISOString() : new Date().toISOString();
 
+        const ehNomeValido = nomeContato && !nomeContato.startsWith('+') && nomeContato !== 'Funcionário' && nomeContato !== 'Atendente';
+        if (ehNomeValido) {
+            this.contatosMap.set(telefoneLimpo, nomeContato);
+        }
+        const nomeFinal = (ehNomeValido ? nomeContato : (this.contatosMap.get(telefoneLimpo) || foneFmt));
+
         if (!conv) {
             conv = {
                 id: telefoneLimpo,
                 instancia_id: instanciaId,
                 instancia_nome: inst ? inst.nome : 'WhatsApp',
-                contato_nome: nomeContato || foneFmt,
+                contato_nome: nomeFinal,
                 telefone: foneFmt,
                 atendente_id: null,
                 atendente_nome: enviadaPeloCelular ? (inst ? inst.responsavel : 'Atendente') : 'Cliente',
@@ -300,8 +313,8 @@ class WhatsappManager {
             if (!enviadaPeloCelular) conv.nao_lidas = (conv.nao_lidas || 0) + 1;
             conv.ultima_mensagem = mensagemTexto;
             conv.atualizado_em = dataHora;
-            if (nomeContato && nomeContato !== foneFmt && (conv.contato_nome.startsWith('+') || conv.contato_nome.includes('Johnny Braga'))) {
-                conv.contato_nome = nomeContato;
+            if (ehNomeValido || conv.contato_nome.startsWith('+') || conv.contato_nome === 'Funcionário' || conv.contato_nome === 'Johnny Braga') {
+                conv.contato_nome = nomeFinal;
             }
         }
 
