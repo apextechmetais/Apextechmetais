@@ -16464,18 +16464,7 @@ window.carregarFinanceiroView = async function() {
     let _mesV3Ativo = null; // null = visão de 12 meses
     let _mixSimulacaoV3 = []; // Mix de produtos para simulação: [{ material_id, fracaoPct }]
 
-    window.carregarPlanejamentoEstrategicov3 = async function() {
-        try {
-            const resPrecos = await fetch('/api/tabela-precos');
-            _listTabelaPrecosEstrategica = await resPrecos.json();
-            
-            // Renderiza o Dashboard de Margens
-            window.renderDashboardVisuaisEstrategicoV3();
-        } catch (e) {
-            console.error('Erro ao carregar planejamento V3:', e);
-            _apexNotify('Erro', 'Não foi possível carregar os dados estratégicos V3.', 'error');
-        }
-    };
+    // Delegado para o módulo principal admin_estrategicov3.js
 
     window.renderDashboardVisuaisEstrategicoV3 = function() {
         if (!_listTabelaPrecosEstrategica || _listTabelaPrecosEstrategica.length === 0) return;
@@ -16577,43 +16566,9 @@ window.carregarFinanceiroView = async function() {
     }
 
     function popularSelectsProdutoEstrategicov3() {
-        const selectProd = document.getElementById('plestv3-select-produto');
-        const selectConsulta = document.getElementById('plestv3-consulta-material');
-        const selectModal = document.getElementById('metaestv3-material-id');
-
-        const currentValProd = selectProd ? selectProd.value : '';
-        const currentValConsulta = selectConsulta ? selectConsulta.value : '';
-        const currentValModal = selectModal ? selectModal.value : '';
-
-        if (selectProd) selectProd.innerHTML = '<option value="">-- Selecione um Produto --</option>';
-        if (selectConsulta) selectConsulta.innerHTML = '<option value="">-- Selecione um Material --</option>';
-        if (selectModal) selectModal.innerHTML = '<option value="">-- Selecione um Produto --</option>';
-
-        _listTabelaPrecosEstrategica.forEach(tp => {
-            const label = tp.material_nome + ' (' + tp.material_categoria + ')';
-            if (selectProd) {
-                const opt = document.createElement('option');
-                opt.value = tp.material_id;
-                opt.textContent = label;
-                selectProd.appendChild(opt);
-            }
-            if (selectConsulta) {
-                const opt = document.createElement('option');
-                opt.value = tp.material_id;
-                opt.textContent = label;
-                selectConsulta.appendChild(opt);
-            }
-            if (selectModal) {
-                const opt = document.createElement('option');
-                opt.value = tp.material_id;
-                opt.textContent = label;
-                selectModal.appendChild(opt);
-            }
-        });
-
-        if (selectProd && currentValProd) selectProd.value = currentValProd;
-        if (selectConsulta && currentValConsulta) selectConsulta.value = currentValConsulta;
-        if (selectModal && currentValModal) selectModal.value = currentValModal;
+        if (window.popularSelectsProdutoEstrategicov3 && typeof window.popularSelectsProdutoEstrategicov3 === 'function') {
+            window.popularSelectsProdutoEstrategicov3();
+        }
     }
 
     window.onChangeConsultaMaterialV3 = function() {
