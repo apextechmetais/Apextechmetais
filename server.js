@@ -98,6 +98,24 @@ process.on('SIGINT', () => {
     process.exit(0);
 });
 
+// ─── Registro da última atualização por tabela ──────────────────────────────
+const tableLastUpdates = {};
+
+async function registerTableUpdate(tableName) {
+    const nowISO = new Date().toISOString();
+    tableLastUpdates[tableName] = nowISO;
+    if (pool) {
+        try {
+            await pool.query(`
+                INSERT INTO table_last_updates (table_name, updated_at) 
+                VALUES ($1, NOW()) 
+                ON CONFLICT (table_name) 
+                DO UPDATE SET updated_at = NOW();
+            `, [tableName]);
+        } catch (e) {}
+    }
+}
+
 // ─── Armazenamento em memória (fallback sem banco) ──────────────────────────
 let nextId = 1000;
 const memStore = {
@@ -679,6 +697,11 @@ async function initDatabase() {
                 criado_em  TIMESTAMP DEFAULT NOW()
             );
 
+            CREATE TABLE IF NOT EXISTS table_last_updates (
+                table_name TEXT PRIMARY KEY,
+                updated_at TIMESTAMP DEFAULT NOW()
+            );
+
             CREATE TABLE IF NOT EXISTS planejamento_compras (
                 id                     SERIAL PRIMARY KEY,
                 tipo_planejamento      TEXT DEFAULT 'COMPRA_VENDA',
@@ -1143,6 +1166,24 @@ async function initDatabase() {
             }
             console.log('✅ Configurações padrão da home inseridas no banco de dados.');
         }
+
+        // Garante que todas as tabelas possuam a coluna atualizado_em e tipo de peso com 4 casas decimais
+        await client.query(`
+            ALTER TABLE amostras ADD COLUMN IF NOT EXISTS atualizado_em TIMESTAMP DEFAULT NOW();
+            ALTER TABLE amostras ALTER COLUMN peso_inicial TYPE NUMERIC(14,4);
+            ALTER TABLE tabela_precos ADD COLUMN IF NOT EXISTS atualizado_em TIMESTAMP DEFAULT NOW();
+            ALTER TABLE tabela_precos_residuos ADD COLUMN IF NOT EXISTS atualizado_em TIMESTAMP DEFAULT NOW();
+            ALTER TABLE tabela_precos_ligas ADD COLUMN IF NOT EXISTS atualizado_em TIMESTAMP DEFAULT NOW();
+            ALTER TABLE tabela_precos_volume ADD COLUMN IF NOT EXISTS atualizado_em TIMESTAMP DEFAULT NOW();
+            ALTER TABLE tabela_precos_fundicao ADD COLUMN IF NOT EXISTS atualizado_em TIMESTAMP DEFAULT NOW();
+            ALTER TABLE materiais_catalogo ADD COLUMN IF NOT EXISTS atualizado_em TIMESTAMP DEFAULT NOW();
+            ALTER TABLE residuos_catalogo ADD COLUMN IF NOT EXISTS atualizado_em TIMESTAMP DEFAULT NOW();
+            ALTER TABLE ligas_catalogo ADD COLUMN IF NOT EXISTS atualizado_em TIMESTAMP DEFAULT NOW();
+            ALTER TABLE fornecedores ADD COLUMN IF NOT EXISTS atualizado_em TIMESTAMP DEFAULT NOW();
+            ALTER TABLE clientes ADD COLUMN IF NOT EXISTS atualizado_em TIMESTAMP DEFAULT NOW();
+            ALTER TABLE pedidos_compra ADD COLUMN IF NOT EXISTS atualizado_em TIMESTAMP DEFAULT NOW();
+            ALTER TABLE pedidos_venda ADD COLUMN IF NOT EXISTS atualizado_em TIMESTAMP DEFAULT NOW();
+        `).catch(e => console.warn('Aviso na migração de colunas atualizado_em:', e.message));
 
         // Garante que as chaves de e-mail LME existam no banco (sem sobrescrever dados salvos)
         const lmeDefaults = [
@@ -2496,6 +2537,20 @@ app.get('/api/amostras/:id', async (req, res) => {
         res.json({ amostra, componentes });
     } catch (err) {
         res.status(500).json({ error: 'Erro ao carregar detalhes da amostra.' });
+    }
+});
+
+app.get('/api/admin/last-updates', async (req, res) => {
+    try {
+        if (dbAvailable && pool) {
+            const r = await pool.query('SELECT table_name, updated_at FROM table_last_updates');
+            r.rows.forEach(row => {
+                tableLastUpdates[row.table_name] = row.updated_at;
+            });
+        }
+        res.json({ success: true, updates: tableLastUpdates, serverTime: new Date().toISOString() });
+    } catch (e) {
+        res.json({ success: true, updates: tableLastUpdates, serverTime: new Date().toISOString() });
     }
 });
 

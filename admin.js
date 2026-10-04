@@ -1,6 +1,11 @@
 var _listMetasEstrategicas = [];
 var _listTabelaPrecosEstrategica = [];
 
+window.fmtDecimal4 = function(val) {
+    if (val === null || val === undefined || val === '' || isNaN(Number(val))) return '0,0000';
+    return Number(val).toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+};
+
 // DOMContentLoaded wrapper removed
 
     window.getJsPDFClass = function() {
@@ -7765,7 +7770,7 @@ var _listTabelaPrecosEstrategica = [];
                                 <i class="fa-solid fa-up-right-from-square" style="font-size:0.75rem; margin-right:4px;"></i> ${p.numero_amostra} - ${p.nome_material || 'Material'}
                             </div>
                             <div style="font-size:0.75rem; color:#ccc; margin-top:2px;">Forn: ${p.fornecedor_nome}</div>
-                            <div style="font-size:0.72rem; color:#888;">Peso: ${parseFloat(p.peso_inicial).toFixed(3)} kg</div>
+                            <div style="font-size:0.72rem; color:#888;">Peso: ${window.fmtDecimal4(p.peso_inicial)} kg</div>
                         </div>
                         <button type="button" class="btn-primary" style="padding:5px 10px; font-size:0.75rem; background:#2AD07A; color:#000; font-weight:bold; border:none; border-radius:4px; cursor:pointer;" onclick="event.stopPropagation(); abrirAmostraEDesmonte(${p.id});">
                             <i class="fa-solid fa-gavel"></i> Analisar
@@ -7876,7 +7881,7 @@ var _listTabelaPrecosEstrategica = [];
                 <td style="padding:12px;">${a.fornecedor_nome}</td>
                 <td style="padding:12px; color:#2AD07A; font-weight:600; cursor:pointer;" onclick="abrirAnaliseDesmonte(${a.id})" title="Clique para ver os detalhes">${a.nome_material || '-'}</td>
                 <td style="padding:12px;">${a.responsavel}</td>
-                <td style="padding:12px; text-align:right;">${parseFloat(a.peso_inicial).toFixed(3)} kg</td>
+                <td style="padding:12px; text-align:right;">${window.fmtDecimal4(a.peso_inicial)} kg</td>
                 <td style="padding:12px; text-align:center;">${statusBadgeHtml}</td>
                 <td style="padding:12px; text-align:center;">
                     <button class="btn-refresh" style="background:none; border:none; color:#2AD07A;" onclick="window.gerarLaudoPDF(${a.id})" title="Baixar Laudo PDF"><i class="fa-solid fa-file-pdf"></i> PDF</button>
@@ -8167,7 +8172,7 @@ var _listTabelaPrecosEstrategica = [];
 
         document.getElementById('qr-amostra-codigo').textContent = amostra.numero_amostra;
         document.getElementById('qr-amostra-material').textContent = amostra.nome_material || 'Material Não Especificado';
-        document.getElementById('qr-amostra-detalhes').textContent = `Fornecedor: ${amostra.fornecedor_nome} | Peso: ${parseFloat(amostra.peso_inicial).toFixed(3)} kg`;
+        document.getElementById('qr-amostra-detalhes').textContent = `Fornecedor: ${amostra.fornecedor_nome} | Peso: ${window.fmtDecimal4(amostra.peso_inicial)} kg`;
 
         const qrCanvas = document.createElement('canvas');
         const payloadText = JSON.stringify({
@@ -8250,7 +8255,7 @@ var _listTabelaPrecosEstrategica = [];
             const matNomeEl = document.getElementById('analise-material-nome');
             if (matNomeEl) matNomeEl.textContent = amostra.nome_material || 'Material não informado';
             document.getElementById('analise-fornecedor-nome').textContent = amostra.fornecedor_nome;
-            document.getElementById('analise-peso-inicial').textContent = parseFloat(amostra.peso_inicial).toFixed(3);
+            document.getElementById('analise-peso-inicial').textContent = window.fmtDecimal4(amostra.peso_inicial);
 
             // Atualiza os nós visuais do Stepper de Etapas
             atualizarStepperAmostra(amostra.status, amostra.decisao_diretoria);
@@ -9219,7 +9224,7 @@ var _listTabelaPrecosEstrategica = [];
                     `Produto: ${(amostra.nome_material || 'Não informado').toUpperCase()}`,
                     `Código: APX-${amostra.numero_amostra || '000'}`,
                     `Data: ${new Date(amostra.data).toLocaleDateString('pt-BR')}`,
-                    `Peso Bruto: ${parseFloat(amostra.peso_inicial || 0).toFixed(3)} kg`,
+                    `Peso Bruto: ${window.fmtDecimal4(amostra.peso_inicial || 0)} kg`,
                     `Responsável: ${amostra.responsavel || '---'}`,
                     `Obs: ${(amostra.observacoes || 'Sem observações.').substring(0, 60)}`
                 ].join('\n');
