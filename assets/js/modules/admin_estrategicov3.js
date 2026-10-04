@@ -9,14 +9,15 @@
 
     window.carregarPlanejamentoEstrategicov3 = async function() {
         try {
-            console.log("[Estrategico] Buscando tabelas de preços...");
+            console.log("[Estrategico] Buscando tabelas de preços e catálogo de materiais...");
             
             const endpoints = [
                 '/api/tabela-precos',
                 '/api/tabela-precos-residuos',
                 '/api/tabela-precos-ligas',
                 '/api/tabela-precos-volume',
-                '/api/tabela-precos-fundicao'
+                '/api/tabela-precos-fundicao',
+                '/api/materiais-catalogo'
             ];
             
             let todosMateriais = [];
@@ -24,10 +25,39 @@
             for (const ep of endpoints) {
                 try {
                     const res = await fetch(ep, { cache: 'no-store' });
+                    if (!res.ok) continue;
                     const raw = await res.json();
-                    if (Array.isArray(raw)) {
-                        todosMateriais = todosMateriais.concat(raw);
-                    }
+                    let items = Array.isArray(raw) ? raw : (raw.data || raw.materiais || []);
+                    
+                    items.forEach(m => {
+                        const matId = m.material_id || m.id;
+                        const matNome = m.material_nome || m.nome;
+                        if (!matId || !matNome) return;
+
+                        const existeIdx = todosMateriais.findIndex(x => (x.material_id || x.id) == matId);
+                        if (existeIdx === -1) {
+                            todosMateriais.push({
+                                id: matId,
+                                material_id: matId,
+                                material_nome: matNome,
+                                material_categoria: m.material_categoria || m.categoria || 'Geral',
+                                material_ncm: m.material_ncm || m.ncm || '',
+                                preco_entregar: parseFloat(m.preco_entregar || m.preco_compra || 0),
+                                preco_coletar: parseFloat(m.preco_coletar || m.preco_compra_coletar || 0),
+                                venda_ref: parseFloat(m.venda_ref || m.preco_venda || 0),
+                                comissao: parseFloat(m.comissao || 0),
+                                pis_cofins: parseFloat(m.pis_cofins || 0),
+                                fidc: parseFloat(m.fidc || 0),
+                                icms: parseFloat(m.icms || 0),
+                                frete_coleta: parseFloat(m.frete_coleta || 0)
+                            });
+                        } else {
+                            const ex = todosMateriais[existeIdx];
+                            if (!ex.venda_ref && (m.venda_ref || m.preco_venda)) ex.venda_ref = parseFloat(m.venda_ref || m.preco_venda);
+                            if (!ex.preco_entregar && (m.preco_entregar || m.preco_compra)) ex.preco_entregar = parseFloat(m.preco_entregar || m.preco_compra);
+                            if (!ex.preco_coletar && (m.preco_coletar || m.preco_compra_coletar)) ex.preco_coletar = parseFloat(m.preco_coletar || m.preco_compra_coletar);
+                        }
+                    });
                 } catch (err) {
                     console.warn(`[Estrategico] Falha ao buscar ${ep}:`, err);
                 }
@@ -40,14 +70,13 @@
             // Popula os selects de material (Consulta Rápida + Simulador)
             if (window.popularSelectsProdutoEstrategicov3) window.popularSelectsProdutoEstrategicov3();
 
-            // Renderiza o Dashboard de Margens (gráficos de top/worst)
-            window.renderDashboardVisuaisEstrategicoV3();
+            // Renderiza o Dashboard de Margens
+            window.renderDashboardVisuaisEstrategicov3();
 
             // Carrega os Planos Ativos
             if (window.renderPlanejamentosAtivosV3) window.renderPlanejamentosAtivosV3();
         } catch (e) {
             console.error('Erro ao carregar planejamento V3:', e);
-            _apexNotify('Erro', 'Não foi possível carregar os dados estratégicos V3.', 'error');
         }
     };
 
@@ -163,8 +192,17 @@
         if (selectConsulta) selectConsulta.innerHTML = '<option value="">-- Selecione um Material --</option>';
         if (selectModal) selectModal.innerHTML = '<option value="">-- Selecione um Produto --</option>';
 
-        _listTabelaPrecosEstrategica.forEach(tp => {
-            const label = tp.material_nome + ' (' + tp.material_categoria + ')';
+        const list = _listTabelaPrecosEstrategica || [];
+        if (list.length === 0) return;
+
+        const listSorted = [...list].sort((a, b) => {
+            const nA = (a.material_nome || '').toLowerCase();
+            const nB = (b.material_nome || '').toLowerCase();
+            return nA.localeCompare(nB);
+        });
+
+        listSorted.forEach(tp => {
+            const label = (tp.material_nome || 'Material #' + tp.material_id) + (tp.material_categoria ? ' (' + tp.material_categoria + ')' : '');
             if (selectProd) {
                 const opt = document.createElement('option');
                 opt.value = tp.material_id;
@@ -188,7 +226,12 @@
         if (selectProd && currentValProd) selectProd.value = currentValProd;
         if (selectConsulta && currentValConsulta) selectConsulta.value = currentValConsulta;
         if (selectModal && currentValModal) selectModal.value = currentValModal;
-    }
+
+        if (selectConsulta && !selectConsulta.value && selectConsulta.options.length > 1) {
+            selectConsulta.selectedIndex = 1;
+            if (window.onChangeConsultaMaterialV3) window.onChangeConsultaMaterialV3();
+        }
+    };
 
     window.onChangeConsultaMaterialV3 = function() {
         const selectConsulta = document.getElementById('plestv3-consulta-material');
