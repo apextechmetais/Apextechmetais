@@ -4469,6 +4469,10 @@
                             <select id="wa-select-responder-como" class="noble-input" style="width:170px; font-size:0.75rem; background:#0d1826; color:#00e5ff;">
                                 <option value="inst_1">📱 Responder p/ WhatsApp Empresa</option>
                             </select>
+                            <input type="file" id="wa-file-input" style="display:none;" onchange="enviarMediaWhatsapp(this)">
+                            <button type="button" class="btn-noble" onclick="document.getElementById('wa-file-input').click()" title="Anexar Imagem / Documento / PDF" style="background:#1e3a5f; color:#00e5ff; font-weight:bold; padding:8px 12px; border-radius:6px; cursor:pointer;">
+                                <i class="fa-solid fa-paperclip"></i>
+                            </button>
                             <input type="text" id="wa-input-mensagem" placeholder="Digite uma mensagem para o cliente..." class="noble-input" style="flex:1; background:#0d1826; border-color:#1e4e8c; color:#fff;" onkeypress="if(event.key==='Enter') enviarMensagemWhatsapp()">
                             <button type="button" class="btn-noble" onclick="enviarMensagemWhatsapp()" style="background:#25D366; color:#0d1826; font-weight:bold; padding:8px 18px; border-radius:6px; cursor:pointer;">
                                 <i class="fa-solid fa-paper-plane"></i> Enviar
@@ -6608,7 +6612,7 @@
     <script defer src="assets/js/modules/admin_planejamento_v4.js?v=4"></script>
     <script defer src="assets/js/modules/pcp_live.js?v=1"></script>
     <script defer src="assets/js/modules/admin_compras.js"></script>
-    <script defer src="assets/js/modules/admin_whatsapp.js?v=5"></script>
+    <script defer src="assets/js/modules/admin_whatsapp.js?v=6"></script>
     <script src="assets/js/theme-toggle.js?v=3"></script>
 
     <!-- ── MODAL GLASSMORPHISM DE NOTIFICAÇÃO (substitui alert nativo) ── -->

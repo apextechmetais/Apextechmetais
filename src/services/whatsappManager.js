@@ -1,4 +1,4 @@
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, downloadMediaMessage } = require('@whiskeysockets/baileys');
 const QRCode = require('qrcode');
 const pino = require('pino');
 const path = require('path');
@@ -7,6 +7,11 @@ const fs = require('fs');
 const sessionsDir = path.join(__dirname, '../../data/whatsapp_sessions');
 if (!fs.existsSync(sessionsDir)) {
     fs.mkdirSync(sessionsDir, { recursive: true });
+}
+
+const mediaDir = path.join(__dirname, '../../data/whatsapp_media');
+if (!fs.existsSync(mediaDir)) {
+    fs.mkdirSync(mediaDir, { recursive: true });
 }
 
 function extrairTextoMensagem(msg) {
@@ -108,7 +113,7 @@ class WhatsappManager {
             });
 
             // ─── 1. SINCRONIZAÇÃO HISTÓRICA DO WHATSAPP WEB (HISTÓRICO COMPLETO) ───
-            sock.ev.on('messaging-history.set', ({ contacts, messages }) => {
+            sock.ev.on('messaging-history.set', async ({ contacts, messages }) => {
                 console.log(`[WhatsApp Manager] Sincronizando histórico do celular para ${instanciaId}...`);
                 if (contacts && Array.isArray(contacts)) {
                     for (const c of contacts) {
@@ -121,15 +126,7 @@ class WhatsappManager {
 
                 if (messages && Array.isArray(messages)) {
                     for (const msg of messages) {
-                        const fromJid = msg.key.remoteJid;
-                        if (!fromJid || fromJid.endsWith('@g.us') || fromJid === 'status@broadcast') continue;
-                        const numLimpo = fromJid.split('@')[0];
-                        const isMe = msg.key.fromMe;
-                        const texto = extrairTextoMensagem(msg);
-                        if (!texto) continue;
-                        const pushName = msg.pushName || (isMe ? 'Funcionário' : `+${numLimpo}`);
-                        const ts = msg.messageTimestamp ? (typeof msg.messageTimestamp === 'number' ? msg.messageTimestamp : msg.messageTimestamp.low) : null;
-                        this.sincronizarMensagemMirror(instanciaId, numLimpo, pushName, texto, isMe, ts);
+                        await this.processarMensagemIndividual(instanciaId, msg, sock);
                     }
                 }
             });
@@ -144,23 +141,12 @@ class WhatsappManager {
                 }
             });
 
-            // ─── 3. ESPELHAMENTO EM TEMPO REAL DE MENSAGENS (ENVIADAS DO CELULAR E RECEBIDAS) ───
+            // ─── 3. ESPELHAMENTO EM TEMPO REAL DE MENSAGENS E MÍDIAS (IMAGENS, PDFS, ARQUIVOS) ───
             sock.ev.on('messages.upsert', async (m) => {
                 try {
                     if (!m.messages) return;
                     for (const msg of m.messages) {
-                        const fromJid = msg.key.remoteJid;
-                        if (!fromJid || fromJid.endsWith('@g.us') || fromJid === 'status@broadcast') continue;
-
-                        const numLimpo = fromJid.split('@')[0];
-                        const isMe = msg.key.fromMe;
-                        const texto = extrairTextoMensagem(msg);
-                        if (!texto) continue;
-
-                        const pushName = msg.pushName || (isMe ? 'Funcionário / Sistema' : `Contato +${numLimpo}`);
-                        const ts = msg.messageTimestamp ? (typeof msg.messageTimestamp === 'number' ? msg.messageTimestamp : msg.messageTimestamp.low) : null;
-
-                        this.sincronizarMensagemMirror(instanciaId, numLimpo, pushName, texto, isMe, ts);
+                        await this.processarMensagemIndividual(instanciaId, msg, sock);
                     }
                 } catch (e) {
                     console.error('[WhatsApp Manager] Erro ao espelhar mensagem:', e);
@@ -172,6 +158,47 @@ class WhatsappManager {
             console.error(`[WhatsApp Manager] Falha ao iniciar Baileys para ${instanciaId}:`, e);
             this.statuses.set(instanciaId, 'erro');
             return { status: 'erro', qr: null };
+        }
+    }
+
+    async processarMensagemIndividual(instanciaId, msg, sock) {
+        try {
+            const fromJid = msg.key.remoteJid;
+            if (!fromJid || fromJid.endsWith('@g.us') || fromJid === 'status@broadcast') return;
+
+            const numLimpo = fromJid.split('@')[0];
+            const isMe = msg.key.fromMe;
+            const texto = extrairTextoMensagem(msg);
+            
+            let anexoUrl = null;
+            let msgTipo = 'texto';
+
+            if (msg.message?.imageMessage || msg.message?.documentMessage || msg.message?.videoMessage || msg.message?.audioMessage) {
+                try {
+                    const buffer = await downloadMediaMessage(msg, 'buffer', {});
+                    const isImg = !!msg.message.imageMessage;
+                    const isDoc = !!msg.message.documentMessage;
+                    const isAud = !!msg.message.audioMessage;
+                    const origName = msg.message?.documentMessage?.fileName || '';
+                    const ext = isImg ? '.jpg' : isDoc ? (path.extname(origName) || '.pdf') : isAud ? '.mp3' : '.mp4';
+                    
+                    const filename = `media_${Date.now()}_${Math.floor(Math.random()*10000)}${ext}`;
+                    const filepath = path.join(mediaDir, filename);
+                    fs.writeFileSync(filepath, buffer);
+                    
+                    anexoUrl = `/whatsapp-media/${filename}`;
+                    msgTipo = isImg ? 'imagem' : isDoc ? 'documento' : isAud ? 'audio' : 'video';
+                } catch (errMedia) {
+                    console.warn('[WhatsApp Media] Erro ao baixar mídia (continuando com texto):', errMedia.message);
+                }
+            }
+
+            const pushName = msg.pushName || (isMe ? 'Funcionário / Sistema' : `Contato +${numLimpo}`);
+            const ts = msg.messageTimestamp ? (typeof msg.messageTimestamp === 'number' ? msg.messageTimestamp : msg.messageTimestamp.low) : null;
+
+            this.sincronizarMensagemMirror(instanciaId, numLimpo, pushName, texto, isMe, ts, anexoUrl, msgTipo);
+        } catch (errProc) {
+            console.error('[WhatsApp Process Message] Erro:', errProc);
         }
     }
 
@@ -205,7 +232,7 @@ class WhatsappManager {
         }
     }
 
-    sincronizarMensagemMirror(instanciaId, telefoneLimpo, nomeContato, mensagemTexto, enviadaPeloCelular, timestamp) {
+    sincronizarMensagemMirror(instanciaId, telefoneLimpo, nomeContato, mensagemTexto, enviadaPeloCelular, timestamp, anexoUrl, msgTipo) {
         if (!this.memStore) return;
         const foneFmt = `+${telefoneLimpo}`;
         let conv = this.memStore.whatsapp_conversas.find(c => c.id === telefoneLimpo || c.telefone.replace(/\D/g, '') === telefoneLimpo);
@@ -230,7 +257,7 @@ class WhatsappManager {
             if (!enviadaPeloCelular) conv.nao_lidas = (conv.nao_lidas || 0) + 1;
             conv.ultima_mensagem = mensagemTexto;
             conv.atualizado_em = dataHora;
-            if (nomeContato && nomeContato !== foneFmt && conv.contato_nome.startsWith('+')) {
+            if (nomeContato && nomeContato !== foneFmt && (conv.contato_nome.startsWith('+') || conv.contato_nome.includes('Johnny Braga'))) {
                 conv.contato_nome = nomeContato;
             }
         }
@@ -250,7 +277,8 @@ class WhatsappManager {
                 remetente: enviadaPeloCelular ? 'atendente' : 'cliente',
                 remetente_nome: enviadaPeloCelular ? (inst ? inst.responsavel : 'Funcionário Celular') : (conv.contato_nome || nomeContato),
                 mensagem: mensagemTexto,
-                tipo: 'texto',
+                tipo: msgTipo || 'texto',
+                anexo_url: anexoUrl || null,
                 criado_em: dataHora
             });
         }
@@ -279,6 +307,24 @@ class WhatsappManager {
 
         const result = await sock.sendMessage(jid, { text: mensagemTexto });
         return result;
+    }
+
+    async enviarMedia(instanciaId, telefone, fileBuffer, fileName, fileMimeType, legenda) {
+        const sock = this.sockets.get(instanciaId);
+        if (!sock || this.statuses.get(instanciaId) !== 'conectado') {
+            throw new Error(`Instância ${instanciaId} não está conectada no WhatsApp Web.`);
+        }
+
+        const cleanNum = telefone.replace(/\D/g, '');
+        const jid = `${cleanNum}@s.whatsapp.net`;
+
+        if (fileMimeType.startsWith('image/')) {
+            return await sock.sendMessage(jid, { image: fileBuffer, caption: legenda || '' });
+        } else if (fileMimeType.startsWith('audio/')) {
+            return await sock.sendMessage(jid, { audio: fileBuffer, ptt: true, mimetype: fileMimeType });
+        } else {
+            return await sock.sendMessage(jid, { document: fileBuffer, fileName: fileName || 'arquivo', mimetype: fileMimeType, caption: legenda || '' });
+        }
     }
 
     async desconectar(instanciaId) {

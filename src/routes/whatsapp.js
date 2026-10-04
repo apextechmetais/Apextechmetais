@@ -348,6 +348,69 @@ module.exports = function(pool, dbAvailable, memStore) {
         }
     });
 
+    const multer = require('multer');
+    const path = require('path');
+    const fs = require('fs');
+    const upload = multer({ limits: { fileSize: 25 * 1024 * 1024 } });
+
+    router.post('/enviar-media', upload.single('arquivo'), async (req, res) => {
+        try {
+            const { conversa_id, legenda, usuario_nome, instancia_id } = req.body;
+            if (!conversa_id || !req.file) {
+                return res.status(400).json({ error: 'conversa_id e arquivo são obrigatórios' });
+            }
+
+            const instId = instancia_id || 'inst_1';
+            const conv = memStore.whatsapp_conversas.find(c => c.id === String(conversa_id));
+            const telefoneDestino = conv ? conv.telefone : conversa_id;
+
+            const isImg = req.file.mimetype.startsWith('image/');
+            const isDoc = !isImg && !req.file.mimetype.startsWith('audio/') && !req.file.mimetype.startsWith('video/');
+            const ext = path.extname(req.file.originalname) || (isImg ? '.jpg' : '.pdf');
+            const filename = `out_media_${Date.now()}_${Math.floor(Math.random()*10000)}${ext}`;
+            const mediaDir = path.join(__dirname, '../../data/whatsapp_media');
+            const mediaPath = path.join(mediaDir, filename);
+            
+            if (!fs.existsSync(mediaDir)) fs.mkdirSync(mediaDir, { recursive: true });
+            fs.writeFileSync(mediaPath, req.file.buffer);
+
+            const anexoUrl = `/whatsapp-media/${filename}`;
+            const msgTipo = isImg ? 'imagem' : isDoc ? 'documento' : 'video';
+
+            // Transmite foto/arquivo pelo celular via Baileys no WhatsApp real
+            try {
+                await whatsappManager.enviarMedia(instId, telefoneDestino, req.file.buffer, req.file.originalname, req.file.mimetype, legenda);
+            } catch (e) {
+                console.log(`[WhatsApp Real Send Media] Socket (${instId}): ${e.message}`);
+            }
+
+            const novaMensagem = {
+                id: Date.now(),
+                conversa_id: String(conversa_id),
+                instancia_id: instId,
+                remetente: 'atendente',
+                remetente_nome: usuario_nome || 'Administrador',
+                mensagem: legenda || `[${isImg ? 'Imagem' : 'Documento'}: ${req.file.originalname}]`,
+                tipo: msgTipo,
+                anexo_url: anexoUrl,
+                enviado_por: usuario_nome || 'Administrador',
+                criado_em: new Date().toISOString()
+            };
+
+            memStore.whatsapp_mensagens.push(novaMensagem);
+
+            if (conv) {
+                conv.ultima_mensagem = legenda || `[Mídia: ${req.file.originalname}]`;
+                conv.atualizado_em = new Date().toISOString();
+            }
+
+            res.json({ success: true, mensagem: novaMensagem });
+        } catch (err) {
+            console.error('[WhatsApp API] Erro ao enviar mídia:', err);
+            res.status(500).json({ error: err.message });
+        }
+    });
+
     // ─── 5. DISPARAR TABELA / RELATÓRIO DO SISTEMA ───
     router.post('/enviar-tabela', (req, res) => {
         try {

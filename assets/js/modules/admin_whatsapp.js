@@ -449,15 +449,27 @@
         body.innerHTML = '';
         mensagens.forEach(m => {
             const isMe = m.remetente === 'atendente' || m.remetente === 'sistema_tabela' || m.remetente === 'disparo_massa';
-            const horaStr = new Date(m.criado_em).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+            const horaStr = m.criado_em ? new Date(m.criado_em).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}) : '';
 
             const wrapper = document.createElement('div');
             wrapper.style.cssText = `display:flex; flex-direction:column; align-items:${isMe ? 'flex-end' : 'flex-start'}; margin-bottom:12px;`;
 
-            let bgMsg = isMe ? '#054640' : '#202c33';
-            let borderMsg = isMe ? '1px solid #128C7E' : '1px solid #2a3942';
+            let bgMsg = isMe ? '#005c4b' : '#202c33';
+            let borderMsg = isMe ? '1px solid #005c4b' : '1px solid #2a3942';
 
-            let msgHtml = m.mensagem.replace(/\n/g, '<br>');
+            let mediaHtml = '';
+            if (m.anexo_url) {
+                if (m.tipo === 'imagem' || m.anexo_url.match(/\.(jpg|jpeg|png|webp|gif)$/i)) {
+                    mediaHtml = `<div style="margin-bottom:6px;"><img src="${m.anexo_url}" alt="Foto WhatsApp" style="max-width:280px; max-height:280px; border-radius:8px; display:block; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,0.3);" onclick="window.open(this.src, '_blank')"></div>`;
+                } else if (m.tipo === 'documento' || m.anexo_url.match(/\.(pdf|doc|docx|xls|xlsx|txt)$/i)) {
+                    const fname = m.mensagem || 'Documento PDF';
+                    mediaHtml = `<a href="${m.anexo_url}" target="_blank" style="background:#0b141a; padding:10px 14px; border-radius:6px; border-left:4px solid #38bdf8; color:#38bdf8; display:flex; align-items:center; gap:10px; text-decoration:none; margin-bottom:6px; font-size:0.85rem;"><i class="fa-solid fa-file-pdf" style="font-size:1.6rem; color:#ff4d4d;"></i> <div><strong style="color:#fff; display:block;">${fname}</strong><small style="color:#aaa;">Clique para visualizar/baixar</small></div></a>`;
+                } else if (m.tipo === 'audio' || m.anexo_url.match(/\.(mp3|ogg|wav|m4a)$/i)) {
+                    mediaHtml = `<div style="margin-bottom:6px;"><audio controls src="${m.anexo_url}" style="max-width:260px; height:36px;"></audio></div>`;
+                }
+            }
+
+            let msgHtml = m.mensagem ? m.mensagem.replace(/\n/g, '<br>') : '';
             if (m.tipo === 'tabela_sistema') {
                 msgHtml = `<div style="background:#0b141a; padding:10px; border-radius:6px; border-left:3px solid #25D366; margin-bottom:5px;"><i class="fa-solid fa-file-invoice" style="color:#25D366;"></i> <strong>Transmissão de Tabela do Sistema</strong></div>` + msgHtml;
             } else if (m.tipo === 'disparo_massa') {
@@ -467,6 +479,7 @@
             wrapper.innerHTML = `
                 <div style="max-width:75%; background:${bgMsg}; border:${borderMsg}; border-radius:8px; padding:10px 14px; color:#fff; font-size:0.9rem; box-shadow:0 2px 5px rgba(0,0,0,0.3);">
                     <div style="font-size:0.75rem; color:#25D366; font-weight:bold; margin-bottom:4px;">${m.remetente_nome}</div>
+                    ${mediaHtml}
                     <div>${msgHtml}</div>
                     <div style="text-align:right; font-size:0.7rem; color:#94a3b8; margin-top:4px;">${horaStr} ${isMe ? '<i class="fa-solid fa-check-double" style="color:#53bdeb;"></i>' : ''}</div>
                 </div>
@@ -475,6 +488,37 @@
         });
 
         body.scrollTop = body.scrollHeight;
+    };
+
+    window.enviarMediaWhatsapp = async function(inputEl) {
+        if (!inputEl || !inputEl.files || inputEl.files.length === 0 || !_conversaAtivaId) return;
+
+        const arquivo = inputEl.files[0];
+        const instId = document.getElementById('wa-select-responder-como')?.value || 'inst_1';
+
+        const formData = new FormData();
+        formData.append('conversa_id', _conversaAtivaId);
+        formData.append('instancia_id', instId);
+        formData.append('arquivo', arquivo);
+        formData.append('usuario_nome', window.currentUser ? window.currentUser.nome : 'Administrador Master');
+
+        try {
+            if (window._apexNotify) window._apexNotify('Enviando mídia...', `Enviando ${arquivo.name} pelo WhatsApp...`, 'info');
+
+            const res = await fetch('/api/whatsapp/enviar-media', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (res.ok) {
+                inputEl.value = '';
+                await window.selecionarConversaWhatsapp(_conversaAtivaId);
+                await window.carregarConversasWhatsapp();
+                if (window._apexNotify) window._apexNotify('Mídia Enviada!', 'Arquivo/Foto transmitido com sucesso via WhatsApp Web!', 'success');
+            }
+        } catch (e) {
+            console.error('[WhatsApp] Erro ao enviar mídia:', e);
+        }
     };
 
     window.enviarMensagemWhatsapp = async function() {

@@ -8064,6 +8064,7 @@ app.get('/api/admin/run-import-fornecedores', (req, res) => {
 // ==========================================
 // INJEÇÃO DAS ROTAS DO MÓDULO PCP E WHATSAPP (WA-AKG)
 // ==========================================
+app.use('/whatsapp-media', express.static(path.join(__dirname, 'data/whatsapp_media')));
 app.use('/api/pcp', require('./src/routes/pcp')(pool, dbAvailable, memStore));
 app.use('/api/whatsapp', require('./src/routes/whatsapp')(pool, dbAvailable, memStore));
 
