@@ -121,7 +121,7 @@ const memStore = {
         lme_envio_horario: '14:00',
         lme_envio_dias: '1,2,3,4,5',
         lme_resend_api_key: '',
-        lme_resend_from: 'josetiago@lme.lat',
+        lme_resend_from: 'contato@apextechmetais.com.br',
         role_permissions: JSON.stringify({
             "Administrador": ["view_lme", "view_precos", "view_catalogo", "view_fornecedores", "view_laboratorio", "view_planejamento", "view_estoque", "view_bi", "edit_financeiro", "edit_producao", "view_usuarios"],
             "Laboratório": ["view_laboratorio", "view_catalogo"],
@@ -5940,7 +5940,7 @@ async function getResendConfig() {
     }
 
     const apiKey = settings.lme_resend_api_key || process.env.RESEND_API_KEY || '';
-    const from   = settings.lme_resend_from || process.env.RESEND_FROM || 'josetiago@lme.lat';
+    const from   = settings.lme_resend_from || process.env.RESEND_FROM || 'contato@apextechmetais.com.br';
 
     return { apiKey, from };
 }

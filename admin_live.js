@@ -2260,7 +2260,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.querySelectorAll('.sched-dia').forEach(chk => { chk.checked = diasArr.includes(chk.value); });
 
                 if (resendApiKey) resendApiKey.value = settings.lme_resend_api_key || '';
-                if (resendFrom) resendFrom.value = settings.lme_resend_from || 'josetiago@lme.lat';
+                if (resendFrom) resendFrom.value = settings.lme_resend_from || 'contato@apextechmetais.com.br';
 
                 loadDestinatariosLME();
             } catch (err) {
