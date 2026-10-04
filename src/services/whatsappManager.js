@@ -80,6 +80,35 @@ class WhatsappManager {
 
     async resincronizarTudo() {
         console.log('[WhatsApp Manager] Forçando resincronização geral de sessões e contatos...');
+
+        // 1) Propagar contatosMap de volta para whatsapp_contatos e whatsapp_conversas
+        if (this.memStore && this.contatosMap.size > 0) {
+            for (const [num, nome] of this.contatosMap.entries()) {
+                this.sincronizarContatoMirror(num, nome);
+            }
+        }
+
+        // 2) Atualizar nomes de conversas usando contatosMap + whatsapp_contatos
+        if (this.memStore && this.memStore.whatsapp_conversas) {
+            for (const conv of this.memStore.whatsapp_conversas) {
+                const cleanNum = conv.telefone ? conv.telefone.replace(/\D/g, '') : conv.id;
+                // Tentar resolver pelo mapa de contatos
+                const nomeMap = this.contatosMap.get(cleanNum);
+                if (nomeMap && !nomeMap.startsWith('+')) {
+                    conv.contato_nome = nomeMap;
+                } else {
+                    // Tentar resolver pelo whatsapp_contatos salvo
+                    const cont = (this.memStore.whatsapp_contatos || []).find(
+                        c => c.telefone && c.telefone.replace(/\D/g, '') === cleanNum
+                    );
+                    if (cont && cont.nome && !cont.nome.startsWith('+') && cont.nome !== 'Funcionário') {
+                        conv.contato_nome = cont.nome;
+                    }
+                }
+            }
+        }
+
+        // 3) Reconectar/restaurar sessões salvas
         if (fs.existsSync(sessionsDir)) {
             const folders = fs.readdirSync(sessionsDir);
             for (const folder of folders) {
@@ -112,6 +141,7 @@ class WhatsappManager {
                 }
             }
         }
+
         return {
             instancias: this.memStore ? this.memStore.whatsapp_instancias : [],
             conversas: this.memStore ? this.memStore.whatsapp_conversas : [],
@@ -325,6 +355,7 @@ class WhatsappManager {
             this.contatosMap.set(telefoneLimpo, nomeContato);
         }
 
+        // Atualizar/inserir no whatsapp_contatos
         let c = this.memStore.whatsapp_contatos.find(item => item.telefone.replace(/\D/g, '') === telefoneLimpo);
         if (!c) {
             this.memStore.whatsapp_contatos.push({
@@ -337,6 +368,16 @@ class WhatsappManager {
             });
         } else if (ehNomeValido && (c.nome.startsWith('+') || c.nome.includes('Contato') || c.nome === 'Funcionário')) {
             c.nome = nomeContato;
+        }
+
+        // Também atualizar conversa correspondente se o nome for melhor
+        if (ehNomeValido && this.memStore.whatsapp_conversas) {
+            const conv = this.memStore.whatsapp_conversas.find(
+                cv => cv.id === telefoneLimpo || (cv.telefone && cv.telefone.replace(/\D/g, '') === telefoneLimpo)
+            );
+            if (conv && (conv.contato_nome.startsWith('+') || conv.contato_nome.includes('Contato') || conv.contato_nome === 'Funcionário' || !conv.contato_nome)) {
+                conv.contato_nome = nomeContato;
+            }
         }
     }
 
@@ -371,7 +412,8 @@ class WhatsappManager {
             if (!enviadaPeloCelular) conv.nao_lidas = (conv.nao_lidas || 0) + 1;
             conv.ultima_mensagem = mensagemTexto;
             conv.atualizado_em = dataHora;
-            if (ehNomeValido || conv.contato_nome.startsWith('+') || conv.contato_nome === 'Funcionário' || conv.contato_nome === 'Johnny Braga') {
+            // Atualizar nome apenas quando temos nome válido e o atual é apenas um número/placeholder
+            if (ehNomeValido && (!conv.contato_nome || conv.contato_nome.startsWith('+') || conv.contato_nome.includes('Contato') || conv.contato_nome === 'Funcionário')) {
                 conv.contato_nome = nomeFinal;
             }
         }

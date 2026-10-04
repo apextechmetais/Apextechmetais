@@ -1092,9 +1092,8 @@ async function initDatabase() {
             console.log('✅ Fornecedores e amostras semeados.');
         }
 
-        // Seed materiais_catalogo
-        const { rowCount: mCount } = await client.query('SELECT 1 FROM materiais_catalogo LIMIT 1');
-        if (mCount === 0) {
+        // Seed materiais_catalogo — SEMPRE (ON CONFLICT protege dados existentes)
+        {
             const mats = memStore.materiais_catalogo;
             for (const m of mats) {
                 await client.query(`
@@ -1102,25 +1101,24 @@ async function initDatabase() {
                     VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (id) DO NOTHING;
                 `, [m.id, m.nome, m.unidade, m.categoria, m.cor, m.ncm, m.observacoes]);
             }
-            console.log('✅ Catálogo de materiais semeado.');
+            console.log('✅ Catálogo de materiais verificado/semeado.');
         }
 
-        // Seed tabela_precos
-        const { rowCount: pCount } = await client.query('SELECT 1 FROM tabela_precos LIMIT 1');
-        if (pCount === 0) {
+        // Seed tabela_precos — SEMPRE (ON CONFLICT protege dados existentes)
+        {
             const precos = memStore.tabela_precos;
             for (const p of precos) {
                 await client.query(`
-                    INSERT INTO tabela_precos (id, material_id, preco_entregar, preco_coletar, venda_ref, validade)
-                    VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING;
-                `, [p.id, p.material_id, p.preco_entregar, p.preco_coletar, p.venda_ref, p.validade]);
+                    INSERT INTO tabela_precos (id, material_id, preco_entregar, preco_coletar, venda_ref, validade, comissao, pis_cofins, fidc, icms, frete_coleta)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) ON CONFLICT (id) DO NOTHING;
+                `, [p.id, p.material_id, p.preco_entregar, p.preco_coletar, p.venda_ref, p.validade,
+                    p.comissao||0, p.pis_cofins||0, p.fidc||0, p.icms||0, p.frete_coleta||0]);
             }
-            console.log('✅ Tabela de preços semeada.');
+            console.log('✅ Tabela de preços verificada/semeada.');
         }
 
-        // Seed usuarios
-        const { rowCount: uCount } = await client.query('SELECT 1 FROM usuarios LIMIT 1');
-        if (uCount === 0) {
+        // Seed usuarios — SEMPRE (ON CONFLICT protege dados existentes)
+        {
             const usrs = memStore.usuarios;
             for (const u of usrs) {
                 await client.query(`
@@ -1128,7 +1126,7 @@ async function initDatabase() {
                     VALUES ($1, $2, $3, $4, $5) ON CONFLICT (id) DO NOTHING;
                 `, [u.id, u.user, u.pass, u.perfil, u.nome]);
             }
-            console.log('✅ Usuários semeados.');
+            console.log('✅ Usuários verificados/semeados.');
         }
 
         // Inserir soluções padrão se a tabela estiver vazia
@@ -1709,13 +1707,13 @@ app.get('/api/materiais-catalogo', async (req, res) => {
     try {
         if (dbAvailable) {
             const result = await pool.query('SELECT * FROM materiais_catalogo ORDER BY categoria ASC, nome ASC');
-            return res.json(result.rows);
+            // Fallback para memStore se DB retornar vazio (dados padrão não foram semeados)
+            if (result.rows.length > 0) return res.json(result.rows);
         }
         res.json(memStore.materiais_catalogo);
     } catch (err) {
         res.status(500).json({ error: 'Erro ao buscar materiais.' });
     }
-
 });
 
 app.post('/api/materiais-catalogo', async (req, res) => {
@@ -1994,7 +1992,8 @@ app.get('/api/tabela-precos', async (req, res) => {
                 JOIN materiais_catalogo mc ON tp.material_id = mc.id
                 ORDER BY mc.categoria ASC, mc.nome ASC
             `);
-            return res.json(result.rows);
+            // Fallback para memStore se JOIN retornar vazio (dados padrão ausentes no DB)
+            if (result.rows.length > 0) return res.json(result.rows);
         }
         const data = memStore.tabela_precos.map(p => {
             const mc = memStore.materiais_catalogo.find(x => x.id === p.material_id);
@@ -2125,7 +2124,7 @@ app.get('/api/tabela-precos-residuos', async (req, res) => {
                 JOIN materiais_catalogo mc ON tp.material_id = mc.id
                 ORDER BY mc.categoria ASC, mc.nome ASC
             `);
-            return res.json(result.rows);
+            if (result.rows.length > 0) return res.json(result.rows);
         }
         const data = memStore.tabela_precos_residuos.map(p => {
             const mc = memStore.materiais_catalogo.find(x => x.id === p.material_id);
@@ -2215,7 +2214,7 @@ app.get('/api/tabela-precos-ligas', async (req, res) => {
                 JOIN materiais_catalogo mc ON tp.material_id = mc.id
                 ORDER BY mc.categoria ASC, mc.nome ASC
             `);
-            return res.json(result.rows);
+            if (result.rows.length > 0) return res.json(result.rows);
         }
         const data = memStore.tabela_precos_ligas.map(p => {
             const mc = memStore.materiais_catalogo.find(x => x.id === p.material_id);
@@ -2305,7 +2304,7 @@ app.get('/api/tabela-precos-volume', async (req, res) => {
                 JOIN materiais_catalogo mc ON tp.material_id = mc.id
                 ORDER BY mc.categoria ASC, mc.nome ASC
             `);
-            return res.json(result.rows);
+            if (result.rows.length > 0) return res.json(result.rows);
         }
         const data = memStore.tabela_precos_volume.map(p => {
             const mc = memStore.materiais_catalogo.find(x => x.id === p.material_id);
@@ -2395,7 +2394,7 @@ app.get('/api/tabela-precos-fundicao', async (req, res) => {
                 JOIN materiais_catalogo mc ON tp.material_id = mc.id
                 ORDER BY mc.categoria ASC, mc.nome ASC
             `);
-            return res.json(result.rows);
+            if (result.rows.length > 0) return res.json(result.rows);
         }
         const data = memStore.tabela_precos_fundicao.map(p => {
             const mc = memStore.materiais_catalogo.find(x => x.id === p.material_id);
