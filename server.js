@@ -7909,7 +7909,8 @@ app.put('/api/estrategiav3_mix/:id/realizado', async (req, res) => {
 
 // ─── API: Forecast e Estratégia de Compras ───────────────────────────────────
 app.get('/api/planejamento/compras/forecast', async (req, res) => {
-    let rows = [];
+    try {
+        let rows = [];
     if (dbAvailable && pool) {
         try {
             const queryStr = `
