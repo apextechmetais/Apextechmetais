@@ -196,27 +196,37 @@ async function gerarPdfRelatorioLME(semana) {
 
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
-    // ─── PÁGINA 1: CABEÇALHO AMARELO ─────────────────────────────────
-    doc.setFillColor(...h('#FFFF00'));
-    doc.rect(0, 0, 297, 22, 'F'); // 297mm largura formato A4 paisagem
-    doc.setFontSize(9);
-    doc.setTextColor(80, 80, 80);
-    doc.text('COTAÇÃO VÁLIDA PARA A SEMANA', 148.5, 7, { align: 'center' });
+    // ─── PÁGINA 1: CABEÇALHO DARK GREEN APEXTECH ──────────────────────
+    doc.setFillColor(13, 40, 26); // #0d281a
+    doc.rect(0, 0, 297, 24, 'F');
+    
+    // Borda verde de sotaque
+    doc.setFillColor(42, 208, 122); // #2AD07A
+    doc.rect(0, 23, 297, 1.2, 'F');
+
     doc.setFontSize(14);
-    doc.setTextColor(0, 0, 0);
+    doc.setTextColor(255, 255, 255);
     doc.setFont(undefined, 'bold');
+    doc.text('ApexTech Metais', 14, 10);
+
+    doc.setFontSize(10);
+    doc.setTextColor(42, 208, 122);
+    doc.text('Relatório Oficial de Cotações LME', 14, 16);
 
     const firstDay = (semana.days && semana.days.filter(d => d.data && d.data !== '—')[0]?.data) || '—';
     const lastDay  = (semana.days && semana.days.filter(d => d.data && d.data !== '—').pop()?.data)  || '—';
-    doc.text(`${firstDay}  a  ${lastDay}`, 148.5, 16, { align: 'center' });
-    doc.setFont(undefined, 'normal');
+    
+    doc.setFontSize(10);
+    doc.setTextColor(255, 255, 255);
+    doc.setFont(undefined, 'bold');
+    doc.text(`Cotação Válida: ${firstDay} a ${lastDay}`, 283, 11, { align: 'right' });
 
-    // Data e hora de emissão em Brasília (América/São Paulo)
-    doc.setFontSize(7.5);
-    doc.setTextColor(100, 100, 100);
     const nowSp = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
     const nowSpStr = nowSp.toLocaleDateString('pt-BR') + ' às ' + nowSp.toLocaleTimeString('pt-BR');
-    doc.text(`Relatório gerado em: ${nowSpStr} — ApexTech Metais`, 148.5, 20, { align: 'center' });
+    doc.setFontSize(7.5);
+    doc.setTextColor(180, 225, 200);
+    doc.setFont(undefined, 'normal');
+    doc.text(`Emissão: ${nowSpStr}`, 283, 17, { align: 'right' });
 
     // ─── TABELA PRINCIPAL ─────────────────────────────────────────────
     const HEAD_ROW = ['DATA', 'Cobre US$/t', 'Zinco US$/t', 'Alumínio US$/t', 'Chumbo US$/t', 'Estanho US$/t', 'Níquel US$/t', 'Dólar US$'];
@@ -313,7 +323,7 @@ async function gerarPdfRelatorioLME(semana) {
     ]);
 
     autoTable(doc, {
-        startY: 24,
+        startY: 27,
         head: [HEAD_ROW],
         body: tableBody,
         theme: 'grid',
