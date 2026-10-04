@@ -5395,6 +5395,23 @@ app.delete('/api/lme/destinatarios/:id', async (req, res) => {
 });
 
 // ─── API: LME Enviar Relatório Manual ──────────────────────────────────────────
+app.post('/api/lme/enviar-agora', async (req, res) => {
+    try {
+        const localTimeStr = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
+        const dObj = new Date(localTimeStr);
+        const mes = `${dObj.getMonth() + 1}-${dObj.getFullYear()}`;
+        const data = await generateRelatorioSemanas(mes);
+        if (!data || !data.semanas || data.semanas.length === 0) {
+            return res.status(404).json({ error: 'Nenhuma semana encontrada para enviar.' });
+        }
+        const latestWeek = data.semanas[0];
+        await enviarRelatorioEmail(latestWeek);
+        res.json({ success: true, message: 'Relatório LME enviado com sucesso!' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.post('/api/lme/enviar-email-manual', async (req, res) => {
     try {
         const localTimeStr = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
@@ -5973,131 +5990,26 @@ async function getResendConfig() {
     return { apiKey, from };
 }
 
+const { gerarPdfRelatorioLME } = require('./src/pdf-lme');
+
 async function gerarPdfRelatorioViaHeadless(weekBlock) {
-    const browser = await puppeteer.launch({
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
-        headless: true
-    });
     try {
-        const page = await browser.newPage();
-        
-        // Mock authentication for the headless browser so admin.js runs initAdmin()
-        await page.evaluateOnNewDocument(() => {
-            sessionStorage.setItem('apex_admin_logged_in', 'true');
-        });
-
-        // Set viewport and go to page
-        const port = process.env.PORT || 3000;
-        await page.setViewport({ width: 1200, height: 1600, deviceScaleFactor: 2 });
-        await page.goto(`http://localhost:${port}/admin.html`, { waitUntil: 'networkidle0', timeout: 30000 });
-        
-        // Wait for the report to be generated on the page
-        await page.evaluate(() => {
-            const overlay = document.getElementById('login-overlay');
-            if (overlay) overlay.style.display = 'none';
-            const dashboard = document.getElementById('admin-dashboard-container');
-            if (dashboard) dashboard.style.display = 'flex';
-            
-            const relatorioSection = document.getElementById('relatorio-diario');
-            if (relatorioSection) {
-                relatorioSection.style.display = 'block';
-                relatorioSection.classList.add('active');
+        let block = weekBlock;
+        if (!block) {
+            const localTimeStr = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
+            const dObj = new Date(localTimeStr);
+            const mes = `${dObj.getMonth() + 1}-${dObj.getFullYear()}`;
+            const data = await generateRelatorioSemanas(mes);
+            if (data && data.semanas && data.semanas.length > 0) {
+                block = data.semanas[0];
             }
-            
-            const captureArea = document.getElementById('capture-area');
-            if (captureArea) captureArea.style.display = 'block';
-        });
-
-        // Wait for the report to be populated (the date will stop being "...")
-        await page.waitForFunction(() => {
-            const el = document.getElementById('rel-date-range');
-            return el && el.textContent && el.textContent !== '...';
-        }, { timeout: 30000 });
-
-        // Wait for all images (QuickCharts) to load completely before capturing
-        await page.evaluate(async () => {
-            const images = Array.from(document.querySelectorAll('#capture-area img'));
-            await Promise.all(images.map(img => {
-                if (img.complete) return Promise.resolve();
-                return new Promise(resolve => {
-                    img.onload = resolve;
-                    img.onerror = resolve;
-                });
-            }));
-            // Pequeno delay extra de garantia para renderização de SVG/DOM
-            await new Promise(r => setTimeout(r, 1500));
-        });
-        
-        const base64Pdf = await page.evaluate(async () => {
-            const captureArea = document.getElementById('capture-area');
-            if (!captureArea) return null;
-
-            // Wait for any html2canvas scripts or external assets if needed, but they should be loaded by now.
-            // Correção do Bug do SVG Preto
-            const logoImg = captureArea.querySelector('.rel-logo img');
-            let originalSrc = '';
-            if (logoImg && logoImg.src.endsWith('.svg')) {
-                try {
-                    originalSrc = logoImg.src;
-                    const tempCanvas = document.createElement('canvas');
-                    tempCanvas.width = logoImg.naturalWidth || 400;
-                    tempCanvas.height = logoImg.naturalHeight || 133;
-                    const tCtx = tempCanvas.getContext('2d');
-                    tCtx.fillStyle = '#ffffff';
-                    tCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-                    tCtx.drawImage(logoImg, 0, 0, tempCanvas.width, tempCanvas.height);
-                    logoImg.src = tempCanvas.toDataURL('image/png');
-                } catch (svgErr) {
-                    console.warn(svgErr);
-                }
-            }
-            
-            // Use html2canvas and jsPDF (which are loaded in admin.html)
-            const canvas = await html2canvas(captureArea, {
-                scale: 2,
-                backgroundColor: '#ffffff',
-                useCORS: true,
-                allowTaint: false,
-                scrollY: 0,
-                windowHeight: captureArea.scrollHeight,
-                height: captureArea.scrollHeight,
-                width: captureArea.scrollWidth
-            });
-            const imgData = canvas.toDataURL('image/jpeg', 0.95);
-            const { jsPDF } = window.jspdf;
-
-            const pdfWidthMm = 210;
-            const pdfPageHeightMm = 297;
-            const imgHeightMm = (canvas.height * pdfWidthMm) / canvas.width;
-
-            const pdf = new jsPDF({
-                orientation: 'portrait',
-                unit: 'mm',
-                format: 'a4'
-            });
-
-            let heightLeft = imgHeightMm;
-            let position = 0;
-
-            pdf.addImage(imgData, 'JPEG', 0, position, pdfWidthMm, imgHeightMm);
-            heightLeft -= pdfPageHeightMm;
-
-            while (heightLeft > 5) {
-                position -= pdfPageHeightMm;
-                pdf.addPage();
-                pdf.addImage(imgData, 'JPEG', 0, position, pdfWidthMm, imgHeightMm);
-                heightLeft -= pdfPageHeightMm;
-            }
-
-            return pdf.output('datauristring').split(',')[1];
-        });
-        
-        return base64Pdf;
+        }
+        if (!block) return null;
+        const buf = await gerarPdfRelatorioLME(block);
+        return buf ? buf.toString('base64') : null;
     } catch (e) {
-        console.error('Erro ao gerar PDF via Puppeteer:', e);
+        console.error('Erro ao gerar PDF da LME via jsPDF:', e);
         return null;
-    } finally {
-        await browser.close();
     }
 }
 
@@ -6165,12 +6077,15 @@ async function enviarRelatorioEmail(weekBlock, pdfBase64 = null) {
         console.log('📄 Gerando PDF via Puppeteer no backend para envio automático...');
         finalPdfBase64 = await gerarPdfRelatorioViaHeadless(weekBlock);
     }
+    const firstDate = (weekBlock && weekBlock.days && weekBlock.days.filter(d => d.data && d.data !== '—')[0]?.data) || 'semanal';
+    const fileName = `LME-ApexTech-${firstDate.replace(/\//g, '-')}.pdf`;
+
     if (finalPdfBase64) {
         emailPayload.attachments.push({
-            filename: `Relatorio_LME.pdf`,
+            filename: fileName,
             content: finalPdfBase64
         });
-        console.log('📎 PDF anexado com sucesso ao e-mail.');
+        console.log(`📎 PDF anexado com sucesso ao e-mail (${fileName}, ${Math.round(finalPdfBase64.length / 1024)} KB).`);
     } else {
         console.warn('⚠️ Não foi possível anexar o PDF ao e-mail.');
     }
@@ -6362,35 +6277,31 @@ function startEmailScheduler() {
             const day = String(spDate.getDate()).padStart(2, '0');
             const todayDateStr = `${year}-${month}-${day}`;
 
-            const isDue = (activeKey, timeKey, daysKey, lastSentDate) => {
-                if (settings[activeKey] !== 'true') return false;
-                const daysStr = settings[daysKey] !== undefined ? settings[daysKey] : '1,2,3,4,5';
-                const days = daysStr.split(',').map(Number);
+            const isDue = (activeKey, timeKey, daysKey, lastSentKey) => {
+                if (settings[activeKey] !== 'true' && settings[activeKey] !== true) return false;
+                const daysStr = settings[daysKey] !== undefined ? String(settings[daysKey]) : '1,2,3,4,5';
+                const days = daysStr.split(',').map(s => parseInt(s.trim(), 10));
                 if (!days.includes(currentDayOfWeek)) return false;
                 const [sHour, sMin] = (settings[timeKey] || '14:00').split(':').map(Number);
                 const sMins = (sHour * 60) + sMin;
-                const withinTimeWindow = currentTimeMins >= sMins && currentTimeMins < sMins + 2;
-                const recordedLastSent = settings[activeKey + '_last_sent'] || lastSentDate;
-                return withinTimeWindow && recordedLastSent !== todayDateStr;
+                const withinTimeWindow = currentTimeMins >= sMins && currentTimeMins < sMins + 5;
+                const targetKey = `${todayDateStr} ${String(sHour).padStart(2,'0')}:${String(sMin).padStart(2,'0')}`;
+                return withinTimeWindow && lastSentKey !== targetKey;
             };
 
             // 1. Disparo Relatório LME
             if (isDue('lme_envio_ativo', 'lme_envio_horario', 'lme_envio_dias', lastSentLmeDate)) {
+                const [sHour, sMin] = (settings['lme_envio_horario'] || '14:00').split(':').map(Number);
+                const targetKey = `${todayDateStr} ${String(sHour).padStart(2,'0')}:${String(sMin).padStart(2,'0')}`;
+                lastSentLmeDate = targetKey;
                 console.log(`⏰ [Agendador] Horário do Relatório LME atingido (${hour}:${minute} em SP)! Iniciando disparo para ${todayDateStr}...`);
                 const mes = `${parseInt(month, 10)}-${year}`;
                 const data = await generateRelatorioSemanas(mes);
                 if (data && data.semanas && data.semanas.length > 0) {
                     const latestWeek = data.semanas[0];
-                    let pdfBase64 = null;
-                    try {
-                        pdfBase64 = await gerarPdfRelatorioViaHeadless();
-                    } catch (pdfErr) {
-                        console.warn('⚠️ [Agendador] Aviso na geração do PDF headless:', pdfErr.message);
-                    }
-                    await enviarRelatorioEmail(latestWeek, pdfBase64);
-                    lastSentLmeDate = todayDateStr;
+                    await enviarRelatorioEmail(latestWeek);
                     if (dbAvailable) {
-                        await pool.query('INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2', ['lme_envio_ativo_last_sent', todayDateStr]).catch(() => {});
+                        await pool.query('INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2', ['lme_envio_ativo_last_sent', targetKey]).catch(() => {});
                     }
                     console.log(`✅ [Agendador] Relatório LME enviado com sucesso para ${todayDateStr}.`);
                 } else {
@@ -6453,8 +6364,8 @@ app.post('/api/lme/relatorio-email', async (req, res) => {
         }
 
         const latestWeek = data.semanas[0];
-        console.log('Gerando PDF via Headless para o endpoint /api/lme/relatorio-email...');
-        const pdfBase64 = await gerarPdfRelatorioViaHeadless();
+        console.log('Gerando PDF da LME para o endpoint /api/lme/relatorio-email...');
+        const pdfBase64 = await gerarPdfRelatorioViaHeadless(latestWeek);
         
         await enviarRelatorioEmail(latestWeek, pdfBase64);
 
