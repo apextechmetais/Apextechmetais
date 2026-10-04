@@ -1150,7 +1150,7 @@ async function initDatabase() {
             { key: 'lme_envio_horario', value: '14:00' },
             { key: 'lme_envio_dias',    value: '1,2,3,4,5' },
             { key: 'lme_resend_api_key', value: process.env.RESEND_API_KEY || '' },
-            { key: 'lme_resend_from',   value: process.env.RESEND_FROM || '' },
+            { key: 'lme_resend_from',   value: process.env.RESEND_FROM || 'Apextech Metais <noreply@apextechmetais.com.br>' },
             { key: 'role_permissions',  value: JSON.stringify({
                 "Administrador": ["view_lme", "view_precos", "view_catalogo", "view_fornecedores", "view_laboratorio", "view_planejamento", "view_estoque", "view_bi", "edit_financeiro", "edit_producao", "view_usuarios"],
                 "Laboratório": ["view_laboratorio", "view_catalogo"],
@@ -1165,6 +1165,11 @@ async function initDatabase() {
                 'INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING',
                 [s.key, s.value]
             );
+        }
+        // Sanitizar configurações legadas para garantir credenciais e remetente oficiais protegidos
+        await client.query(`UPDATE settings SET value = 'Apextech Metais <noreply@apextechmetais.com.br>' WHERE key = 'lme_resend_from' AND (value LIKE '%onboarding%' OR value LIKE '%lme.lat%' OR value = '' OR value IS NULL)`);
+        if (process.env.RESEND_API_KEY) {
+            await client.query(`UPDATE settings SET value = $1 WHERE key = 'lme_resend_api_key' AND (value = '' OR value IS NULL)`, [process.env.RESEND_API_KEY]);
         }
         console.log('✅ Chaves de configuração LME garantidas no banco de dados.');
 
@@ -5940,9 +5945,11 @@ async function getResendConfig() {
         Object.assign(settings, memStore.settings);
     }
 
-    const apiKey = settings.lme_resend_api_key || process.env.RESEND_API_KEY || '';
+    const apiKey = process.env.RESEND_API_KEY || settings.lme_resend_api_key || '';
     let from     = settings.lme_resend_from || process.env.RESEND_FROM || 'Apextech Metais <noreply@apextechmetais.com.br>';
-    if (from && !from.includes('<') && !from.includes('>')) {
+    if (!from || from.includes('onboarding@resend.dev') || from.includes('lme.lat')) {
+        from = 'Apextech Metais <noreply@apextechmetais.com.br>';
+    } else if (!from.includes('<') && !from.includes('>')) {
         from = `Apextech Metais <${from.trim()}>`;
     }
 
@@ -6316,7 +6323,7 @@ let lastSentGeralDate = '';
 let lastSentFornDate = '';
 
 function startEmailScheduler() {
-    console.log('⏰ Inicializando o agendador de e-mails da ApexTech...');
+    console.log('⏰ Inicializando o agendador de e-mails da ApexTech (Fuso: América/São Paulo)...');
     setInterval(async () => {
         try {
             const settings = {};
@@ -6327,66 +6334,84 @@ function startEmailScheduler() {
                 Object.assign(settings, memStore.settings);
             }
 
-            const spWeekday = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo", weekday: "short" });
-            const dayMap = { 'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6 };
-            const currentDayOfWeek = dayMap[spWeekday];
-
-            const formatter = new Intl.DateTimeFormat('pt-BR', {
-                timeZone: 'America/Sao_Paulo',
-                year: 'numeric', month: '2-digit', day: '2-digit',
-                hour: '2-digit', minute: '2-digit', hour12: false
-            });
-            const partsList = formatter.formatToParts(new Date());
-            const spParts = {};
-            partsList.forEach(p => { spParts[p.type] = p.value; });
-
-            const year = spParts.year;
-            const month = spParts.month;
-            const day = spParts.day;
-            const hour = parseInt(spParts.hour, 10);
-            const minute = parseInt(spParts.minute, 10);
+            // Horário oficial de Brasília (São Paulo)
+            const spDate = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+            const currentDayOfWeek = spDate.getDay(); // 0=Dom, 1=Seg, 2=Ter, 3=Qua, 4=Qui, 5=Sex, 6=Sáb
+            const hour = spDate.getHours();
+            const minute = spDate.getMinutes();
             const currentTimeMins = (hour * 60) + minute;
+            const year = spDate.getFullYear();
+            const month = String(spDate.getMonth() + 1).padStart(2, '0');
+            const day = String(spDate.getDate()).padStart(2, '0');
             const todayDateStr = `${year}-${month}-${day}`;
 
-            const isDue = (activeKey, timeKey, daysKey) => {
+            const isDue = (activeKey, timeKey, daysKey, lastSentDate) => {
                 if (settings[activeKey] !== 'true') return false;
                 const daysStr = settings[daysKey] !== undefined ? settings[daysKey] : '1,2,3,4,5';
                 const days = daysStr.split(',').map(Number);
                 if (!days.includes(currentDayOfWeek)) return false;
                 const [sHour, sMin] = (settings[timeKey] || '14:00').split(':').map(Number);
                 const sMins = (sHour * 60) + sMin;
-                return currentTimeMins >= sMins && currentTimeMins < sMins + 2;
+                const withinTimeWindow = currentTimeMins >= sMins && currentTimeMins < sMins + 2;
+                const recordedLastSent = settings[activeKey + '_last_sent'] || lastSentDate;
+                return withinTimeWindow && recordedLastSent !== todayDateStr;
             };
 
             // 1. Disparo Relatório LME
-            if (isDue('lme_envio_ativo', 'lme_envio_horario', 'lme_envio_dias') && lastSentLmeDate !== todayDateStr) {
-                console.log(`⏰ [Agendador] Enviando relatório LME por e-mail...`);
+            if (isDue('lme_envio_ativo', 'lme_envio_horario', 'lme_envio_dias', lastSentLmeDate)) {
+                console.log(`⏰ [Agendador] Horário do Relatório LME atingido (${hour}:${minute} em SP)! Iniciando disparo para ${todayDateStr}...`);
                 const mes = `${parseInt(month, 10)}-${year}`;
                 const data = await generateRelatorioSemanas(mes);
                 if (data && data.semanas && data.semanas.length > 0) {
                     const latestWeek = data.semanas[0];
-                    const pdfBase64 = await gerarPdfRelatorioViaHeadless();
+                    let pdfBase64 = null;
+                    try {
+                        pdfBase64 = await gerarPdfRelatorioViaHeadless();
+                    } catch (pdfErr) {
+                        console.warn('⚠️ [Agendador] Aviso na geração do PDF headless:', pdfErr.message);
+                    }
                     await enviarRelatorioEmail(latestWeek, pdfBase64);
                     lastSentLmeDate = todayDateStr;
-                    console.log(`✅ [Agendador] Relatório LME enviado para ${todayDateStr}.`);
+                    if (dbAvailable) {
+                        await pool.query('INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2', ['lme_envio_ativo_last_sent', todayDateStr]).catch(() => {});
+                    }
+                    console.log(`✅ [Agendador] Relatório LME enviado com sucesso para ${todayDateStr}.`);
+                } else {
+                    console.warn(`⚠️ [Agendador] Nenhuma semana encontrada para o mês ${mes}.`);
                 }
             }
 
             // 2. Disparo Tabela Geral Completa
-            if (isDue('tabela_geral_envio_ativo', 'tabela_geral_envio_horario', 'tabela_geral_envio_dias') && lastSentGeralDate !== todayDateStr) {
-                console.log(`⏰ [Agendador] Enviando Tabela Geral Completa por e-mail...`);
-                const pdfBase64 = await gerarPdfTabelaPrecosViaHeadless('completa');
+            if (isDue('tabela_geral_envio_ativo', 'tabela_geral_envio_horario', 'tabela_geral_envio_dias', lastSentGeralDate)) {
+                console.log(`⏰ [Agendador] Enviando Tabela Geral Completa por e-mail para ${todayDateStr}...`);
+                let pdfBase64 = null;
+                try {
+                    pdfBase64 = await gerarPdfTabelaPrecosViaHeadless('completa');
+                } catch (pdfErr) {
+                    console.warn('⚠️ [Agendador] Aviso na geração do PDF da tabela:', pdfErr.message);
+                }
                 await enviarTabelaPrecosEmail(pdfBase64, 'completa');
                 lastSentGeralDate = todayDateStr;
+                if (dbAvailable) {
+                    await pool.query('INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2', ['tabela_geral_envio_ativo_last_sent', todayDateStr]).catch(() => {});
+                }
                 console.log(`✅ [Agendador] Tabela Geral Completa enviada para ${todayDateStr}.`);
             }
 
             // 3. Disparo Tabela do Fornecedor
-            if (isDue('tabela_fornecedor_envio_ativo', 'tabela_fornecedor_envio_horario', 'tabela_fornecedor_envio_dias') && lastSentFornDate !== todayDateStr) {
-                console.log(`⏰ [Agendador] Enviando Tabela do Fornecedor por e-mail...`);
-                const pdfBase64 = await gerarPdfTabelaPrecosViaHeadless('fornecedor');
+            if (isDue('tabela_fornecedor_envio_ativo', 'tabela_fornecedor_envio_horario', 'tabela_fornecedor_envio_dias', lastSentFornDate)) {
+                console.log(`⏰ [Agendador] Enviando Tabela do Fornecedor por e-mail para ${todayDateStr}...`);
+                let pdfBase64 = null;
+                try {
+                    pdfBase64 = await gerarPdfTabelaPrecosViaHeadless('fornecedor');
+                } catch (pdfErr) {
+                    console.warn('⚠️ [Agendador] Aviso na geração do PDF da tabela:', pdfErr.message);
+                }
                 await enviarTabelaPrecosEmail(pdfBase64, 'fornecedor');
                 lastSentFornDate = todayDateStr;
+                if (dbAvailable) {
+                    await pool.query('INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2', ['tabela_fornecedor_envio_ativo_last_sent', todayDateStr]).catch(() => {});
+                }
                 console.log(`✅ [Agendador] Tabela do Fornecedor enviada para ${todayDateStr}.`);
             }
 
