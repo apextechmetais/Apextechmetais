@@ -135,7 +135,7 @@ const memStore = {
         show_cotacoes: 'true',
         show_noticias: 'true',
         show_galeria: 'true',
-        lme_envio_ativo: 'false',
+        lme_envio_ativo: 'true',
         lme_envio_horario: '14:00',
         lme_envio_dias: '1,2,3,4,5',
         lme_resend_api_key: '',
