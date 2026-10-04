@@ -120,8 +120,13 @@
         const nomeEl = document.getElementById('wa-qr-conta-nome');
         const imgEl = document.getElementById('wa-qr-code-img');
 
+        const loadBox = document.getElementById('wa-qr-loading-box');
+        const iconCenter = document.getElementById('wa-qr-icon-center');
+
         if (nomeEl) nomeEl.textContent = `Conta / Celular: ${inst ? inst.nome + ' (' + inst.responsavel + ')' : 'Celular Empresa'}`;
-        if (imgEl) imgEl.src = '';
+        if (imgEl) { imgEl.src = ''; imgEl.style.display = 'none'; }
+        if (loadBox) loadBox.style.display = 'flex';
+        if (iconCenter) iconCenter.style.display = 'none';
 
         const modal = document.getElementById('modal-wa-qrcode-scanner');
         if (modal) modal.style.display = 'flex';
@@ -146,6 +151,9 @@
 
                 if (data.qr && imgEl) {
                     imgEl.src = data.qr;
+                    imgEl.style.display = 'block';
+                    if (loadBox) loadBox.style.display = 'none';
+                    if (iconCenter) iconCenter.style.display = 'block';
                 }
             } catch (e) {
                 console.warn('[WhatsApp QR] Aguardando QR Code...', e);

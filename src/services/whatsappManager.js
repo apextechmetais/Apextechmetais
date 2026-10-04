@@ -36,10 +36,8 @@ class WhatsappManager {
 
         try {
             const { state, saveCreds } = await useMultiFileAuthState(instanceSessionDir);
-            const { version } = await fetchLatestBaileysVersion();
 
             const sock = makeWASocket({
-                version,
                 auth: state,
                 logger: pino({ level: 'silent' }),
                 printQRInTerminal: false,

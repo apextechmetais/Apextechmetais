@@ -4611,9 +4611,13 @@
 
                             <!-- DISPLAY DO QR CODE -->
                             <div style="text-align:center; background:#f0f2f5; padding:15px; border-radius:12px; border:2px dashed #00a884;">
-                                <div style="position:relative; display:inline-block; background:#fff; padding:10px; border-radius:8px; box-shadow:0 4px 15px rgba(0,0,0,0.1);">
-                                    <img id="wa-qr-code-img" src="" alt="WhatsApp QR Code" style="width:220px; height:220px; display:block;">
-                                    <i class="fa-brands fa-whatsapp" style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); font-size:2rem; color:#25D366; background:#fff; border-radius:50%; padding:4px; box-shadow:0 2px 8px rgba(0,0,0,0.2);"></i>
+                                <div style="position:relative; display:inline-block; background:#fff; padding:10px; border-radius:8px; box-shadow:0 4px 15px rgba(0,0,0,0.1); min-width:220px; min-height:220px;">
+                                    <div id="wa-qr-loading-box" style="width:220px; height:220px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; color:#00a884; font-size:0.85rem; font-weight:bold;">
+                                        <i class="fa-solid fa-spinner fa-spin" style="font-size:2.2rem;"></i>
+                                        <span>Gerando QR Code do WhatsApp...</span>
+                                    </div>
+                                    <img id="wa-qr-code-img" src="" alt="WhatsApp QR Code" style="width:220px; height:220px; display:none;">
+                                    <i id="wa-qr-icon-center" class="fa-brands fa-whatsapp" style="display:none; position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); font-size:2rem; color:#25D366; background:#fff; border-radius:50%; padding:4px; box-shadow:0 2px 8px rgba(0,0,0,0.2);"></i>
                                 </div>
                                 <div style="margin-top:10px; font-size:0.75rem; color:#54656f;">
                                     <i class="fa-solid fa-rotate"></i> Atualiza em tempo real
@@ -6599,7 +6603,7 @@
     <script defer src="assets/js/modules/admin_planejamento_v4.js?v=4"></script>
     <script defer src="assets/js/modules/pcp_live.js?v=1"></script>
     <script defer src="assets/js/modules/admin_compras.js"></script>
-    <script defer src="assets/js/modules/admin_whatsapp.js?v=3"></script>
+    <script defer src="assets/js/modules/admin_whatsapp.js?v=4"></script>
     <script src="assets/js/theme-toggle.js?v=3"></script>
 
     <!-- ── MODAL GLASSMORPHISM DE NOTIFICAÇÃO (substitui alert nativo) ── -->
