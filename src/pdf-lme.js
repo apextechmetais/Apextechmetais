@@ -23,13 +23,48 @@ const fmtBRL4 = (v) => v !== null && v !== undefined
     ? 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 4 })
     : '—';
 
+// IMPORTANTE: as fontes padrão do jsPDF (Helvetica/WinAnsi) NÃO possuem os glifos ▲ ▼ →.
+// Usá-los gera texto corrompido no PDF (ex.: "%² 3.584%"). Por isso usamos marcadores
+// internos ([UP]/[DN]) que são removidos no didParseCell e desenhados como triângulos vetoriais.
+const ARROW_UP = '[UP]';
+const ARROW_DN = '[DN]';
+
 const fmtPct = (v) => v !== null && v !== undefined
-    ? (v >= 0 ? '▲ ' : '▼ ') + (Math.abs(v) * 100).toFixed(3) + '%'
+    ? (v >= 0 ? ARROW_UP : ARROW_DN) + (Math.abs(v) * 100).toFixed(3).replace('.', ',') + '%'
     : '—';
 
 const fmtOscRS = (v) => v !== null && v !== undefined
-    ? (v >= 0 ? '▲ R$ ' : '▼ R$ ') + Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
+    ? (v >= 0 ? ARROW_UP : ARROW_DN) + 'R$ ' + Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
     : '—';
+
+/** Remove os marcadores de seta da célula e guarda a direção para desenhar depois */
+function parseArrowCell(data) {
+    const raw = Array.isArray(data.cell.text) ? data.cell.text.join(' ') : String(data.cell.text || '');
+    let dir = null;
+    if (raw.startsWith(ARROW_UP)) dir = 'up';
+    else if (raw.startsWith(ARROW_DN)) dir = 'down';
+    if (!dir) return;
+    data.cell.text = [raw.slice(ARROW_UP.length)];
+    data.cell.apexArrow = dir;
+    data.cell.styles.cellPadding = { top: 2, bottom: 2, right: 2, left: 6 };
+}
+
+/** Desenha um triângulo verde (alta) ou vermelho (queda) à esquerda do texto */
+function drawArrowCell(doc, data) {
+    const dir = data.cell.apexArrow;
+    if (!dir) return;
+    const textW = doc.getTextWidth(data.cell.text.join(' '));
+    const cx = data.cell.x + data.cell.width / 2 - textW / 2 - 2.2;
+    const cy = data.cell.y + data.cell.height / 2;
+    const s = 1.3;
+    if (dir === 'up') {
+        doc.setFillColor(0, 176, 80);
+        doc.triangle(cx - s, cy + s * 0.8, cx + s, cy + s * 0.8, cx, cy - s * 0.9, 'F');
+    } else {
+        doc.setFillColor(220, 0, 0);
+        doc.triangle(cx - s, cy - s * 0.8, cx + s, cy - s * 0.8, cx, cy + s * 0.9, 'F');
+    }
+}
 
 // Paleta de cores oficiais do sistema Apextech
 const HDR = {
@@ -173,7 +208,7 @@ async function gerarPdfRelatorioLME(semana) {
 
     const firstDay = (semana.days && semana.days.filter(d => d.data && d.data !== '—')[0]?.data) || '—';
     const lastDay  = (semana.days && semana.days.filter(d => d.data && d.data !== '—').pop()?.data)  || '—';
-    doc.text(`${firstDay} → ${lastDay}`, 148.5, 16, { align: 'center' });
+    doc.text(`${firstDay}  a  ${lastDay}`, 148.5, 16, { align: 'center' });
     doc.setFont(undefined, 'normal');
 
     // Data e hora de emissão em Brasília (América/São Paulo)
@@ -322,6 +357,10 @@ async function gerarPdfRelatorioLME(semana) {
                 data.cell.styles.textColor = ROW_BG[compIdx].fg;
             }
             if (ci === 0) data.cell.styles.halign = 'left';
+            parseArrowCell(data);
+        },
+        didDrawCell: function(data) {
+            if (data.section === 'body') drawArrowCell(doc, data);
         }
     });
 
@@ -354,7 +393,11 @@ async function gerarPdfRelatorioLME(semana) {
                     data.cell.styles.fillColor = CELL_BG[metalKey];
                     data.cell.styles.textColor = CELL_FG[metalKey];
                 }
+                parseArrowCell(data);
             }
+        },
+        didDrawCell: function(data) {
+            if (data.section === 'body') drawArrowCell(doc, data);
         }
     });
 

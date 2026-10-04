@@ -5998,9 +5998,81 @@ async function getResendConfig() {
 
 const { gerarPdfRelatorioLME } = require('./src/pdf-lme');
 
-async function gerarPdfRelatorioViaHeadless(weekBlock) {
+/** Valida se o buffer é realmente um PDF (evita anexar arquivo vazio/corrompido) */
+function isValidPdfBuffer(buf) {
+    return !!buf && buf.length > 2048 && buf.slice(0, 5).toString('latin1') === '%PDF-';
+}
+
+/**
+ * Gera o PDF do Relatório LME exatamente como o botão "PDF" do painel (download local):
+ * renderiza o MESMO HTML (#capture-area, 800px) no Chrome headless e exporta em página única.
+ * Diferença: aqui o PDF é vetorial (texto nítido/selecionável) em vez de imagem.
+ */
+async function gerarPdfLmeViaPuppeteer(weekBlock) {
+    const nowSp = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    const pad = (n) => String(n).padStart(2, '0');
+    const tsStr = `${pad(nowSp.getDate())}/${pad(nowSp.getMonth() + 1)}/${nowSp.getFullYear()} às ${pad(nowSp.getHours())}:${pad(nowSp.getMinutes())}:${pad(nowSp.getSeconds())}`;
+
+    // Setas desenhadas em CSS (não dependem de fontes instaladas no servidor Linux)
+    const TRI_UP = '<span style="display:inline-block;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:7px solid currentColor;vertical-align:middle;margin-bottom:2px;"></span>';
+    const TRI_DN = '<span style="display:inline-block;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:7px solid currentColor;vertical-align:middle;margin-bottom:2px;"></span>';
+
+    let inner = gerarHtmlRelatorio(weekBlock)
+        .replace(/▲/g, TRI_UP)
+        .replace(/▼/g, TRI_DN)
+        // Exibe o rodapé com data/hora, igual ao download local
+        .replace(/<div id="rel-rodape" style="display: none;([^"]*)"><\/div>/,
+            `<div id="rel-rodape" style="display: block;$1">Relatório gerado em: ${tsStr} — ApexTech Metais</div>`);
+
+    const fullHtml = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8">
+        <style>
+            html, body { margin: 0; padding: 0; background: #ffffff; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        </style></head><body>${inner}</body></html>`;
+
+    let browser;
     try {
-        let block = weekBlock;
+        browser = await puppeteer.launch({
+            headless: true,
+            args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--font-render-hinting=none']
+        });
+        const page = await browser.newPage();
+        await page.setViewport({ width: 800, height: 1200, deviceScaleFactor: 2 });
+        await page.emulateMediaType('screen');
+        await page.setContent(fullHtml, { waitUntil: 'domcontentloaded', timeout: 30000 });
+
+        // Aguarda logo e gráficos (QuickChart) carregarem — no máximo 25s
+        await page.evaluate(() => Promise.race([
+            Promise.all(Array.from(document.images).map(img => img.complete
+                ? Promise.resolve()
+                : new Promise(r => { img.onload = r; img.onerror = r; }))),
+            new Promise(r => setTimeout(r, 25000))
+        ]));
+
+        const dims = await page.evaluate(() => {
+            const el = document.getElementById('capture-area') || document.body;
+            const r = el.getBoundingClientRect();
+            return { w: Math.ceil(r.width), h: Math.ceil(r.height) };
+        });
+
+        const pdf = await page.pdf({
+            width: `${Math.max(dims.w, 800)}px`,
+            height: `${dims.h + 4}px`,
+            printBackground: true,
+            margin: { top: 0, right: 0, bottom: 0, left: 0 },
+            pageRanges: '1'
+        });
+        const buf = Buffer.from(pdf);
+        if (!isValidPdfBuffer(buf)) throw new Error('PDF gerado pelo Chrome está vazio/inválido.');
+        return buf;
+    } finally {
+        if (browser) await browser.close().catch(() => {});
+    }
+}
+
+async function gerarPdfRelatorioViaHeadless(weekBlock) {
+    let block = weekBlock;
+    try {
         if (!block) {
             const localTimeStr = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
             const dObj = new Date(localTimeStr);
@@ -6013,9 +6085,26 @@ async function gerarPdfRelatorioViaHeadless(weekBlock) {
                 block = data.semanas[data.semanas.length - 1];
             }
         }
-        if (!block) return null;
+    } catch (e) {
+        console.error('Erro ao obter semana LME para o PDF:', e.message);
+    }
+    if (!block) return null;
+
+    // 1ª opção: idêntico ao download local (Chrome headless)
+    try {
+        const buf = await gerarPdfLmeViaPuppeteer(block);
+        console.log(`📄 PDF LME gerado via Chrome headless (${Math.round(buf.length / 1024)} KB).`);
+        return buf.toString('base64');
+    } catch (e) {
+        console.warn('⚠️ Chrome headless indisponível para o PDF LME, usando jsPDF:', e.message);
+    }
+
+    // 2ª opção (fallback): PDF vetorial via jsPDF
+    try {
         const buf = await gerarPdfRelatorioLME(block);
-        return buf ? buf.toString('base64') : null;
+        if (!isValidPdfBuffer(buf)) throw new Error('PDF jsPDF inválido.');
+        console.log(`📄 PDF LME gerado via jsPDF (${Math.round(buf.length / 1024)} KB).`);
+        return buf.toString('base64');
     } catch (e) {
         console.error('Erro ao gerar PDF da LME via jsPDF:', e);
         return null;
@@ -6301,13 +6390,96 @@ async function enviarTabelaPrecosEmail(pdfBase64, modo = 'fornecedor', emailDest
 }
 
 // ─── Agendador Automático de E-mails ──────────────────────────────────────────
-let lastSentLmeDate = '';
-let lastSentGeralDate = '';
-let lastSentFornDate = '';
+// Regras de confiabilidade:
+//  • Só marca como "enviado" quando o envio realmente dá certo (antes marcava ANTES de enviar,
+//    então qualquer falha de PDF/rede fazia o dia ser perdido sem nova tentativa).
+//  • Janela de recuperação: se o servidor estava reiniciando/fora do ar no horário exato,
+//    ainda envia em até SCHEDULER_CATCHUP_MIN minutos depois do horário programado.
+//  • Até SCHEDULER_MAX_ATTEMPTS tentativas, com SCHEDULER_RETRY_MS entre elas.
+//  • Trava contra envio duplicado (job em andamento / já enviado, persistido no banco).
+const SCHEDULER_CATCHUP_MIN = 180;
+const SCHEDULER_MAX_ATTEMPTS = 6;
+const SCHEDULER_RETRY_MS = 5 * 60 * 1000;
+const schedulerState = {};
+
+async function persistSchedulerLastSent(activeKey, value) {
+    const key = activeKey + '_last_sent';
+    if (!memStore.settings) memStore.settings = {};
+    memStore.settings[key] = value;
+    if (dbAvailable) {
+        await pool.query(
+            'INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2',
+            [key, value]
+        ).catch(e => console.warn(`⚠️ [Agendador] Não foi possível gravar ${key}:`, e.message));
+    }
+}
+
+async function runScheduledJob(job, settings, now) {
+    const { activeKey, timeKey, daysKey, name, run } = job;
+    if (settings[activeKey] !== 'true' && settings[activeKey] !== true) return;
+
+    const daysStr = settings[daysKey] !== undefined && settings[daysKey] !== null ? String(settings[daysKey]) : '1,2,3,4,5';
+    const days = daysStr.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
+    if (!days.includes(now.dayOfWeek)) return;
+
+    const [sHour, sMin] = String(settings[timeKey] || '14:00').split(':').map(n => parseInt(n, 10));
+    if (isNaN(sHour) || isNaN(sMin)) return;
+    const sMins = sHour * 60 + sMin;
+    if (now.mins < sMins || now.mins >= sMins + SCHEDULER_CATCHUP_MIN) return;
+
+    const targetKey = `${now.dateStr} ${String(sHour).padStart(2, '0')}:${String(sMin).padStart(2, '0')}`;
+    const st = schedulerState[activeKey] || (schedulerState[activeKey] = {});
+    const recorded = settings[activeKey + '_last_sent'];
+    // Compatível com o formato antigo (apenas a data) para não reenviar no dia da atualização
+    if (recorded === targetKey || recorded === now.dateStr || st.sentKey === targetKey) return;
+    if (st.inFlight) return;
+
+    if (st.targetKey !== targetKey) {
+        st.targetKey = targetKey;
+        st.attempts = 0;
+        st.nextRetryAt = 0;
+    }
+    if (st.attempts >= SCHEDULER_MAX_ATTEMPTS) return;
+    if (Date.now() < st.nextRetryAt) return;
+
+    st.inFlight = true;
+    st.attempts++;
+    const atraso = now.mins - sMins;
+    console.log(`⏰ [Agendador] ${name}: disparo ${targetKey} (tentativa ${st.attempts}/${SCHEDULER_MAX_ATTEMPTS}${atraso > 0 ? `, ${atraso} min após o horário` : ''})...`);
+    try {
+        await run();
+        st.sentKey = targetKey;
+        await persistSchedulerLastSent(activeKey, targetKey);
+        console.log(`✅ [Agendador] ${name} enviado com sucesso (${targetKey}).`);
+    } catch (err) {
+        st.nextRetryAt = Date.now() + SCHEDULER_RETRY_MS;
+        const restante = SCHEDULER_MAX_ATTEMPTS - st.attempts;
+        console.error(`❌ [Agendador] Falha ao enviar ${name} (tentativa ${st.attempts}): ${err.message}${restante > 0 ? ' — nova tentativa em 5 min.' : ' — limite de tentativas atingido.'}`);
+    } finally {
+        st.inFlight = false;
+    }
+}
+
+async function enviarRelatorioLmeAgendado() {
+    const spDate = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    const mes = `${spDate.getMonth() + 1}-${spDate.getFullYear()}`;
+    let data = await generateRelatorioSemanas(mes);
+    if (!data || !data.semanas || data.semanas.length === 0) {
+        data = await generateRelatorioSemanas('atual');
+    }
+    if (!data || !data.semanas || data.semanas.length === 0) {
+        throw new Error(`Nenhuma semana LME encontrada para ${mes} ou atual.`);
+    }
+    const latestWeek = data.semanas[data.semanas.length - 1];
+    // Gera o PDF igual ao download local e só envia se o anexo existir (enviarRelatorioEmail valida)
+    const pdfBase64 = await gerarPdfRelatorioViaHeadless(latestWeek);
+    await enviarRelatorioEmail(latestWeek, pdfBase64);
+}
 
 function startEmailScheduler() {
     console.log('⏰ Inicializando o agendador de e-mails da ApexTech (Fuso: América/São Paulo)...');
-    setInterval(async () => {
+
+    const tick = async () => {
         try {
             const settings = {};
             if (dbAvailable) {
@@ -6318,90 +6490,59 @@ function startEmailScheduler() {
             }
 
             // Horário oficial de Brasília (São Paulo)
-            const spDate = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
-            const currentDayOfWeek = spDate.getDay(); // 0=Dom, 1=Seg, 2=Ter, 3=Qua, 4=Qui, 5=Sex, 6=Sáb
-            const hour = spDate.getHours();
-            const minute = spDate.getMinutes();
-            const currentTimeMins = (hour * 60) + minute;
-            const year = spDate.getFullYear();
-            const month = String(spDate.getMonth() + 1).padStart(2, '0');
-            const day = String(spDate.getDate()).padStart(2, '0');
-            const todayDateStr = `${year}-${month}-${day}`;
-
-            const isDue = (activeKey, timeKey, daysKey, lastSentKey) => {
-                if (settings[activeKey] !== 'true' && settings[activeKey] !== true) return false;
-                const daysStr = settings[daysKey] !== undefined ? String(settings[daysKey]) : '1,2,3,4,5';
-                const days = daysStr.split(',').map(s => parseInt(s.trim(), 10));
-                if (!days.includes(currentDayOfWeek)) return false;
-                const [sHour, sMin] = (settings[timeKey] || '14:00').split(':').map(Number);
-                const sMins = (sHour * 60) + sMin;
-                const withinTimeWindow = currentTimeMins >= sMins && currentTimeMins < sMins + 5;
-                const targetKey = `${todayDateStr} ${String(sHour).padStart(2,'0')}:${String(sMin).padStart(2,'0')}`;
-                const recordedLastSent = settings[activeKey + '_last_sent'] || lastSentKey;
-                return withinTimeWindow && lastSentKey !== targetKey && recordedLastSent !== targetKey;
+            const spDate = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+            const now = {
+                dayOfWeek: spDate.getDay(), // 0=Dom ... 6=Sáb
+                mins: spDate.getHours() * 60 + spDate.getMinutes(),
+                dateStr: `${spDate.getFullYear()}-${String(spDate.getMonth() + 1).padStart(2, '0')}-${String(spDate.getDate()).padStart(2, '0')}`
             };
 
-            // 1. Disparo Relatório LME
-            if (isDue('lme_envio_ativo', 'lme_envio_horario', 'lme_envio_dias', lastSentLmeDate)) {
-                const [sHour, sMin] = (settings['lme_envio_horario'] || '14:00').split(':').map(Number);
-                const targetKey = `${todayDateStr} ${String(sHour).padStart(2,'0')}:${String(sMin).padStart(2,'0')}`;
-                lastSentLmeDate = targetKey;
-                console.log(`⏰ [Agendador] Horário do Relatório LME atingido (${hour}:${minute} em SP)! Iniciando disparo para ${todayDateStr}...`);
-                const mes = `${parseInt(month, 10)}-${year}`;
-                let data = await generateRelatorioSemanas(mes);
-                if (!data || !data.semanas || data.semanas.length === 0) {
-                    data = await generateRelatorioSemanas('atual');
-                }
-                if (data && data.semanas && data.semanas.length > 0) {
-                    const latestWeek = data.semanas[data.semanas.length - 1];
-                    await enviarRelatorioEmail(latestWeek);
-                    if (dbAvailable) {
-                        await pool.query('INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2', ['lme_envio_ativo_last_sent', targetKey]).catch(() => {});
+            const jobs = [
+                {
+                    name: 'Relatório LME',
+                    activeKey: 'lme_envio_ativo', timeKey: 'lme_envio_horario', daysKey: 'lme_envio_dias',
+                    run: enviarRelatorioLmeAgendado
+                },
+                {
+                    name: 'Tabela Geral Completa',
+                    activeKey: 'tabela_geral_envio_ativo', timeKey: 'tabela_geral_envio_horario', daysKey: 'tabela_geral_envio_dias',
+                    run: async () => {
+                        let pdfBase64 = null;
+                        try { pdfBase64 = await gerarPdfTabelaPrecosViaHeadless('completa'); }
+                        catch (pdfErr) { console.warn('⚠️ [Agendador] Aviso na geração do PDF da tabela:', pdfErr.message); }
+                        await enviarTabelaPrecosEmail(pdfBase64, 'completa');
                     }
-                    console.log(`✅ [Agendador] Relatório LME enviado com sucesso para ${todayDateStr}.`);
-                } else {
-                    console.warn(`⚠️ [Agendador] Nenhuma semana encontrada para o mês ${mes} ou atual.`);
+                },
+                {
+                    name: 'Tabela do Fornecedor',
+                    activeKey: 'tabela_fornecedor_envio_ativo', timeKey: 'tabela_fornecedor_envio_horario', daysKey: 'tabela_fornecedor_envio_dias',
+                    run: async () => {
+                        let pdfBase64 = null;
+                        try { pdfBase64 = await gerarPdfTabelaPrecosViaHeadless('fornecedor'); }
+                        catch (pdfErr) { console.warn('⚠️ [Agendador] Aviso na geração do PDF da tabela:', pdfErr.message); }
+                        await enviarTabelaPrecosEmail(pdfBase64, 'fornecedor');
+                    }
                 }
-            }
+            ];
 
-            // 2. Disparo Tabela Geral Completa
-            if (isDue('tabela_geral_envio_ativo', 'tabela_geral_envio_horario', 'tabela_geral_envio_dias', lastSentGeralDate)) {
-                console.log(`⏰ [Agendador] Enviando Tabela Geral Completa por e-mail para ${todayDateStr}...`);
-                let pdfBase64 = null;
-                try {
-                    pdfBase64 = await gerarPdfTabelaPrecosViaHeadless('completa');
-                } catch (pdfErr) {
-                    console.warn('⚠️ [Agendador] Aviso na geração do PDF da tabela:', pdfErr.message);
-                }
-                await enviarTabelaPrecosEmail(pdfBase64, 'completa');
-                lastSentGeralDate = todayDateStr;
-                if (dbAvailable) {
-                    await pool.query('INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2', ['tabela_geral_envio_ativo_last_sent', todayDateStr]).catch(() => {});
-                }
-                console.log(`✅ [Agendador] Tabela Geral Completa enviada para ${todayDateStr}.`);
+            // Sequencial para não abrir vários Chrome headless ao mesmo tempo
+            for (const job of jobs) {
+                await runScheduledJob(job, settings, now);
             }
-
-            // 3. Disparo Tabela do Fornecedor
-            if (isDue('tabela_fornecedor_envio_ativo', 'tabela_fornecedor_envio_horario', 'tabela_fornecedor_envio_dias', lastSentFornDate)) {
-                console.log(`⏰ [Agendador] Enviando Tabela do Fornecedor por e-mail para ${todayDateStr}...`);
-                let pdfBase64 = null;
-                try {
-                    pdfBase64 = await gerarPdfTabelaPrecosViaHeadless('fornecedor');
-                } catch (pdfErr) {
-                    console.warn('⚠️ [Agendador] Aviso na geração do PDF da tabela:', pdfErr.message);
-                }
-                await enviarTabelaPrecosEmail(pdfBase64, 'fornecedor');
-                lastSentFornDate = todayDateStr;
-                if (dbAvailable) {
-                    await pool.query('INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2', ['tabela_fornecedor_envio_ativo_last_sent', todayDateStr]).catch(() => {});
-                }
-                console.log(`✅ [Agendador] Tabela do Fornecedor enviada para ${todayDateStr}.`);
-            }
-
         } catch (err) {
             console.error('❌ Erro no agendador automático de e-mails:', err.message);
         }
-    }, 60000);
+    };
+
+    let ticking = false;
+    const safeTick = async () => {
+        if (ticking) return;
+        ticking = true;
+        try { await tick(); } finally { ticking = false; }
+    };
+
+    setTimeout(safeTick, 15000); // verifica logo após o boot (recupera envio perdido em restart)
+    setInterval(safeTick, 60000);
 }
 
 // ─── API: LME Disparar E-mail (Endpoint Externo) ─────────────────────────────
@@ -7842,5 +7983,5 @@ if (require.main === module) {
     });
 }
 
-module.exports = { app, initDatabase, pool };
+module.exports = { app, initDatabase, pool, gerarPdfRelatorioViaHeadless, generateRelatorioSemanas };
 
