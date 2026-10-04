@@ -121,7 +121,7 @@ const memStore = {
         lme_envio_horario: '14:00',
         lme_envio_dias: '1,2,3,4,5',
         lme_resend_api_key: '',
-        lme_resend_from: 'contato@apextechmetais.com.br',
+        lme_resend_from: 'Apextech Metais <noreply@apextechmetais.com.br>',
         role_permissions: JSON.stringify({
             "Administrador": ["view_lme", "view_precos", "view_catalogo", "view_fornecedores", "view_laboratorio", "view_planejamento", "view_estoque", "view_bi", "edit_financeiro", "edit_producao", "view_usuarios"],
             "Laboratório": ["view_laboratorio", "view_catalogo"],
@@ -2896,7 +2896,8 @@ app.post('/api/amostras/:id/enviar-laudo-email', async (req, res) => {
         // Enviar via Resend (padrão do sistema)
         const { Resend } = require('resend');
         const resend = new Resend(resendKey);
-        const fromEmail = settingsObj.lme_resend_from || process.env.RESEND_FROM || 'laudo@apextechmetais.com.br';
+        const rawFrom = settingsObj.lme_resend_from || process.env.RESEND_FROM || 'Apextech Metais <noreply@apextechmetais.com.br>';
+        const fromEmail = rawFrom.includes('<') ? rawFrom : `Apextech Metais <${rawFrom.trim()}>`;
 
 
         for (const dest of destinatarios) {
@@ -5940,7 +5941,10 @@ async function getResendConfig() {
     }
 
     const apiKey = settings.lme_resend_api_key || process.env.RESEND_API_KEY || '';
-    const from   = settings.lme_resend_from || process.env.RESEND_FROM || 'contato@apextechmetais.com.br';
+    let from     = settings.lme_resend_from || process.env.RESEND_FROM || 'Apextech Metais <noreply@apextechmetais.com.br>';
+    if (from && !from.includes('<') && !from.includes('>')) {
+        from = `Apextech Metais <${from.trim()}>`;
+    }
 
     return { apiKey, from };
 }
@@ -6119,10 +6123,11 @@ async function enviarRelatorioEmail(weekBlock, pdfBase64 = null) {
 
     // Garantir envio em Cópia Oculta (BCC) para privacidade absoluta dos destinatários
     // Nenhum cliente/fornecedor poderá ver os e-mails dos demais na lista
-    const bccList = emailsList.filter(e => e.toLowerCase() !== config.from.toLowerCase());
+    const senderEmail = config.from.match(/<([^>]+)>/) ? config.from.match(/<([^>]+)>/)[1].trim() : config.from.trim();
+    const bccList = emailsList.filter(e => e.toLowerCase() !== senderEmail.toLowerCase());
     const emailPayload = {
         from: config.from,
-        to: [config.from],
+        to: [senderEmail],
         ...(bccList.length > 0 ? { bcc: bccList } : {}),
         subject: `📊 Relatório Diário Cotações LME - Apextech Metais - ${todayDateStr}`,
         html: html,
@@ -6265,12 +6270,13 @@ async function enviarTabelaPrecosEmail(pdfBase64, modo = 'fornecedor', emailDest
     // envia direto para ele em 'to'.
     // Se for envio para a lista de fornecedores/clientes (mala direta):
     // envia com 'to: [config.from]' e 'bcc: emailsList' para total sigilo.
+    const senderEmail = config.from.match(/<([^>]+)>/) ? config.from.match(/<([^>]+)>/)[1].trim() : config.from.trim();
     const isSingleRecipient = !!emailDestino;
-    const bccList = !isSingleRecipient ? emailsList.filter(e => e.toLowerCase() !== config.from.toLowerCase()) : [];
+    const bccList = !isSingleRecipient ? emailsList.filter(e => e.toLowerCase() !== senderEmail.toLowerCase()) : [];
 
     const emailPayload = {
         from: config.from,
-        to: isSingleRecipient ? [emailDestino] : [config.from],
+        to: isSingleRecipient ? [emailDestino] : [senderEmail],
         ...(bccList.length > 0 ? { bcc: bccList } : {}),
         subject: `📋 ${tituloTabela} - Apextech Metais - ${formattedDate}`,
         html: html,
