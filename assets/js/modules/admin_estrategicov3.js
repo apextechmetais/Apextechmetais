@@ -2564,49 +2564,127 @@ window.excluirCicloV3 = async function(cicloId) {
     };
 
     let _forecastData = [];
-    async function carregarForecastEstrategico() {
+    window.carregarForecastEstrategico = async function() {
         try {
             const tbody = document.querySelector('#table-estr-forecast tbody');
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">Carregando dados reais de vendas e estoque... <i class="fa-solid fa-spinner fa-spin"></i></td></tr>';
+            if (tbody) {
+                tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:20px;">Carregando dados reais de vendas e estoque... <i class="fa-solid fa-spinner fa-spin"></i></td></tr>';
+            }
             
             const res = await fetch('/api/planejamento/compras/forecast', { cache: 'no-store' });
             if (!res.ok) throw new Error('Falha ao buscar forecast');
             const data = await res.json();
-            _forecastData = data;
+            _forecastData = data || [];
             
-            if (!data || data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">Nenhum dado encontrado ou sem conexão com BD real.</td></tr>';
-                return;
-            }
+            // Atualizar KPIs Estratégicos
+            let totalEstoqueVal = 0;
+            let totalEstoqueQtd = 0;
+            let totalMargemSum = 0;
+            let countMargem = 0;
+            let totalDemandaQtd = 0;
+            let totalDemandaVal = 0;
+            let alertasCnt = 0;
 
-            tbody.innerHTML = '';
-            data.forEach(item => {
-                let badgeClass = 'bg-secondary';
-                if (item.acao_recomendada === 'COMPRAR') badgeClass = 'bg-primary';
-                else if (item.acao_recomendada === 'OPORTUNIDADE') badgeClass = 'bg-success';
-                else if (item.acao_recomendada === 'VENDER ESTOQUE') badgeClass = 'bg-danger';
+            _forecastData.forEach(item => {
+                const est = parseFloat(item.estoque_projetado || 0);
+                const dem = parseFloat(item.demanda_mensal || 0);
+                const pComp = parseFloat(item.preco_compra || 0);
+                const pVend = parseFloat(item.preco_venda || 0);
+                const marg = parseFloat(item.margem_pct || 0);
 
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td style="font-weight:600;">${item.nome} <br><small style="color:#aaa;">${item.categoria}</small></td>
-                    <td>${item.estoque_projetado} kg</td>
-                    <td style="color:#aaa;">${item.demanda_mensal} kg</td>
-                    <td style="font-weight:bold; color:${item.margem_pct > 25 ? '#2AD07A' : '#fff'};">${item.margem_pct}%</td>
-                    <td style="color:#00e5ff; font-weight:bold;">${item.cenarios.conservador > 0 ? '+ ' + item.cenarios.conservador + ' kg' : 'OK'}</td>
-                    <td style="color:#2AD07A; font-weight:bold;">${item.cenarios.moderado > 0 ? '+ ' + item.cenarios.moderado + ' kg' : 'OK'}</td>
-                    <td style="color:#ffb74d; font-weight:bold;">${item.cenarios.agressivo > 0 ? '+ ' + item.cenarios.agressivo + ' kg' : 'OK'}</td>
-                    <td>
-                        <span class="badge ${badgeClass}">${item.acao_recomendada}</span>
-                        <br><small style="color:#aaa; font-size:0.75rem;">${item.motivo_acao}</small>
-                    </td>
-                `;
-                tbody.appendChild(tr);
+                totalEstoqueQtd += est;
+                totalEstoqueVal += est * pComp;
+                totalDemandaQtd += dem;
+                totalDemandaVal += dem * pVend;
+
+                if (pVend > 0) {
+                    totalMargemSum += marg;
+                    countMargem++;
+                }
+
+                if (item.acao_recomendada === 'COMPRAR' || item.acao_recomendada === 'OPORTUNIDADE') {
+                    alertasCnt++;
+                }
             });
+
+            const elEstVal = document.getElementById('forecast-kpi-estoque-val');
+            const elEstQtd = document.getElementById('forecast-kpi-estoque-qtd');
+            const elMargMed = document.getElementById('forecast-kpi-margem-med');
+            const elDemQtd = document.getElementById('forecast-kpi-demanda-qtd');
+            const elDemVal = document.getElementById('forecast-kpi-demanda-val');
+            const elAlerts = document.getElementById('forecast-kpi-alertas-cnt');
+
+            if (elEstVal) elEstVal.textContent = 'R$ ' + totalEstoqueVal.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+            if (elEstQtd) elEstQtd.textContent = totalEstoqueQtd.toLocaleString('pt-BR', {minimumFractionDigits:1}) + ' kg em catálogo';
+            if (elMargMed) elMargMed.textContent = (countMargem > 0 ? (totalMargemSum / countMargem) : 0).toFixed(1) + '%';
+            if (elDemQtd) elDemQtd.textContent = totalDemandaQtd.toLocaleString('pt-BR', {minimumFractionDigits:1}) + ' kg/mês';
+            if (elDemVal) elDemVal.textContent = 'Giro est.: R$ ' + totalDemandaVal.toLocaleString('pt-BR', {maximumFractionDigits:0});
+            if (elAlerts) elAlerts.textContent = alertasCnt + ' Itens';
+
+            window.renderTabelaForecast(_forecastData);
         } catch(e) {
-            console.error(e);
-            document.querySelector('#table-estr-forecast tbody').innerHTML = '<tr><td colspan="8" style="text-align:center; color:#ff6b6b;">Erro ao carregar forecast. Verifique os logs.</td></tr>';
+            console.error('[Forecast]', e);
+            const tbody = document.querySelector('#table-estr-forecast tbody');
+            if (tbody) tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; color:#ff6b6b; padding:20px;">Erro ao carregar forecast. Verifique os logs.</td></tr>';
         }
-    }
+    };
+
+    window.renderTabelaForecast = function(data) {
+        const tbody = document.querySelector('#table-estr-forecast tbody');
+        if (!tbody) return;
+        if (!data || data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:20px; color:#aaa;">Nenhum material encontrado com os filtros selecionados.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = '';
+        data.forEach(item => {
+            let badgeClass = 'bg-secondary';
+            if (item.acao_recomendada === 'COMPRAR') badgeClass = 'bg-primary';
+            else if (item.acao_recomendada === 'OPORTUNIDADE') badgeClass = 'bg-success';
+            else if (item.acao_recomendada === 'VENDER ESTOQUE') badgeClass = 'bg-danger';
+
+            const tr = document.createElement('tr');
+            const estVal = parseFloat(item.estoque_projetado || 0);
+            const demVal = parseFloat(item.demanda_mensal || 0);
+            const pComp = parseFloat(item.preco_compra || 0);
+            const pVend = parseFloat(item.preco_venda || 0);
+            const margem = parseFloat(item.margem_pct || 0);
+
+            tr.innerHTML = `
+                <td style="font-weight:600; padding:10px;">
+                    <div style="font-size:0.9rem; color:#fff;">${item.nome}</div>
+                    <small style="color:#00e5ff; font-weight:bold;">${item.categoria || 'Geral'}</small>
+                </td>
+                <td style="text-align:right; font-weight:bold; color:#e2e8f0;">${estVal.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:4})} kg</td>
+                <td style="text-align:right; color:#cbd5e1;">${demVal.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:4})} kg</td>
+                <td style="text-align:right; color:#94a3b8;">R$ ${pComp.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:4})}</td>
+                <td style="text-align:right; color:#38bdf8; font-weight:bold;">R$ ${pVend.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:4})}</td>
+                <td style="text-align:right; font-weight:bold; color:${margem > 25 ? '#4ade80' : (margem > 10 ? '#facc15' : '#f87171')};">${margem.toFixed(2)}%</td>
+                <td style="color:#00e5ff; font-weight:bold; text-align:center; background:rgba(0,229,255,0.05);">${item.cenarios && item.cenarios.conservador > 0 ? '+ ' + item.cenarios.conservador.toLocaleString('pt-BR') + ' kg' : 'OK'}</td>
+                <td style="color:#2AD07A; font-weight:bold; text-align:center; background:rgba(42,208,122,0.05);">${item.cenarios && item.cenarios.moderado > 0 ? '+ ' + item.cenarios.moderado.toLocaleString('pt-BR') + ' kg' : 'OK'}</td>
+                <td style="color:#ffb74d; font-weight:bold; text-align:center; background:rgba(255,183,77,0.05);">${item.cenarios && item.cenarios.agressivo > 0 ? '+ ' + item.cenarios.agressivo.toLocaleString('pt-BR') + ' kg' : 'OK'}</td>
+                <td style="text-align:center;">
+                    <span class="badge ${badgeClass}" style="font-size:0.8rem; padding:4px 8px;">${item.acao_recomendada}</span>
+                    <br><small style="color:#aaa; font-size:0.75rem;">${item.motivo_acao || ''}</small>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    };
+
+    window.filtrarTabelaForecast = function() {
+        if (!_forecastData) return;
+        const busca = (document.getElementById('forecast-filtro-busca')?.value || '').toLowerCase();
+        const acao = (document.getElementById('forecast-filtro-acao')?.value || '');
+
+        const filtrados = _forecastData.filter(item => {
+            const matchBusca = !busca || (item.nome || '').toLowerCase().includes(busca) || (item.categoria || '').toLowerCase().includes(busca);
+            const matchAcao = !acao || item.acao_recomendada === acao;
+            return matchBusca && matchAcao;
+        });
+
+        window.renderTabelaForecast(filtrados);
+    };
 
     window.calcularAlavancagemInteligente = function() {
         const tipoMeta = document.getElementById('alavancagem-tipo').value;

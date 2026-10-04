@@ -2694,44 +2694,98 @@
                 </div>
                 
                 <div id="subaba-estr-forecast" style="display:none;">
-                    <div class="glass-panel" style="margin-bottom:20px;">
-                        <h2 style="margin-top:0; color:#4fc3f7;"><i class="fa-solid fa-chart-pie"></i> Forecast e Estratégias de Compras (Dados Reais)</h2>
-                        <p style="color:#aaa; font-size:0.9rem; margin-bottom:15px;">Análise inteligente baseada nos <strong>Pedidos de Venda</strong> (demanda real de 90 dias) e no estoque/pedidos pendentes atuais. Escolha sua estratégia para alavancar os negócios.</p>
+                    <div class="glass-panel" style="margin-bottom:20px; padding:20px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:15px;">
+                            <div>
+                                <h2 style="margin:0; color:#4fc3f7; font-size:1.5rem;"><i class="fa-solid fa-chart-pie"></i> Forecast Estratégico & Gestão Inteligente de Materiais</h2>
+                                <p style="color:#aaa; font-size:0.9rem; margin:5px 0 0 0;">Análise baseada na demanda real dos <strong>Pedidos de Venda (90 dias)</strong>, estoque projetado e rentabilidade do catálogo.</p>
+                            </div>
+                            <button type="button" class="btn-noble" onclick="carregarForecastEstrategico()" style="background:#00e5ff; color:#0d1826; font-weight:bold; padding:8px 16px; border-radius:6px; cursor:pointer;">
+                                <i class="fa-solid fa-rotate-right"></i> Recarregar Forecast
+                            </button>
+                        </div>
                         
-                        <div class="glass-panel" style="background:#102235; padding:15px; border-radius:8px; margin-bottom:20px; border-left:4px solid #2AD07A;">
-                            <h3 style="margin-top:0; color:#2AD07A;"><i class="fa-solid fa-money-bill-trend-up"></i> Simulador de Alavancagem (Qual o mix ideal para bater minha meta?)</h3>
+                        <!-- CARDS DE METRICAS ESTRATÉGICAS DE MATERIAIS -->
+                        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:15px; margin-bottom:20px;">
+                            <div style="background:#0e1d2d; border-left:4px solid #00e5ff; padding:15px; border-radius:8px;">
+                                <div style="color:#aaa; font-size:0.8rem; font-weight:bold;"><i class="fa-solid fa-boxes-stacked" style="color:#00e5ff;"></i> VALOR DE ESTOQUE MATERIAIS</div>
+                                <div id="forecast-kpi-estoque-val" style="font-size:1.4rem; font-weight:800; color:#fff; margin-top:5px;">R$ 0,00</div>
+                                <div id="forecast-kpi-estoque-qtd" style="font-size:0.8rem; color:#aaa;">0 kg total em catálogo</div>
+                            </div>
+                            <div style="background:#0e1d2d; border-left:4px solid #2AD07A; padding:15px; border-radius:8px;">
+                                <div style="color:#aaa; font-size:0.8rem; font-weight:bold;"><i class="fa-solid fa-chart-line" style="color:#2AD07A;"></i> MARGEM MÉDIA BRUTA</div>
+                                <div id="forecast-kpi-margem-med" style="font-size:1.4rem; font-weight:800; color:#2AD07A; margin-top:5px;">0.0%</div>
+                                <div style="font-size:0.8rem; color:#aaa;">Relação Preço Venda vs Compra</div>
+                            </div>
+                            <div style="background:#0e1d2d; border-left:4px solid #ffb74d; padding:15px; border-radius:8px;">
+                                <div style="color:#aaa; font-size:0.8rem; font-weight:bold;"><i class="fa-solid fa-cart-shopping" style="color:#ffb74d;"></i> DEMANDA MENSAL PROJETADA</div>
+                                <div id="forecast-kpi-demanda-qtd" style="font-size:1.4rem; font-weight:800; color:#ffb74d; margin-top:5px;">0 kg</div>
+                                <div id="forecast-kpi-demanda-val" style="font-size:0.8rem; color:#aaa;">Giro total estimado</div>
+                            </div>
+                            <div style="background:#0e1d2d; border-left:4px solid #e53e3e; padding:15px; border-radius:8px;">
+                                <div style="color:#aaa; font-size:0.8rem; font-weight:bold;"><i class="fa-solid fa-triangle-exclamation" style="color:#e53e3e;"></i> ALERTAS DE RECOMPRA</div>
+                                <div id="forecast-kpi-alertas-cnt" style="font-size:1.4rem; font-weight:800; color:#e53e3e; margin-top:5px;">0 Itens</div>
+                                <div style="font-size:0.8rem; color:#aaa;">Estoque abaixo do prazo mínimo</div>
+                            </div>
+                        </div>
+
+                        <!-- SIMULADOR DE ALAVANCAGEM DE METAS -->
+                        <div class="glass-panel" style="background:#102235; padding:18px; border-radius:8px; margin-bottom:20px; border-left:4px solid #2AD07A;">
+                            <h3 style="margin-top:0; color:#2AD07A; font-size:1.1rem;"><i class="fa-solid fa-money-bill-trend-up"></i> Simulador de Alavancagem & Mix de Compras Otimizado</h3>
                             <div style="display:flex; gap:15px; align-items:flex-end; flex-wrap:wrap;">
                                 <div class="form-group" style="margin:0;">
-                                    <label style="color:#aaa; font-size:0.8rem; display:block; margin-bottom:4px;">Minha Meta Financeira (R$)</label>
-                                    <select id="alavancagem-tipo" class="noble-input" style="width:140px; display:inline-block;">
-                                        <option value="lucro">Meta de Lucro</option>
-                                        <option value="faturamento">Meta de Faturamento</option>
+                                    <label style="color:#aaa; font-size:0.8rem; display:block; margin-bottom:4px;">Tipo de Meta Financeira</label>
+                                    <select id="alavancagem-tipo" class="noble-input" style="width:160px; display:inline-block;">
+                                        <option value="lucro">Meta de Lucro (R$)</option>
+                                        <option value="faturamento">Meta de Faturamento (R$)</option>
                                     </select>
-                                    <input type="number" id="alavancagem-valor" class="noble-input" placeholder="Ex: 50000" style="width:150px; display:inline-block; margin-left:10px;">
                                 </div>
-                                <button type="button" class="btn-noble" onclick="calcularAlavancagemInteligente()" style="background:#2AD07A; color:#0d1826; font-weight:bold;">
-                                    <i class="fa-solid fa-calculator"></i> Gerar Plano de Compras Ideal
+                                <div class="form-group" style="margin:0;">
+                                    <label style="color:#aaa; font-size:0.8rem; display:block; margin-bottom:4px;">Valor Desejado (R$)</label>
+                                    <input type="number" id="alavancagem-valor" class="noble-input" placeholder="Ex: 100000" style="width:180px; display:inline-block;">
+                                </div>
+                                <button type="button" class="btn-noble" onclick="calcularAlavancagemInteligente()" style="background:#2AD07A; color:#0d1826; font-weight:bold; height:38px; padding:0 18px; border-radius:6px; cursor:pointer;">
+                                    <i class="fa-solid fa-calculator"></i> Gerar Plano de Compras Otimizado
                                 </button>
                             </div>
                             <div id="alavancagem-resultado" style="margin-top:15px; display:none; background:#0d1826; padding:15px; border-radius:8px; border:1px solid #1e4e8c;"></div>
                         </div>
 
-                        <div class="noble-table-wrapper" style="max-height:600px; overflow-y:auto;">
-                            <table class="noble-table" id="table-estr-forecast">
-                                <thead>
+                        <!-- BARRA DE FILTROS DO FORECAST -->
+                        <div style="display:flex; gap:12px; align-items:center; background:#0e1a26; padding:12px 15px; border-radius:8px; border:1px solid #1e3a5f; margin-bottom:15px; flex-wrap:wrap;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <i class="fa-solid fa-filter" style="color:#00e5ff;"></i>
+                                <span style="color:#fff; font-size:0.85rem; font-weight:bold;">Filtrar Forecast:</span>
+                            </div>
+                            <input type="text" id="forecast-filtro-busca" placeholder="Buscar material ou categoria..." class="noble-input" style="flex:1; min-width:200px;" oninput="window.filtrarTabelaForecast()">
+                            <select id="forecast-filtro-acao" class="noble-input" style="width:170px;" onchange="window.filtrarTabelaForecast()">
+                                <option value="">Todas as Ações</option>
+                                <option value="COMPRAR">Comprar</option>
+                                <option value="OPORTUNIDADE">Oportunidade</option>
+                                <option value="VENDER ESTOQUE">Vender Estoque</option>
+                                <option value="MANTER">Manter</option>
+                            </select>
+                        </div>
+
+                        <!-- TABELA DE FORECAST DE MATERIAIS -->
+                        <div class="noble-table-wrapper" style="max-height:650px; overflow-y:auto; border-radius:8px; border:1px solid #1e3a5f;">
+                            <table class="noble-table" id="table-estr-forecast" style="width:100%; font-size:0.85rem;">
+                                <thead style="position:sticky; top:0; z-index:10; background:#102235;">
                                     <tr>
-                                        <th>Material / Insumo</th>
-                                        <th>Estoque<br>Projetado</th>
-                                        <th>Demanda<br>(Mês)</th>
-                                        <th>Margem<br>(%)</th>
-                                        <th style="color:#00e5ff; background:#102235;">Conservador<br>(30 dias)</th>
-                                        <th style="color:#2AD07A; background:#0f2b23;">Moderado<br>(45-60 dias)</th>
-                                        <th style="color:#ffb74d; background:#2a2010;">Agressivo<br>(90-120 dias)</th>
-                                        <th>Ação Recomendada</th>
+                                        <th style="padding:12px;">Material / Categoria</th>
+                                        <th style="padding:12px; text-align:right;">Estoque Atual</th>
+                                        <th style="padding:12px; text-align:right;">Demanda (Mês)</th>
+                                        <th style="padding:12px; text-align:right;">Preço Compra</th>
+                                        <th style="padding:12px; text-align:right;">Preço Venda</th>
+                                        <th style="padding:12px; text-align:right;">Margem %</th>
+                                        <th style="color:#00e5ff; background:#102235; text-align:center;">Conservador<br>(30 dias)</th>
+                                        <th style="color:#2AD07A; background:#0f2b23; text-align:center;">Moderado<br>(45-60 dias)</th>
+                                        <th style="color:#ffb74d; background:#2a2010; text-align:center;">Agressivo<br>(90-120 dias)</th>
+                                        <th style="padding:12px; text-align:center;">Ação Recomendada</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr><td colspan="8" style="text-align:center;">Carregando dados reais de vendas e estoque...</td></tr>
+                                    <tr><td colspan="10" style="text-align:center; padding:20px;">Carregando dados reais de vendas e estoque... <i class="fa-solid fa-spinner fa-spin"></i></td></tr>
                                 </tbody>
                             </table>
                         </div>
