@@ -5654,30 +5654,63 @@ function generateKpiCard(metalName, key, comp) {
 }
 
 function gerarHtmlRelatorio(weekBlock) {
+    const fs = require('fs');
+    const path = require('path');
+
     const label = weekBlock.label;
-    const days = weekBlock.days;
-    const comp = weekBlock.computed;
+    const days = weekBlock.days || [];
+    const comp = weekBlock.computed || {};
 
     const metals = ['cobre', 'zinco', 'aluminio', 'chumbo', 'estanho', 'niquel'];
-    const headerInfo = getWeekHeaderInfo(days[0]?.data);
+    
+    const firstDate = (days && days.filter(d => d.data && d.data !== '—')[0]?.data) || '';
+    const lastDate  = (days && days.filter(d => d.data && d.data !== '—').pop()?.data)  || '';
+
+    let referenceDate = new Date();
+    if (firstDate && firstDate.includes('/')) {
+        const parts = firstDate.split('/');
+        if (parts.length >= 2) {
+            const yr = new Date().getFullYear();
+            const monthMap = { 'jan':1,'fev':2,'mar':3,'abr':4,'mai':5,'jun':6,'jul':7,'ago':8,'set':9,'out':10,'nov':11,'dez':12 };
+            const monthAbbr = parts[1].toLowerCase().replace('.','').trim();
+            const monthNum = monthMap[monthAbbr] || parseInt(parts[1], 10) || (new Date().getMonth() + 1);
+            const dayNum = parseInt(parts[0], 10) || 1;
+            referenceDate = new Date(yr, monthNum - 1, dayNum);
+        }
+    }
+    const weekNum = getISOWeek(referenceDate);
+    const dateRangeStr = label || (firstDate && lastDate ? `${firstDate} a ${lastDate}` : 'Semana');
 
     const numDias = weekBlock.numDias !== undefined ? weekBlock.numDias : days.filter(d => d.cobre !== null && d.cobre !== undefined && d.cobre !== 'feriado').length;
 
     const chartGroup1 = generateQuickChartUrl(
         ['COBRE', 'ZINCO', 'ALUMÍNIO', 'CHUMBO'],
-        [comp['100% LME'].cobre || 0, comp['100% LME'].zinco || 0, comp['100% LME'].aluminio || 0, comp['100% LME'].chumbo || 0],
-        [comp['SEMANA ANTERIOR'].cobre || 0, comp['SEMANA ANTERIOR'].zinco || 0, comp['SEMANA ANTERIOR'].aluminio || 0, comp['SEMANA ANTERIOR'].chumbo || 0],
+        [comp['100% LME']?.cobre || 0, comp['100% LME']?.zinco || 0, comp['100% LME']?.aluminio || 0, comp['100% LME']?.chumbo || 0],
+        [comp['SEMANA ANTERIOR']?.cobre || 0, comp['SEMANA ANTERIOR']?.zinco || 0, comp['SEMANA ANTERIOR']?.aluminio || 0, comp['SEMANA ANTERIOR']?.chumbo || 0],
         'Cobre · Zinco · Alumínio · Chumbo'
     );
 
     const chartGroup2 = generateQuickChartUrl(
         ['ESTANHO', 'NÍQUEL'],
-        [comp['100% LME'].estanho || 0, comp['100% LME'].niquel || 0],
-        [comp['SEMANA ANTERIOR'].estanho || 0, comp['SEMANA ANTERIOR'].niquel || 0],
+        [comp['100% LME']?.estanho || 0, comp['100% LME']?.niquel || 0],
+        [comp['SEMANA ANTERIOR']?.estanho || 0, comp['SEMANA ANTERIOR']?.niquel || 0],
         'Estanho · Níquel'
     );
 
-    const logoUrl = 'https://apextechmetais.com.br/assets/img/apexlogo.png';
+    let logoUrl = 'https://apextechmetais.com.br/assets/img/apexlogo.png';
+    let watermarkBase64 = '';
+    try {
+        const logoFile = path.join(__dirname, 'assets/img/apexlogo.png');
+        if (fs.existsSync(logoFile)) {
+            logoUrl = 'data:image/png;base64,' + fs.readFileSync(logoFile).toString('base64');
+        }
+        const wmFile = path.join(__dirname, 'assets/img/logo (2).png');
+        if (fs.existsSync(wmFile)) {
+            watermarkBase64 = 'data:image/png;base64,' + fs.readFileSync(wmFile).toString('base64');
+        }
+    } catch (e) {
+        console.warn('Aviso ao carregar imagens locais:', e.message);
+    }
 
     const metalColStyles = {
         cobre: 'background-color: #FF8B9B; color: #000000;',
@@ -5690,7 +5723,9 @@ function gerarHtmlRelatorio(weekBlock) {
     };
 
     let html = `
-    <div id="capture-area" class="capture-area" style="width: 800px; margin: 0 auto; background: #ffffff; padding: 20px; font-family: Calibri, Arial, sans-serif; color: #333333; box-sizing: border-box; border: 1px solid #ddd;">
+    <div id="capture-area" class="capture-area" style="position: relative; width: 800px; margin: 0 auto; background: #ffffff; padding: 20px; font-family: Calibri, Arial, sans-serif; color: #333333; box-sizing: border-box; border: 1px solid #ddd;">
+        ${watermarkBase64 ? `<div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-image: url('${watermarkBase64}'); background-size: 150px 150px; background-repeat: repeat; background-position: top left; opacity: 0.05; pointer-events: none; z-index: 1;"></div>` : ''}
+        <div style="position: relative; z-index: 2;">
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
             <tr>
                 <td style="width: 40%; vertical-align: middle; text-align: left; padding: 5px;">
@@ -5699,7 +5734,7 @@ function gerarHtmlRelatorio(weekBlock) {
                 <td style="width: 60%; vertical-align: middle; padding: 5px;">
                     <div style="background: #ffff00; border: 2px solid #000000; padding: 10px; text-align: center; font-family: Arial, sans-serif; border-radius: 4px;">
                         <div style="font-size: 7.5pt; font-weight: bold; color: #000000; letter-spacing: 0.8px; margin-bottom: 2px; text-transform: uppercase;">COTAÇÃO VÁLIDA PARA A SEMANA</div>
-                        <div style="font-size: 13.5pt; font-weight: bold; color: #000000;">${headerInfo.dateText} &mdash; Semana ${headerInfo.weekNum}</div>
+                        <div style="font-size: 13.5pt; font-weight: bold; color: #000000;">${dateRangeStr} &mdash; Semana ${weekNum}</div>
                     </div>
                 </td>
             </tr>
@@ -5967,6 +6002,7 @@ function gerarHtmlRelatorio(weekBlock) {
                 <p style="font-size: 8pt; color: #999; margin-top: 8px;">Este e-mail é enviado de forma automática conforme as configurações do painel administrativo.</p>
             </div>
         </div>
+    </div>
     `;
 
     return html;
@@ -6416,9 +6452,10 @@ async function persistSchedulerLastSent(activeKey, value) {
 
 async function runScheduledJob(job, settings, now) {
     const { activeKey, timeKey, daysKey, name, run } = job;
-    if (settings[activeKey] !== 'true' && settings[activeKey] !== true) return;
+    const activeVal = settings[activeKey] !== undefined && settings[activeKey] !== null ? settings[activeKey] : 'true';
+    if (activeVal !== 'true' && activeVal !== true) return;
 
-    const daysStr = settings[daysKey] !== undefined && settings[daysKey] !== null ? String(settings[daysKey]) : '1,2,3,4,5';
+    const daysStr = settings[daysKey] !== undefined && settings[daysKey] !== null ? String(settings[daysKey]) : '0,1,2,3,4,5,6';
     const days = daysStr.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
     if (!days.includes(now.dayOfWeek)) return;
 
