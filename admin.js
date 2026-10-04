@@ -225,6 +225,9 @@ window.fmtDecimal4 = function(val) {
                 if (item.dataset.target === 'planejamento-estrategicov3-view' && window.carregarPlanejamentoEstrategicov3) {
                     window.carregarPlanejamentoEstrategicov3();
                 }
+                if (item.dataset.target === 'whatsapp-view' && window.carregarWhatsappModulo) {
+                    window.carregarWhatsappModulo();
+                }
                 if (item.dataset.target === 'planejamento-view' && window.carregarPlanejamentoDashboard) {
                     window.carregarPlanejamentoDashboard();
                 }

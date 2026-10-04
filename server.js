@@ -8062,9 +8062,22 @@ app.get('/api/admin/run-import-fornecedores', (req, res) => {
 });
 
 // ==========================================
-// INJEÇÃO DAS ROTAS DO MÓDULO PCP
+// INJEÇÃO DAS ROTAS DO MÓDULO PCP E WHATSAPP (WA-AKG)
 // ==========================================
 app.use('/api/pcp', require('./src/routes/pcp')(pool, dbAvailable, memStore));
+app.use('/api/whatsapp', require('./src/routes/whatsapp')(pool, dbAvailable, memStore));
+
+// Endpoint de Ponto de Restauração (Rollback Checkpoint)
+app.get('/api/sistema/ponto-restauracao', (req, res) => {
+    res.json({
+        status: 'success',
+        tag: 'before-whatsapp',
+        commit: 'dab8553',
+        mensagem: 'Ponto de restauração registrado com sucesso antes da criação do Módulo WhatsApp (WA-AKG).',
+        data_registro: '2026-10-04',
+        comando_restauracao: 'git reset --hard before-whatsapp'
+    });
+});
 
 if (require.main === module) {
     initDatabase().then(() => {

@@ -282,6 +282,10 @@
                     <i class="fa-solid fa-chess-knight" style="color:#f87171;"></i>
                     <span>Estratégico</span>
                 </a>
+                <a href="#" class="nav-item" data-target="whatsapp-view" id="nav-whatsapp" data-tooltip="WhatsApp Empresarial">
+                    <i class="fa-brands fa-whatsapp" style="color:#25D366;"></i>
+                    <span>WhatsApp (WA-AKG)</span>
+                </a>
                 <a href="#" class="nav-item" data-target="planejamentos-ativos-view" id="nav-planejamentos-ativos" data-tooltip="Planejamentos Ativos" style="display:none;">
                     <i class="fa-solid fa-list-check" style="color:#4ade80;"></i><span class="nav-text">Planos Ativos</span>
                 </a>
@@ -4373,6 +4377,135 @@
                     </div>
                 </div>
             </section>
+
+            <!-- ═══════════════════════════════════════════════════════════
+                 TELA: WHATSAPP EMPRESARIAL (WA-AKG INTEGRATION)
+            ═══════════════════════════════════════════════════════════ -->
+            <section id="whatsapp-view" class="view-section" style="display:none; padding:20px;">
+                <header class="section-header" style="margin-bottom:15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap:wrap; gap:10px;">
+                        <div>
+                            <h1 style="margin: 0; color:#fff; font-size:1.6rem;">
+                                <i class="fa-brands fa-whatsapp" style="color:#25D366;"></i> WhatsApp Empresarial & Central de Transmissão
+                            </h1>
+                            <p style="color: #a0aec0; margin: 4px 0 0 0; font-size: 0.9rem;">
+                                Módulo de atendimento unificado para funcionários e monitoramento em tempo real pela diretoria (WA-AKG)
+                            </p>
+                        </div>
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <span id="wa-status-badge" class="badge bg-success" style="font-size:0.85rem; padding:8px 12px; border-radius:20px;">
+                                <i class="fa-solid fa-circle-check"></i> Instância Conectada
+                            </span>
+                            <button type="button" class="btn-noble" onclick="carregarWhatsappModulo()" style="background:#25D366; color:#0d1826; font-weight:bold; padding:8px 16px; border-radius:6px; cursor:pointer;">
+                                <i class="fa-solid fa-rotate-right"></i> Atualizar Mensagens
+                            </button>
+                        </div>
+                    </div>
+                </header>
+
+                <!-- LAYOUT 3 COLUNAS -->
+                <div style="display:grid; grid-template-columns: 320px 1fr 340px; gap:15px; height: calc(100vh - 220px); min-height: 550px;">
+                    
+                    <!-- PAINEL ESQUERDO: LISTA DE CONVERSAS -->
+                    <div style="background:#0e1b26; border:1px solid #1e3a5f; border-radius:10px; display:flex; flex-direction:column; overflow:hidden;">
+                        <div style="padding:12px; background:#132333; border-bottom:1px solid #1e3a5f;">
+                            <div style="position:relative;">
+                                <input type="text" id="wa-busca-contato" placeholder="Buscar conversa ou telefone..." class="noble-input" style="width:100%; padding-left:32px; font-size:0.85rem;" oninput="carregarConversasWhatsapp()">
+                                <i class="fa-solid fa-magnifying-glass" style="position:absolute; left:10px; top:10px; color:#aaa; font-size:0.85rem;"></i>
+                            </div>
+                        </div>
+                        <div id="wa-lista-conversas" style="flex:1; overflow-y:auto;">
+                            <div style="padding:20px; text-align:center; color:#aaa;">Carregando conversas...</div>
+                        </div>
+                    </div>
+
+                    <!-- PAINEL CENTRAL: CHAT EM TEMPO REAL -->
+                    <div style="background:#0b141a; border:1px solid #1e3a5f; border-radius:10px; display:flex; flex-direction:column; overflow:hidden;">
+                        <!-- CHAT HEADER -->
+                        <div style="padding:12px 18px; background:#162433; border-bottom:1px solid #1e3a5f; display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <h3 id="wa-header-nome" style="margin:0; color:#fff; font-size:1.05rem;">Selecione um contato</h3>
+                                <small id="wa-header-telefone" style="color:#aaa; font-size:0.8rem;">-</small>
+                            </div>
+                            <div style="text-align:right;">
+                                <span style="font-size:0.75rem; color:#aaa;">Atendente:</span>
+                                <span id="wa-header-atendente" style="font-weight:bold; color:#38bdf8; font-size:0.85rem;">-</span>
+                            </div>
+                        </div>
+
+                        <!-- CHAT MESSAGES CONTAINER -->
+                        <div id="wa-chat-body" style="flex:1; padding:20px; overflow-y:auto; background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 0); background-size: 20px 20px;">
+                            <div style="text-align:center; color:#aaa; margin-top:50px;">Selecione uma conversa ao lado para visualizar a troca de mensagens.</div>
+                        </div>
+
+                        <!-- CHAT FOOTER / COMPOSER -->
+                        <div style="padding:12px; background:#162433; border-top:1px solid #1e3a5f; display:flex; gap:10px; align-items:center;">
+                            <input type="text" id="wa-input-mensagem" placeholder="Digite uma mensagem para o cliente..." class="noble-input" style="flex:1; background:#0d1826; border-color:#1e4e8c; color:#fff;" onkeypress="if(event.key==='Enter') enviarMensagemWhatsapp()">
+                            <button type="button" class="btn-noble" onclick="enviarMensagemWhatsapp()" style="background:#25D366; color:#0d1826; font-weight:bold; padding:8px 18px; border-radius:6px; cursor:pointer;">
+                                <i class="fa-solid fa-paper-plane"></i> Enviar
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- PAINEL DIREITO: DISPARADOR DE TABELAS & AUDITORIA -->
+                    <div style="background:#0e1b26; border:1px solid #1e3a5f; border-radius:10px; padding:15px; display:flex; flex-direction:column; gap:15px; overflow-y:auto;">
+                        <!-- TRANSMISSÃO DE TABELAS DO SISTEMA -->
+                        <div style="background:#132333; padding:15px; border-radius:8px; border-left:4px solid #25D366;">
+                            <h3 style="margin:0 0 10px 0; color:#25D366; font-size:1rem;">
+                                <i class="fa-solid fa-share-nodes"></i> Enviar Tabela pelo WhatsApp
+                            </h3>
+                            <p style="color:#aaa; font-size:0.75rem; margin-bottom:10px;">Compartilhe instantaneamente os dados e relatórios do sistema com o contato ativo.</p>
+                            
+                            <div class="form-group" style="margin-bottom:10px;">
+                                <label style="color:#aaa; font-size:0.75rem; display:block; margin-bottom:4px;">Selecione a Tabela/Relatório</label>
+                                <select id="wa-select-tabela-tipo" class="noble-input" style="width:100%; font-size:0.85rem;">
+                                    <option value="precos_venda">📊 Tabela de Preços de Venda (Venda Ref)</option>
+                                    <option value="lme_boletim">📈 Boletim Oficial LME e Cotação do Dólar</option>
+                                    <option value="pcp_producao">🏭 Relatório PCP - Produção Realizada</option>
+                                    <option value="amostra_pdf">📑 Relatório / Cotação de Amostra em PDF</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-bottom:10px;">
+                                <label style="color:#aaa; font-size:0.75rem; display:block; margin-bottom:4px;">Título da Mensagem (Opcional)</label>
+                                <input type="text" id="wa-titulo-disparo" placeholder="Ex: Tabela Especial Outubro" class="noble-input" style="width:100%; font-size:0.85rem;">
+                            </div>
+                            <div class="form-group" style="margin-bottom:12px;">
+                                <label style="color:#aaa; font-size:0.75rem; display:block; margin-bottom:4px;">Observações</label>
+                                <textarea id="wa-obs-disparo" placeholder="Ex: Preços válidos até as 17h." class="noble-input" style="width:100%; height:50px; font-size:0.8rem;"></textarea>
+                            </div>
+                            <button type="button" class="btn-noble" onclick="dispararTabelaSistemaWhatsapp()" style="width:100%; background:#25D366; color:#0d1826; font-weight:bold; padding:10px; border-radius:6px; cursor:pointer;">
+                                <i class="fa-brands fa-whatsapp"></i> Disparar Tabela Agora
+                            </button>
+                        </div>
+
+                        <!-- AUDITORIA DE CONVERSAS DOS FUNCIONÁRIOS (ADM) -->
+                        <div style="background:#132333; padding:15px; border-radius:8px; border-left:4px solid #00e5ff;">
+                            <h3 style="margin:0 0 10px 0; color:#00e5ff; font-size:1rem;">
+                                <i class="fa-solid fa-eye"></i> Auditoria & Registro ADM
+                            </h3>
+                            <p style="color:#aaa; font-size:0.75rem; margin-bottom:10px;">Histórico unificado de todas as conversas atendidas pelos funcionários para conformidade e controle.</p>
+                            
+                            <div style="max-height:220px; overflow-y:auto; border:1px solid #1e3a5f; border-radius:6px;">
+                                <table class="admin-table" style="width:100%; border-collapse:collapse; font-size:0.75rem;">
+                                    <thead>
+                                        <tr style="background:#162433; color:#fff;">
+                                            <th style="padding:6px;">Contato</th>
+                                            <th style="padding:6px;">Atendente</th>
+                                            <th style="padding:6px; text-align:center;">Msgs</th>
+                                            <th style="padding:6px;">Última Interação</th>
+                                            <th style="padding:6px; text-align:center;">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="wa-tbody-auditoria">
+                                        <tr><td colspan="5" style="text-align:center; padding:10px; color:#aaa;">Carregando logs...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
         </main>
     </div>
 
@@ -6285,6 +6418,7 @@
     <script defer src="assets/js/modules/admin_planejamento_v4.js?v=4"></script>
     <script defer src="assets/js/modules/pcp_live.js?v=1"></script>
     <script defer src="assets/js/modules/admin_compras.js"></script>
+    <script defer src="assets/js/modules/admin_whatsapp.js?v=1"></script>
     <script src="assets/js/theme-toggle.js?v=3"></script>
 
     <!-- ── MODAL GLASSMORPHISM DE NOTIFICAÇÃO (substitui alert nativo) ── -->
