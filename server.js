@@ -6147,8 +6147,8 @@ async function gerarPdfLmeViaPuppeteer(weekBlock) {
         });
 
         const pdf = await page.pdf({
-            width: `${Math.max(dims.w, 800)}px`,
-            height: `${dims.h + 4}px`,
+            width: '210mm',
+            height: `${Math.ceil((dims.h * 210) / (dims.w || 800))}mm`,
             printBackground: true,
             margin: { top: 0, right: 0, bottom: 0, left: 0 },
             pageRanges: '1'
@@ -6271,6 +6271,7 @@ async function enviarRelatorioEmail(weekBlock, pdfBase64 = null) {
     const day = String(localDate.getDate()).padStart(2, '0');
     const month = String(localDate.getMonth() + 1).padStart(2, '0');
     const year = localDate.getFullYear();
+    const timeStr = localDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     const todayDateStr = `${day}/${month}/${year}`;
 
     // Garantir envio em Cópia Oculta (BCC) para privacidade absoluta dos destinatários
@@ -6280,7 +6281,7 @@ async function enviarRelatorioEmail(weekBlock, pdfBase64 = null) {
         from: config.from,
         to: [senderEmail],
         ...(bccList.length > 0 ? { bcc: bccList } : {}),
-        subject: `📊 Relatório Diário Cotações LME - Apextech Metais - ${todayDateStr}`,
+        subject: `📊 Relatório Cotações LME - ApexTech Metais - ${todayDateStr} ${timeStr}`,
         html: html,
         attachments: []
     };
