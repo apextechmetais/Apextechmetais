@@ -2149,10 +2149,12 @@ app.post('/api/tabela-precos-residuos', async (req, res) => {
                  VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
                 [material_id, preco_entregar||0, preco_coletar||0, venda_ref||0, validade, comissao||0, pis_cofins||0, fidc||0, icms||0, frete_coleta||0]
             );
+            await atualizarDataUltimaModificacaoPrecos();
             return res.json(result.rows[0]);
         }
         const newP = { id: Date.now(), material_id: parseInt(material_id), preco_entregar: parseFloat(preco_entregar)||0, preco_coletar: parseFloat(preco_coletar)||0, venda_ref: parseFloat(venda_ref)||0, validade, comissao: parseFloat(comissao)||0, pis_cofins: parseFloat(pis_cofins)||0, fidc: parseFloat(fidc)||0, icms: parseFloat(icms)||0, frete_coleta: parseFloat(frete_coleta)||0 };
         memStore.tabela_precos_residuos.push(newP);
+        await atualizarDataUltimaModificacaoPrecos();
         res.json(newP);
     } catch (err) { console.error(err); res.status(500).json({ error: 'Erro ao salvar preço de resíduo.' }); }
 });
@@ -2163,6 +2165,7 @@ app.put('/api/tabela-precos-residuos-validade', async (req, res) => {
         if (!validade) return res.status(400).json({ error: 'Data de validade obrigatória.' });
         if (dbAvailable) {
             await pool.query('UPDATE tabela_precos_residuos SET validade = $1', [validade]);
+            await atualizarDataUltimaModificacaoPrecos();
             return res.json({ success: true, validade });
         }
         memStore.tabela_precos_residuos.forEach(p => p.validade = validade);
@@ -2186,11 +2189,13 @@ app.put('/api/tabela-precos-residuos/:id', async (req, res) => {
                  pis_cofins=$7, fidc=$8, icms=$9, frete_coleta=$10 WHERE id=$11 RETURNING *`,
                 [material_id, preco_entregar||0, preco_coletar||0, venda_ref||0, validade, comissao||0, pis_cofins||0, fidc||0, icms||0, frete_coleta||0, id]
             );
+            await atualizarDataUltimaModificacaoPrecos();
             return res.json(result.rows[0]);
         }
         const idx = memStore.tabela_precos_residuos.findIndex(x => x.id === id);
         if (idx === -1) return res.status(404).json({ error: 'Não encontrado.' });
         Object.assign(memStore.tabela_precos_residuos[idx], { material_id: parseInt(material_id), preco_entregar: parseFloat(preco_entregar)||0, preco_coletar: parseFloat(preco_coletar)||0, venda_ref: parseFloat(venda_ref)||0, validade, comissao: parseFloat(comissao)||0, pis_cofins: parseFloat(pis_cofins)||0, fidc: parseFloat(fidc)||0, icms: parseFloat(icms)||0, frete_coleta: parseFloat(frete_coleta)||0 });
+        await atualizarDataUltimaModificacaoPrecos();
         res.json(memStore.tabela_precos_residuos[idx]);
     } catch (err) { res.status(500).json({ error: 'Erro ao atualizar preço de resíduo.' }); }
 });
@@ -2200,6 +2205,7 @@ app.delete('/api/tabela-precos-residuos/:id', async (req, res) => {
         const id = parseInt(req.params.id);
         if (dbAvailable) { await pool.query('DELETE FROM tabela_precos_residuos WHERE id=$1', [id]); }
         else { memStore.tabela_precos_residuos = memStore.tabela_precos_residuos.filter(x => x.id !== id); }
+        await atualizarDataUltimaModificacaoPrecos();
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: 'Erro ao deletar preço de resíduo.' }); }
 });
@@ -2239,10 +2245,12 @@ app.post('/api/tabela-precos-ligas', async (req, res) => {
                  VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
                 [material_id, preco_entregar||0, preco_coletar||0, venda_ref||0, validade, comissao||0, pis_cofins||0, fidc||0, icms||0, frete_coleta||0]
             );
+            await atualizarDataUltimaModificacaoPrecos();
             return res.json(result.rows[0]);
         }
         const newP = { id: Date.now(), material_id: parseInt(material_id), preco_entregar: parseFloat(preco_entregar)||0, preco_coletar: parseFloat(preco_coletar)||0, venda_ref: parseFloat(venda_ref)||0, validade, comissao: parseFloat(comissao)||0, pis_cofins: parseFloat(pis_cofins)||0, fidc: parseFloat(fidc)||0, icms: parseFloat(icms)||0, frete_coleta: parseFloat(frete_coleta)||0 };
         memStore.tabela_precos_ligas.push(newP);
+        await atualizarDataUltimaModificacaoPrecos();
         res.json(newP);
     } catch (err) { console.error(err); res.status(500).json({ error: 'Erro ao salvar preço de liga.' }); }
 });
@@ -2253,6 +2261,7 @@ app.put('/api/tabela-precos-ligas-validade', async (req, res) => {
         if (!validade) return res.status(400).json({ error: 'Data de validade obrigatória.' });
         if (dbAvailable) {
             await pool.query('UPDATE tabela_precos_ligas SET validade = $1', [validade]);
+            await atualizarDataUltimaModificacaoPrecos();
             return res.json({ success: true, validade });
         }
         memStore.tabela_precos_ligas.forEach(p => p.validade = validade);
@@ -2276,11 +2285,13 @@ app.put('/api/tabela-precos-ligas/:id', async (req, res) => {
                  pis_cofins=$7, fidc=$8, icms=$9, frete_coleta=$10 WHERE id=$11 RETURNING *`,
                 [material_id, preco_entregar||0, preco_coletar||0, venda_ref||0, validade, comissao||0, pis_cofins||0, fidc||0, icms||0, frete_coleta||0, id]
             );
+            await atualizarDataUltimaModificacaoPrecos();
             return res.json(result.rows[0]);
         }
         const idx = memStore.tabela_precos_ligas.findIndex(x => x.id === id);
         if (idx === -1) return res.status(404).json({ error: 'Não encontrado.' });
         Object.assign(memStore.tabela_precos_ligas[idx], { material_id: parseInt(material_id), preco_entregar: parseFloat(preco_entregar)||0, preco_coletar: parseFloat(preco_coletar)||0, venda_ref: parseFloat(venda_ref)||0, validade, comissao: parseFloat(comissao)||0, pis_cofins: parseFloat(pis_cofins)||0, fidc: parseFloat(fidc)||0, icms: parseFloat(icms)||0, frete_coleta: parseFloat(frete_coleta)||0 });
+        await atualizarDataUltimaModificacaoPrecos();
         res.json(memStore.tabela_precos_ligas[idx]);
     } catch (err) { res.status(500).json({ error: 'Erro ao atualizar preço de liga.' }); }
 });
@@ -2290,6 +2301,7 @@ app.delete('/api/tabela-precos-ligas/:id', async (req, res) => {
         const id = parseInt(req.params.id);
         if (dbAvailable) { await pool.query('DELETE FROM tabela_precos_ligas WHERE id=$1', [id]); }
         else { memStore.tabela_precos_ligas = memStore.tabela_precos_ligas.filter(x => x.id !== id); }
+        await atualizarDataUltimaModificacaoPrecos();
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: 'Erro ao deletar preço de liga.' }); }
 });
@@ -2329,10 +2341,12 @@ app.post('/api/tabela-precos-volume', async (req, res) => {
                  VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
                 [material_id, preco_entregar||0, preco_coletar||0, venda_ref||0, validade, comissao||0, pis_cofins||0, fidc||0, icms||0, frete_coleta||0]
             );
+            await atualizarDataUltimaModificacaoPrecos();
             return res.json(result.rows[0]);
         }
         const newP = { id: Date.now(), material_id: parseInt(material_id), preco_entregar: parseFloat(preco_entregar)||0, preco_coletar: parseFloat(preco_coletar)||0, venda_ref: parseFloat(venda_ref)||0, validade, comissao: parseFloat(comissao)||0, pis_cofins: parseFloat(pis_cofins)||0, fidc: parseFloat(fidc)||0, icms: parseFloat(icms)||0, frete_coleta: parseFloat(frete_coleta)||0 };
         memStore.tabela_precos_volume.push(newP);
+        await atualizarDataUltimaModificacaoPrecos();
         res.json(newP);
     } catch (err) { console.error(err); res.status(500).json({ error: 'Erro ao salvar preço de volume.' }); }
 });
@@ -2343,6 +2357,7 @@ app.put('/api/tabela-precos-volume-validade', async (req, res) => {
         if (!validade) return res.status(400).json({ error: 'Data de validade obrigatória.' });
         if (dbAvailable) {
             await pool.query('UPDATE tabela_precos_volume SET validade = $1', [validade]);
+            await atualizarDataUltimaModificacaoPrecos();
             return res.json({ success: true, validade });
         }
         memStore.tabela_precos_volume.forEach(p => p.validade = validade);
@@ -2366,11 +2381,13 @@ app.put('/api/tabela-precos-volume/:id', async (req, res) => {
                  pis_cofins=$7, fidc=$8, icms=$9, frete_coleta=$10 WHERE id=$11 RETURNING *`,
                 [material_id, preco_entregar||0, preco_coletar||0, venda_ref||0, validade, comissao||0, pis_cofins||0, fidc||0, icms||0, frete_coleta||0, id]
             );
+            await atualizarDataUltimaModificacaoPrecos();
             return res.json(result.rows[0]);
         }
         const idx = memStore.tabela_precos_volume.findIndex(x => x.id === id);
         if (idx === -1) return res.status(404).json({ error: 'Não encontrado.' });
         Object.assign(memStore.tabela_precos_volume[idx], { material_id: parseInt(material_id), preco_entregar: parseFloat(preco_entregar)||0, preco_coletar: parseFloat(preco_coletar)||0, venda_ref: parseFloat(venda_ref)||0, validade, comissao: parseFloat(comissao)||0, pis_cofins: parseFloat(pis_cofins)||0, fidc: parseFloat(fidc)||0, icms: parseFloat(icms)||0, frete_coleta: parseFloat(frete_coleta)||0 });
+        await atualizarDataUltimaModificacaoPrecos();
         res.json(memStore.tabela_precos_volume[idx]);
     } catch (err) { res.status(500).json({ error: 'Erro ao atualizar preço de volume.' }); }
 });
@@ -2380,6 +2397,7 @@ app.delete('/api/tabela-precos-volume/:id', async (req, res) => {
         const id = parseInt(req.params.id);
         if (dbAvailable) { await pool.query('DELETE FROM tabela_precos_volume WHERE id=$1', [id]); }
         else { memStore.tabela_precos_volume = memStore.tabela_precos_volume.filter(x => x.id !== id); }
+        await atualizarDataUltimaModificacaoPrecos();
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: 'Erro ao deletar preço de volume.' }); }
 });
@@ -2419,10 +2437,12 @@ app.post('/api/tabela-precos-fundicao', async (req, res) => {
                  VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
                 [material_id, preco_entregar||0, preco_coletar||0, venda_ref||0, validade, comissao||0, pis_cofins||0, fidc||0, icms||0, frete_coleta||0]
             );
+            await atualizarDataUltimaModificacaoPrecos();
             return res.json(result.rows[0]);
         }
         const newP = { id: Date.now(), material_id: parseInt(material_id), preco_entregar: parseFloat(preco_entregar)||0, preco_coletar: parseFloat(preco_coletar)||0, venda_ref: parseFloat(venda_ref)||0, validade, comissao: parseFloat(comissao)||0, pis_cofins: parseFloat(pis_cofins)||0, fidc: parseFloat(fidc)||0, icms: parseFloat(icms)||0, frete_coleta: parseFloat(frete_coleta)||0 };
         memStore.tabela_precos_fundicao.push(newP);
+        await atualizarDataUltimaModificacaoPrecos();
         res.json(newP);
     } catch (err) { console.error(err); res.status(500).json({ error: 'Erro ao salvar preço de fundição.' }); }
 });
@@ -2433,6 +2453,7 @@ app.put('/api/tabela-precos-fundicao-validade', async (req, res) => {
         if (!validade) return res.status(400).json({ error: 'Data de validade obrigatória.' });
         if (dbAvailable) {
             await pool.query('UPDATE tabela_precos_fundicao SET validade = $1', [validade]);
+            await atualizarDataUltimaModificacaoPrecos();
             return res.json({ success: true, validade });
         }
         memStore.tabela_precos_fundicao.forEach(p => p.validade = validade);
@@ -2456,11 +2477,13 @@ app.put('/api/tabela-precos-fundicao/:id', async (req, res) => {
                  pis_cofins=$7, fidc=$8, icms=$9, frete_coleta=$10 WHERE id=$11 RETURNING *`,
                 [material_id, preco_entregar||0, preco_coletar||0, venda_ref||0, validade, comissao||0, pis_cofins||0, fidc||0, icms||0, frete_coleta||0, id]
             );
+            await atualizarDataUltimaModificacaoPrecos();
             return res.json(result.rows[0]);
         }
         const idx = memStore.tabela_precos_fundicao.findIndex(x => x.id === id);
         if (idx === -1) return res.status(404).json({ error: 'Não encontrado.' });
         Object.assign(memStore.tabela_precos_fundicao[idx], { material_id: parseInt(material_id), preco_entregar: parseFloat(preco_entregar)||0, preco_coletar: parseFloat(preco_coletar)||0, venda_ref: parseFloat(venda_ref)||0, validade, comissao: parseFloat(comissao)||0, pis_cofins: parseFloat(pis_cofins)||0, fidc: parseFloat(fidc)||0, icms: parseFloat(icms)||0, frete_coleta: parseFloat(frete_coleta)||0 });
+        await atualizarDataUltimaModificacaoPrecos();
         res.json(memStore.tabela_precos_fundicao[idx]);
     } catch (err) { res.status(500).json({ error: 'Erro ao atualizar preço de fundição.' }); }
 });
@@ -2470,6 +2493,7 @@ app.delete('/api/tabela-precos-fundicao/:id', async (req, res) => {
         const id = parseInt(req.params.id);
         if (dbAvailable) { await pool.query('DELETE FROM tabela_precos_fundicao WHERE id=$1', [id]); }
         else { memStore.tabela_precos_fundicao = memStore.tabela_precos_fundicao.filter(x => x.id !== id); }
+        await atualizarDataUltimaModificacaoPrecos();
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: 'Erro ao deletar preço de fundição.' }); }
 });
@@ -8134,4 +8158,4 @@ if (require.main === module) {
 }
 
 module.exports = { app, initDatabase, pool, gerarPdfRelatorioViaHeadless, generateRelatorioSemanas };
-
+
