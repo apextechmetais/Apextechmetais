@@ -54,7 +54,7 @@ class WhatsappManager {
                     if (this.memStore && this.memStore.whatsapp_instancias) {
                         let inst = this.memStore.whatsapp_instancias.find(i => i.id === folder);
                         if (!inst) {
-                            this.memStore.whatsapp_instancias.push({
+                            inst = {
                                 id: folder,
                                 nome: `Celular Conectado (${folder})`,
                                 numero: 'Reconectando...',
@@ -62,7 +62,10 @@ class WhatsappManager {
                                 status: 'reconectando',
                                 qr_code: null,
                                 criado_em: new Date().toISOString()
-                            });
+                            };
+                            this.memStore.whatsapp_instancias.push(inst);
+                        } else {
+                            inst.status = 'reconectando';
                         }
                     }
                     this.iniciarInstancia(folder).catch(err => {
@@ -73,6 +76,47 @@ class WhatsappManager {
         } catch (e) {
             console.error('[WhatsApp Manager] Erro ao buscar sessões salvas:', e);
         }
+    }
+
+    async resincronizarTudo() {
+        console.log('[WhatsApp Manager] Forçando resincronização geral de sessões e contatos...');
+        if (fs.existsSync(sessionsDir)) {
+            const folders = fs.readdirSync(sessionsDir);
+            for (const folder of folders) {
+                const credsPath = path.join(sessionsDir, folder, 'creds.json');
+                if (fs.existsSync(credsPath)) {
+                    let inst = this.memStore.whatsapp_instancias.find(i => i.id === folder);
+                    if (!inst) {
+                        inst = {
+                            id: folder,
+                            nome: `Celular Empresa (${folder})`,
+                            numero: 'Conectando...',
+                            responsavel: 'Funcionário',
+                            status: 'reconectando',
+                            qr_code: null,
+                            criado_em: new Date().toISOString()
+                        };
+                        this.memStore.whatsapp_instancias.push(inst);
+                    }
+
+                    if (!this.sockets.has(folder) || this.statuses.get(folder) !== 'conectado') {
+                        await this.iniciarInstancia(folder).catch(() => {});
+                    } else {
+                        inst.status = 'conectado';
+                        const sock = this.sockets.get(folder);
+                        if (sock && sock.user) {
+                            const num = sock.user.id.split(':')[0];
+                            inst.numero = `+${num}`;
+                        }
+                    }
+                }
+            }
+        }
+        return {
+            instancias: this.memStore ? this.memStore.whatsapp_instancias : [],
+            conversas: this.memStore ? this.memStore.whatsapp_conversas : [],
+            contatos: this.memStore ? this.memStore.whatsapp_contatos : []
+        };
     }
 
     async iniciarInstancia(instanciaId) {

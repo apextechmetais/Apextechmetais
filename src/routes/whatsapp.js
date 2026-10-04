@@ -138,6 +138,16 @@ module.exports = function(pool, dbAvailable, memStore) {
         res.json({ success: true, instancias: memStore.whatsapp_instancias || [] });
     });
 
+    router.post('/resincronizar', async (req, res) => {
+        try {
+            const data = await whatsappManager.resincronizarTudo();
+            res.json({ success: true, ...data });
+        } catch (e) {
+            console.error('[WhatsApp API] Erro ao resincronizar:', e);
+            res.status(500).json({ error: e.message });
+        }
+    });
+
     router.post('/instancias', async (req, res) => {
         const { nome, numero, responsavel } = req.body;
         if (!nome) return res.status(400).json({ error: 'Nome da conta/celular é obrigatório' });

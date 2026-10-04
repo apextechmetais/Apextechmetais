@@ -6,14 +6,28 @@
     let _conversaAtivaId = null;
     let _mensagensAtivas = [];
 
-    window.carregarWhatsappModulo = async function() {
+    window.carregarWhatsappModulo = async function(isUserClick = false) {
         try {
-            console.log('[WhatsApp] Inicializando módulo multi-contas...');
+            console.log('[WhatsApp] Resincronizando módulo com os celulares conectados...');
+            if (isUserClick && window._apexNotify) {
+                window._apexNotify('Resincronizando...', 'Verificando celulares conectados e resincronizando conversas...', 'info');
+            }
+
+            try {
+                await fetch('/api/whatsapp/resincronizar', { method: 'POST' });
+            } catch (errSync) {
+                console.warn('[WhatsApp Resync] aviso:', errSync.message);
+            }
+
             await window.carregarInstanciasWhatsapp();
             await window.carregarContatosWhatsapp();
             await window.carregarConversasWhatsapp();
             await window.carregarAuditoriaWhatsapp();
             iniciarRealtimeSyncWhatsapp();
+
+            if (isUserClick && window._apexNotify) {
+                window._apexNotify('Sistema Resincronizado!', 'Contatos e conversas sincronizados com sucesso do WhatsApp Web!', 'success');
+            }
         } catch (e) {
             console.error('[WhatsApp] Erro ao carregar módulo:', e);
         }
