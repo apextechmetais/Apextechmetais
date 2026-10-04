@@ -4168,37 +4168,7 @@ let itensPedidoCompra = [];
         }
     };
 
-    window.alternarSubAbaEstrategico = function(aba) {
-        const btnMargens = document.getElementById('tab-btn-estr-margens');
-        const btnAtivos = document.getElementById('tab-btn-estr-ativos');
-        const btnPlan = document.getElementById('tab-btn-estr-planejamento-mes');
 
-        if (btnMargens) btnMargens.classList.remove('active');
-        if (btnAtivos) btnAtivos.classList.remove('active');
-        if (btnPlan) btnPlan.classList.remove('active');
-
-        const secMargens = document.getElementById('subaba-estr-margens');
-        const secAtivos = document.getElementById('subaba-estr-ativos');
-        const secPlan = document.getElementById('subaba-estr-planejamento-mes');
-
-        if (secMargens) secMargens.style.display = 'none';
-        if (secAtivos) secAtivos.style.display = 'none';
-        if (secPlan) secPlan.style.display = 'none';
-
-        if (aba === 'margens') {
-            if (btnMargens) btnMargens.classList.add('active');
-            if (secMargens) secMargens.style.display = 'block';
-        } else if (aba === 'ativos') {
-            if (btnAtivos) btnAtivos.classList.add('active');
-            if (secAtivos) secAtivos.style.display = 'block';
-            if (window.carregarPlanejamentoDashboard) window.carregarPlanejamentoDashboard();
-            window.renderPlanejamentosAtivosV3();
-        } else if (aba === 'planejamento-mes') {
-            if (btnPlan) btnPlan.classList.add('active');
-            if (secPlan) secPlan.style.display = 'block';
-            window.renderPlanejamentoMesEstrategico();
-        }
-    };
 
     let mesPlanejamentoEstrategicoSelecionado = 'todos';
 
