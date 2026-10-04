@@ -71,7 +71,7 @@
             if (window.popularSelectsProdutoEstrategicov3) window.popularSelectsProdutoEstrategicov3();
 
             // Renderiza o Dashboard de Margens
-            window.renderDashboardVisuaisEstrategicov3();
+            window.renderDashboardVisuaisEstrategicoV3();
 
             // Carrega os Planos Ativos
             if (window.renderPlanejamentosAtivosV3) window.renderPlanejamentosAtivosV3();
