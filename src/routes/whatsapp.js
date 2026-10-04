@@ -135,7 +135,12 @@ module.exports = function(pool, dbAvailable, memStore) {
     });
 
     router.get('/instancias', (req, res) => {
-        res.json({ success: true, instancias: memStore.whatsapp_instancias || [] });
+        const list = (memStore.whatsapp_instancias || []).map(inst => {
+            const st = whatsappManager.statuses.get(inst.id);
+            if (st) inst.status = st;
+            return inst;
+        });
+        res.json({ success: true, instancias: list });
     });
 
     router.post('/resincronizar', async (req, res) => {

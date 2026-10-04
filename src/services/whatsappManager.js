@@ -144,8 +144,12 @@ class WhatsappManager {
                 browser: ['Apex CRM WhatsApp', 'Chrome', '120.0.0.0'],
                 connectTimeoutMs: 60000,
                 defaultQueryTimeoutMs: 60000,
-                keepAliveIntervalMs: 25000,
-                generateHighQualityLinkPreview: true
+                keepAliveIntervalMs: 15000,
+                syncFullHistory: false,
+                shouldSyncHistoryMessage: () => false,
+                fireInitQueries: true,
+                generateHighQualityLinkPreview: true,
+                markOnlineOnConnect: true
             });
 
             this.sockets.set(instanciaId, sock);
@@ -292,11 +296,21 @@ class WhatsappManager {
 
     atualizarMemStoreInstancia(instanciaId, status, qrCode, numero) {
         if (!this.memStore || !this.memStore.whatsapp_instancias) return;
-        const inst = this.memStore.whatsapp_instancias.find(i => i.id === instanciaId);
+        let inst = this.memStore.whatsapp_instancias.find(i => i.id === instanciaId);
         if (inst) {
             inst.status = status;
             inst.qr_code = qrCode;
             if (numero) inst.numero = numero;
+        } else {
+            this.memStore.whatsapp_instancias.push({
+                id: instanciaId,
+                nome: `Celular Empresa (${instanciaId})`,
+                numero: numero || 'Ativo',
+                responsavel: 'Funcionário / Empresa',
+                status: status,
+                qr_code: qrCode,
+                criado_em: new Date().toISOString()
+            });
         }
     }
 
