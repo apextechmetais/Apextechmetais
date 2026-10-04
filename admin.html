@@ -4424,8 +4424,8 @@
                     </div>
                 </div>
 
-                <!-- LAYOUT 3 COLUNAS -->
-                <div style="display:grid; grid-template-columns: 320px 1fr 340px; gap:15px; height: calc(100vh - 270px); min-height: 550px;">
+                <!-- LAYOUT 3 COLUNAS AMPLIO WHATSAPP WEB -->
+                <div id="wa-grid-container" style="display:grid; grid-template-columns: 360px 1fr 320px; gap:15px; height: calc(100vh - 165px); min-height: 650px;">
                     
                     <!-- PAINEL ESQUERDO: LISTA DE CONVERSAS -->
                     <div style="background:#0e1b26; border:1px solid #1e3a5f; border-radius:10px; display:flex; flex-direction:column; overflow:hidden;">
@@ -4443,10 +4443,15 @@
                     <!-- PAINEL CENTRAL: CHAT EM TEMPO REAL -->
                     <div style="background:#0b141a; border:1px solid #1e3a5f; border-radius:10px; display:flex; flex-direction:column; overflow:hidden;">
                         <!-- CHAT HEADER -->
-                        <div style="padding:12px 18px; background:#162433; border-bottom:1px solid #1e3a5f; display:flex; justify-content:space-between; align-items:center;">
-                            <div>
-                                <h3 id="wa-header-nome" style="margin:0; color:#fff; font-size:1.05rem;">Selecione um contato</h3>
-                                <small id="wa-header-telefone" style="color:#aaa; font-size:0.8rem;">-</small>
+                        <div style="padding:10px 18px; background:#162433; border-bottom:1px solid #1e3a5f; display:flex; justify-content:space-between; align-items:center;">
+                            <div style="display:flex; align-items:center; gap:12px;">
+                                <div id="wa-header-avatar" style="width:42px; height:42px; border-radius:50%; background:#005c4b; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:1.1rem; box-shadow:0 2px 5px rgba(0,0,0,0.3);">
+                                    <i class="fa-solid fa-user"></i>
+                                </div>
+                                <div>
+                                    <h3 id="wa-header-nome" style="margin:0; color:#fff; font-size:1.1rem; font-weight:700;">Selecione um contato</h3>
+                                    <small id="wa-header-telefone" style="color:#aaa; font-size:0.8rem;">-</small>
+                                </div>
                             </div>
                             <div style="text-align:right;">
                                 <span style="font-size:0.75rem; color:#aaa;">Conta / Atendente:</span>
@@ -6603,7 +6608,7 @@
     <script defer src="assets/js/modules/admin_planejamento_v4.js?v=4"></script>
     <script defer src="assets/js/modules/pcp_live.js?v=1"></script>
     <script defer src="assets/js/modules/admin_compras.js"></script>
-    <script defer src="assets/js/modules/admin_whatsapp.js?v=4"></script>
+    <script defer src="assets/js/modules/admin_whatsapp.js?v=5"></script>
     <script src="assets/js/theme-toggle.js?v=3"></script>
 
     <!-- ── MODAL GLASSMORPHISM DE NOTIFICAÇÃO (substitui alert nativo) ── -->

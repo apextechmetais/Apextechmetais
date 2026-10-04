@@ -13,6 +13,7 @@
             await window.carregarContatosWhatsapp();
             await window.carregarConversasWhatsapp();
             await window.carregarAuditoriaWhatsapp();
+            iniciarRealtimeSyncWhatsapp();
         } catch (e) {
             console.error('[WhatsApp] Erro ao carregar módulo:', e);
         }
@@ -292,7 +293,57 @@
         }
     };
 
-    // ─── 3. LISTA DE CONVERSAS & FILTROS ───
+    function _obterIniciaisOuAvatar(nome) {
+        if (!nome || nome.startsWith('+')) return '<i class="fa-solid fa-user"></i>';
+        const partes = nome.trim().split(' ');
+        if (partes.length >= 2) return (partes[0][0] + partes[1][0]).toUpperCase();
+        return nome.slice(0, 2).toUpperCase();
+    }
+
+    function _gerarCorAvatar(nome) {
+        if (!nome) return '#005c4b';
+        let hash = 0;
+        for (let i = 0; i < nome.length; i++) hash = nome.charCodeAt(i) + ((hash << 5) - hash);
+        const hue = Math.abs(hash) % 360;
+        return `hsl(${hue}, 55%, 32%)`;
+    }
+
+    let _realtimeSyncTimer = null;
+
+    function iniciarRealtimeSyncWhatsapp() {
+        if (_realtimeSyncTimer) clearInterval(_realtimeSyncTimer);
+        _realtimeSyncTimer = setInterval(async () => {
+            const wppView = document.getElementById('whatsapp-view');
+            if (wppView && wppView.style.display !== 'none') {
+                try {
+                    const busca = document.getElementById('wa-busca-contato')?.value || '';
+                    const instId = document.getElementById('wa-select-instancia-filtro')?.value || '';
+                    const res = await fetch(`/api/whatsapp/conversas?busca=${encodeURIComponent(busca)}&instancia_id=${encodeURIComponent(instId)}`);
+                    const data = await res.json();
+
+                    if (data.success && Array.isArray(data.conversas)) {
+                        _conversas = data.conversas;
+                        window.renderListaConversas(_conversas);
+                    }
+
+                    if (_conversaAtivaId) {
+                        const mRes = await fetch(`/api/whatsapp/conversas/${_conversaAtivaId}/mensagens`);
+                        const mData = await mRes.json();
+                        if (mData.success && Array.isArray(mData.mensagens)) {
+                            if (mData.mensagens.length !== _mensagensAtivas.length) {
+                                _mensagensAtivas = mData.mensagens;
+                                window.renderMensagensChat(_mensagensAtivas);
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[WhatsApp Realtime Sync] Silent warning:', e);
+                }
+            }
+        }, 2500);
+    }
+
+    // ─── 3. LISTA DE CONVERSAS & FILTROS (ESTILO WHATSAPP WEB) ───
     window.carregarConversasWhatsapp = async function() {
         try {
             const busca = document.getElementById('wa-busca-contato')?.value || '';
@@ -328,23 +379,30 @@
             const isActive = String(c.id) === String(_conversaAtivaId);
             const div = document.createElement('div');
             div.className = `wa-chat-item ${isActive ? 'active' : ''}`;
-            div.style.cssText = `padding:12px; border-bottom:1px solid #1e293b; cursor:pointer; background:${isActive ? '#1e293b' : 'transparent'}; border-left:${isActive ? '4px solid #25D366' : '4px solid transparent'}; transition:0.2s;`;
+            div.style.cssText = `padding:12px 14px; border-bottom:1px solid #112233; cursor:pointer; background:${isActive ? '#182d40' : 'transparent'}; border-left:${isActive ? '4px solid #25D366' : '4px solid transparent'}; transition:0.2s; display:flex; align-items:center; gap:12px;`;
             div.onclick = () => window.selecionarConversaWhatsapp(c.id);
 
-            const horaStr = new Date(c.atualizado_em).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+            const horaStr = c.atualizado_em ? new Date(c.atualizado_em).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}) : '';
+            const avatarBg = _gerarCorAvatar(c.contato_nome);
+            const avatarTxt = _obterIniciaisOuAvatar(c.contato_nome);
 
             div.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                    <div style="font-weight:bold; color:#fff; font-size:0.95rem;">${c.contato_nome}</div>
-                    <small style="color:#aaa; font-size:0.75rem;">${horaStr}</small>
+                <div style="width:44px; height:44px; border-radius:50%; background:${avatarBg}; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:0.95rem; flex-shrink:0; box-shadow:0 2px 6px rgba(0,0,0,0.3);">
+                    ${avatarTxt}
                 </div>
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <div style="color:#94a3b8; font-size:0.8rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:180px;">${c.ultima_mensagem}</div>
-                    ${c.nao_lidas > 0 ? `<span style="background:#25D366; color:#0d1826; font-weight:800; font-size:0.7rem; padding:2px 6px; border-radius:10px;">${c.nao_lidas}</span>` : ''}
-                </div>
-                <div style="margin-top:4px; display:flex; justify-content:space-between; align-items:center;">
-                    <span style="font-size:0.7rem; color:#38bdf8; background:rgba(56,189,248,0.1); padding:2px 6px; border-radius:4px;"><i class="fa-solid fa-mobile-screen"></i> ${c.instancia_nome || 'WhatsApp'}</span>
-                    <span style="font-size:0.7rem; color:#aaa;">${c.atendente_nome || ''}</span>
+                <div style="flex:1; overflow:hidden;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:3px;">
+                        <div style="font-weight:bold; color:#fff; font-size:0.95rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${c.contato_nome}</div>
+                        <small style="color:#8696a0; font-size:0.75rem; flex-shrink:0;">${horaStr}</small>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div style="color:#8696a0; font-size:0.82rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:190px;">${c.ultima_mensagem || ''}</div>
+                        ${c.nao_lidas > 0 ? `<span style="background:#25D366; color:#0d1826; font-weight:800; font-size:0.72rem; padding:2px 7px; border-radius:12px; min-width:20px; text-align:center;">${c.nao_lidas}</span>` : ''}
+                    </div>
+                    <div style="margin-top:3px; display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size:0.7rem; color:#38bdf8; background:rgba(56,189,248,0.12); padding:1px 6px; border-radius:4px;"><i class="fa-solid fa-mobile-screen"></i> ${c.instancia_nome || 'WhatsApp'}</span>
+                        <span style="font-size:0.7rem; color:#aaa;">${c.telefone || ''}</span>
+                    </div>
                 </div>
             `;
             container.appendChild(div);
@@ -357,6 +415,11 @@
 
         const conv = _conversas.find(c => String(c.id) === String(conversaId));
         if (conv) {
+            const avatarEl = document.getElementById('wa-header-avatar');
+            if (avatarEl) {
+                avatarEl.style.background = _gerarCorAvatar(conv.contato_nome);
+                avatarEl.innerHTML = _obterIniciaisOuAvatar(conv.contato_nome);
+            }
             document.getElementById('wa-header-nome').textContent = conv.contato_nome;
             document.getElementById('wa-header-telefone').textContent = conv.telefone;
             document.getElementById('wa-header-atendente').textContent = `${conv.instancia_nome} (${conv.atendente_nome || 'Livre'})`;
