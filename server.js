@@ -5400,11 +5400,14 @@ app.post('/api/lme/enviar-agora', async (req, res) => {
         const localTimeStr = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
         const dObj = new Date(localTimeStr);
         const mes = `${dObj.getMonth() + 1}-${dObj.getFullYear()}`;
-        const data = await generateRelatorioSemanas(mes);
+        let data = await generateRelatorioSemanas(mes);
+        if (!data || !data.semanas || data.semanas.length === 0) {
+            data = await generateRelatorioSemanas('atual');
+        }
         if (!data || !data.semanas || data.semanas.length === 0) {
             return res.status(404).json({ error: 'Nenhuma semana encontrada para enviar.' });
         }
-        const latestWeek = data.semanas[0];
+        const latestWeek = data.semanas[data.semanas.length - 1];
         await enviarRelatorioEmail(latestWeek);
         res.json({ success: true, message: 'Relatório LME enviado com sucesso!' });
     } catch (err) {
@@ -5420,12 +5423,15 @@ app.post('/api/lme/enviar-email-manual', async (req, res) => {
         const year = dObj.getFullYear();
         const mes = `${month}-${year}`;
 
-        const data = await generateRelatorioSemanas(mes);
+        let data = await generateRelatorioSemanas(mes);
+        if (!data || !data.semanas || data.semanas.length === 0) {
+            data = await generateRelatorioSemanas('atual');
+        }
         if (!data || !data.semanas || data.semanas.length === 0) {
             return res.status(404).json({ error: 'Nenhuma semana encontrada para enviar.' });
         }
 
-        const latestWeek = data.semanas[0];
+        const latestWeek = data.semanas[data.semanas.length - 1];
         const pdfBase64 = req.body && req.body.pdfBase64 ? req.body.pdfBase64 : null;
 
         await enviarRelatorioEmail(latestWeek, pdfBase64);
@@ -5999,9 +6005,12 @@ async function gerarPdfRelatorioViaHeadless(weekBlock) {
             const localTimeStr = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
             const dObj = new Date(localTimeStr);
             const mes = `${dObj.getMonth() + 1}-${dObj.getFullYear()}`;
-            const data = await generateRelatorioSemanas(mes);
+            let data = await generateRelatorioSemanas(mes);
+            if (!data || !data.semanas || data.semanas.length === 0) {
+                data = await generateRelatorioSemanas('atual');
+            }
             if (data && data.semanas && data.semanas.length > 0) {
-                block = data.semanas[0];
+                block = data.semanas[data.semanas.length - 1];
             }
         }
         if (!block) return null;
@@ -6032,7 +6041,7 @@ async function enviarRelatorioEmail(weekBlock, pdfBase64 = null) {
     }
 
     const emailsList = recipients.map(r => r.email);
-    const label = weekBlock.label;
+    const label = weekBlock ? weekBlock.label : 'Semanal';
 
     let html = `
     <!DOCTYPE html>
@@ -6040,11 +6049,38 @@ async function enviarRelatorioEmail(weekBlock, pdfBase64 = null) {
     <head>
         <meta charset="utf-8">
     </head>
-    <body style="background-color: #ffffff; padding: 20px; margin: 0; font-family: Arial, sans-serif; color: #333333;">
-        <p>Olá,</p>
-        <p>Segue em anexo o Relatório Diário LME.</p>
-        <br>
-        <p>Atenciosamente,<br>Apextech Metais</p>
+    <body style="background-color: #f7f9f8; padding: 30px 15px; margin: 0; font-family: 'Helvetica Neue', Arial, sans-serif; color: #222222;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="600" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #e1e8e5; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+            <tr>
+                <td style="background-color: #0d281a; padding: 25px 30px; text-align: left; border-bottom: 3px solid #2AD07A;">
+                    <h2 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: 700; letter-spacing: 0.5px;">ApexTech Metais</h2>
+                    <p style="color: #2AD07A; margin: 5px 0 0 0; font-size: 13px; font-weight: 600;">Relatório Oficial de Cotações LME</p>
+                </td>
+            </tr>
+            <tr>
+                <td style="padding: 30px;">
+                    <p style="font-size: 15px; line-height: 1.6; color: #333333; margin-top: 0;">Olá,</p>
+                    <p style="font-size: 15px; line-height: 1.6; color: #444444;">
+                        Segue em anexo o relatório oficial em PDF com as <strong>Cotações LME (${label})</strong>, contemplando os valores de Cobre, Zinco, Alumínio, Chumbo, Estanho, Níquel e Dólar.
+                    </p>
+                    <div style="background-color: #f0faf4; border-left: 4px solid #2AD07A; padding: 15px; margin: 20px 0; border-radius: 4px;">
+                        <p style="margin: 0; font-size: 14px; color: #0d4a2b; font-weight: 600;">
+                            📎 O documento em anexo inclui a tabela completa, cálculos de médias, comparativo semanal e a matriz de valores base (90% a 110%).
+                        </p>
+                    </div>
+                    <p style="font-size: 14px; line-height: 1.6; color: #666666; margin-bottom: 0;">
+                        Atenciosamente,<br>
+                        <strong style="color: #0d281a;">Apextech Metais — Indústria e Comércio de Resíduos Ltda</strong><br>
+                        <a href="https://apextechmetais.com.br" style="color: #2AD07A; text-decoration: none; font-weight: 600;">apextechmetais.com.br</a>
+                    </p>
+                </td>
+            </tr>
+            <tr>
+                <td style="background-color: #f4f6f5; padding: 15px 30px; text-align: center; font-size: 11px; color: #888888; border-top: 1px solid #e1e8e5;">
+                    Este é um e-mail automático enviado pelo sistema de monitoramento de mercado da Apextech Metais.
+                </td>
+            </tr>
+        </table>
     </body>
     </html>
     `;
@@ -6058,7 +6094,6 @@ async function enviarRelatorioEmail(weekBlock, pdfBase64 = null) {
     const todayDateStr = `${day}/${month}/${year}`;
 
     // Garantir envio em Cópia Oculta (BCC) para privacidade absoluta dos destinatários
-    // Nenhum cliente/fornecedor poderá ver os e-mails dos demais na lista
     const senderEmail = config.from.match(/<([^>]+)>/) ? config.from.match(/<([^>]+)>/)[1].trim() : config.from.trim();
     const bccList = emailsList.filter(e => e.toLowerCase() !== senderEmail.toLowerCase());
     const emailPayload = {
@@ -6070,25 +6105,41 @@ async function enviarRelatorioEmail(weekBlock, pdfBase64 = null) {
         attachments: []
     };
 
-    // Anexar o PDF gerado pelo cliente ou gerar via Puppeteer
+    // Anexar o PDF gerado pelo cliente ou gerar via backend de forma infalível
     let finalPdfBase64 = pdfBase64;
     
     if (!finalPdfBase64) {
-        console.log('📄 Gerando PDF via Puppeteer no backend para envio automático...');
+        console.log('📄 Gerando PDF vetorial oficial LME 100% server-side...');
         finalPdfBase64 = await gerarPdfRelatorioViaHeadless(weekBlock);
     }
+
+    if (!finalPdfBase64) {
+        console.log('🔄 Tentando fallback para semana mais recente disponível da LME...');
+        try {
+            const data = await generateRelatorioSemanas('atual');
+            if (data && data.semanas && data.semanas.length > 0) {
+                const wk = data.semanas[data.semanas.length - 1];
+                const buf = await gerarPdfRelatorioLME(wk);
+                if (buf) finalPdfBase64 = buf.toString('base64');
+            }
+        } catch (retryErr) {
+            console.error('❌ Falha no fallback de obtenção da semana LME:', retryErr.message);
+        }
+    }
+
+    if (!finalPdfBase64) {
+        console.error('❌ CRÍTICO: Não foi possível anexar o PDF ao e-mail.');
+        throw new Error('Falha ao gerar o arquivo PDF da LME para anexo. O envio foi cancelado para não enviar e-mail sem anexo.');
+    }
+
     const firstDate = (weekBlock && weekBlock.days && weekBlock.days.filter(d => d.data && d.data !== '—')[0]?.data) || 'semanal';
     const fileName = `LME-ApexTech-${firstDate.replace(/\//g, '-')}.pdf`;
 
-    if (finalPdfBase64) {
-        emailPayload.attachments.push({
-            filename: fileName,
-            content: finalPdfBase64
-        });
-        console.log(`📎 PDF anexado com sucesso ao e-mail (${fileName}, ${Math.round(finalPdfBase64.length / 1024)} KB).`);
-    } else {
-        console.warn('⚠️ Não foi possível anexar o PDF ao e-mail.');
-    }
+    emailPayload.attachments.push({
+        filename: fileName,
+        content: finalPdfBase64
+    });
+    console.log(`📎 PDF anexado com sucesso ao e-mail (${fileName}, ${Math.round(finalPdfBase64.length / 1024)} KB).`);
 
     try {
         const response = await axios.post('https://api.resend.com/emails', emailPayload, {
@@ -6286,7 +6337,8 @@ function startEmailScheduler() {
                 const sMins = (sHour * 60) + sMin;
                 const withinTimeWindow = currentTimeMins >= sMins && currentTimeMins < sMins + 5;
                 const targetKey = `${todayDateStr} ${String(sHour).padStart(2,'0')}:${String(sMin).padStart(2,'0')}`;
-                return withinTimeWindow && lastSentKey !== targetKey;
+                const recordedLastSent = settings[activeKey + '_last_sent'] || lastSentKey;
+                return withinTimeWindow && lastSentKey !== targetKey && recordedLastSent !== targetKey;
             };
 
             // 1. Disparo Relatório LME
@@ -6296,16 +6348,19 @@ function startEmailScheduler() {
                 lastSentLmeDate = targetKey;
                 console.log(`⏰ [Agendador] Horário do Relatório LME atingido (${hour}:${minute} em SP)! Iniciando disparo para ${todayDateStr}...`);
                 const mes = `${parseInt(month, 10)}-${year}`;
-                const data = await generateRelatorioSemanas(mes);
+                let data = await generateRelatorioSemanas(mes);
+                if (!data || !data.semanas || data.semanas.length === 0) {
+                    data = await generateRelatorioSemanas('atual');
+                }
                 if (data && data.semanas && data.semanas.length > 0) {
-                    const latestWeek = data.semanas[0];
+                    const latestWeek = data.semanas[data.semanas.length - 1];
                     await enviarRelatorioEmail(latestWeek);
                     if (dbAvailable) {
                         await pool.query('INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2', ['lme_envio_ativo_last_sent', targetKey]).catch(() => {});
                     }
                     console.log(`✅ [Agendador] Relatório LME enviado com sucesso para ${todayDateStr}.`);
                 } else {
-                    console.warn(`⚠️ [Agendador] Nenhuma semana encontrada para o mês ${mes}.`);
+                    console.warn(`⚠️ [Agendador] Nenhuma semana encontrada para o mês ${mes} ou atual.`);
                 }
             }
 
@@ -6358,12 +6413,15 @@ app.post('/api/lme/relatorio-email', async (req, res) => {
         const year = dObj.getFullYear();
         const mes = `${month}-${year}`;
 
-        const data = await generateRelatorioSemanas(mes);
+        let data = await generateRelatorioSemanas(mes);
+        if (!data || !data.semanas || data.semanas.length === 0) {
+            data = await generateRelatorioSemanas('atual');
+        }
         if (!data || !data.semanas || data.semanas.length === 0) {
             return res.status(404).json({ error: 'Nenhuma semana encontrada para enviar.' });
         }
 
-        const latestWeek = data.semanas[0];
+        const latestWeek = data.semanas[data.semanas.length - 1];
         console.log('Gerando PDF da LME para o endpoint /api/lme/relatorio-email...');
         const pdfBase64 = await gerarPdfRelatorioViaHeadless(latestWeek);
         
