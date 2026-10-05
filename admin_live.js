@@ -14586,7 +14586,14 @@ window.carregarFinanceiroView = async function() {
         itensPedido[idx][campo] = campo==='descricao'||campo==='unidade' ? val : parseFloat(val)||0;
         const it = itensPedido[idx];
         it.total_item = it.quantidade * it.preco_unitario * (1 - (it.desconto_item||0)/100);
-        renderItensPedido();
+        
+        const tbody = document.getElementById('itens-pedido-tbody');
+        if (tbody && tbody.children[idx]) {
+            const tr = tbody.children[idx];
+            if (tr.children[5]) {
+                tr.children[5].textContent = fmtR(it.total_item);
+            }
+        }
         recalcularPedido();
     };
 
@@ -14613,13 +14620,13 @@ window.carregarFinanceiroView = async function() {
                     </select>
                 </td>
                 <td style="padding:6px 4px;">
-                    <input type="number" min="0" step="0.001" value="${it.quantidade||''}" placeholder="Ex: 50.5" onchange="atualizarItemPedido(${i},'quantidade',this.value)" class="noble-input" style="width:100px; text-align:right; padding:5px 8px; font-size:0.82rem; font-weight:600; border-color:#1e4e8c;" />
+                    <input type="number" min="0" step="0.001" value="${it.quantidade||''}" placeholder="Ex: 50.5" oninput="atualizarItemPedido(${i},'quantidade',this.value)" class="noble-input" style="width:100px; text-align:right; padding:5px 8px; font-size:0.82rem; font-weight:600; border-color:#1e4e8c;" />
                 </td>
                 <td style="padding:6px 4px;">
-                    <input type="number" min="0" step="0.0001" value="${it.preco_unitario||''}" placeholder="R$ 0,00" onchange="atualizarItemPedido(${i},'preco_unitario',this.value)" class="noble-input" style="width:110px; text-align:right; padding:5px 8px; font-size:0.82rem;" />
+                    <input type="number" min="0" step="0.0001" value="${it.preco_unitario||''}" placeholder="R$ 0,00" oninput="atualizarItemPedido(${i},'preco_unitario',this.value)" class="noble-input" style="width:110px; text-align:right; padding:5px 8px; font-size:0.82rem;" />
                 </td>
                 <td style="padding:6px 4px;">
-                    <input type="number" min="0" max="100" step="0.01" value="${it.desconto_item||0}" onchange="atualizarItemPedido(${i},'desconto_item',this.value)" class="noble-input" style="width:75px; text-align:right; padding:5px 8px; font-size:0.82rem;" />
+                    <input type="number" min="0" max="100" step="0.01" value="${it.desconto_item||0}" oninput="atualizarItemPedido(${i},'desconto_item',this.value)" class="noble-input" style="width:75px; text-align:right; padding:5px 8px; font-size:0.82rem;" />
                 </td>
                 <td style="padding:6px 4px; text-align:right; color:#2AD07A; font-weight:600;">${fmtR(it.total_item)}</td>
                 <td style="padding:6px 4px; text-align:center;">

@@ -5655,6 +5655,7 @@ function generateQuickChartUrl(labels, dataAtu, dataAnt, title) {
             title: {
                 display: true,
                 text: title,
+                position: 'bottom',
                 fontColor: '#222222',
                 fontSize: 13,
                 fontFamily: 'Calibri'
@@ -5940,7 +5941,7 @@ function gerarHtmlRelatorio(weekBlock) {
                 </tbody>
             </table>
 
-            <div style="font-size: 11pt; font-weight: bold; margin: 25px 0 10px 0; color: #000; text-transform: uppercase; border-left: 4px solid #db1f1f; padding-left: 8px; font-family: Raleway, Calibri, Arial, sans-serif;">Tabela Comparativa (R$/kg)</div>
+            <div style="font-size: 11pt; font-weight: bold; margin: 25px 0 10px 0; color: #000; text-transform: uppercase; text-align: center; font-family: Raleway, Calibri, Arial, sans-serif;">Tabela Comparativa (R$/kg)</div>
             <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 10pt; font-family: Calibri, Arial, sans-serif; border: 1px solid #ddd;">
                 <thead>
                     <tr style="background:#595959; color:#ffffff;">
@@ -5988,7 +5989,7 @@ function gerarHtmlRelatorio(weekBlock) {
                 </tbody>
             </table>
 
-            <div style="font-size: 11pt; font-weight: bold; margin: 25px 0 10px 0; color: #000; text-transform: uppercase; border-left: 4px solid #db1f1f; padding-left: 8px; font-family: Raleway, Calibri, Arial, sans-serif;">VALORES BASE DE 90% A 110% X LME DA SEMANA X DOLAR</div>
+            <div style="font-size: 11pt; font-weight: bold; margin: 25px 0 10px 0; color: #000; text-transform: uppercase; text-align: center; font-family: Raleway, Calibri, Arial, sans-serif;">VALORES BASE DE 90% A 110% X LME DA SEMANA X DOLAR</div>
             <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 10pt; font-family: Calibri, Arial, sans-serif; border: 1px solid #ddd;">
                 <thead>
                     <tr>
@@ -6044,7 +6045,7 @@ function gerarHtmlRelatorio(weekBlock) {
                 </tbody>
             </table>
 
-            <div style="font-size: 11pt; font-weight: bold; margin: 25px 0 10px 0; color: #000; text-transform: uppercase; border-left: 4px solid #db1f1f; padding-left: 8px; font-family: Raleway, Calibri, Arial, sans-serif;">Gráficos de Comparação de Cotações</div>
+            <div style="font-size: 11pt; font-weight: bold; margin: 25px 0 10px 0; color: #000; text-transform: uppercase; text-align: center; font-family: Raleway, Calibri, Arial, sans-serif;">Gráficos de Comparação de Cotações</div>
             
             <div style="font-family: Calibri, Arial, sans-serif; font-size: 10pt; margin-bottom: 12px; text-align: center; font-weight: bold;">
                 <span style="display: inline-block; width: 12px; height: 12px; background-color: #27ae60; vertical-align: middle; margin-right: 4px; border-radius: 2px;"></span>
@@ -6256,7 +6257,7 @@ async function enviarRelatorioEmail(weekBlock, pdfBase64 = null) {
         <table align="center" border="0" cellpadding="0" cellspacing="0" width="600" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #e1e8e5; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
             <tr>
                 <td style="background-color: #0d281a; padding: 25px 30px; text-align: left; border-bottom: 3px solid #2AD07A;">
-                    <h2 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: 700; letter-spacing: 0.5px;">ApexTech Metais</h2>
+                    <h2 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: 700; letter-spacing: 0.5px;">Apextech Metais</h2>
                     <p style="color: #2AD07A; margin: 5px 0 0 0; font-size: 13px; font-weight: 600;">Relatório Oficial de Cotações LME</p>
                 </td>
             </tr>
