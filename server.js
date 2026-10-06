@@ -5700,7 +5700,7 @@ function generateQuickChartUrl(labels, dataAtu, dataAnt, title) {
         .replace('"datalabels_formatter"', 'function(value, ctx) { var prefix = ctx.dataset.label === "Semana Anterior" ? "Ant: " : "Atu: "; return prefix + "R$ " + Number(value).toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 }); }');
 
     const encodedConfig = encodeURIComponent(configStr);
-    return `https://quickchart.io/chart?w=500&h=250&bkg=%23ffffff&c=${encodedConfig}`;
+    return `https://quickchart.io/chart?w=800&h=350&bkg=%23ffffff&c=${encodedConfig}`;
 }
 
 function generateKpiCard(metalName, key, comp) {
@@ -6056,7 +6056,7 @@ function gerarHtmlRelatorio(weekBlock) {
             
             <div style="text-align: center; margin-top: 15px;">
                 <div style="margin-bottom: 25px;">
-                    <img src="${chartGroup1}" width="480" height="240" style="border-radius: 6px; border: 1px solid #ddd; max-width: 100%; display: inline-block;" alt="Cobre, Zinco, Alumínio, Chumbo" />
+                    <img src="${chartGroup1}" width="100%" style="border-radius: 6px; border: 1px solid #ddd; max-width: 100%; display: block; margin: 0 auto; height: auto;" alt="Cobre, Zinco, Alumínio, Chumbo" />
                     <div style="margin-top: 10px; text-align: center;">
                         ${generateKpiCard('Cobre', 'cobre', comp)}
                         ${generateKpiCard('Zinco', 'zinco', comp)}
@@ -6066,7 +6066,7 @@ function gerarHtmlRelatorio(weekBlock) {
                 </div>
 
                 <div style="margin-bottom: 10px;">
-                    <img src="${chartGroup2}" width="480" height="240" style="border-radius: 6px; border: 1px solid #ddd; max-width: 100%; display: inline-block;" alt="Estanho, Níquel" />
+                    <img src="${chartGroup2}" width="100%" style="border-radius: 6px; border: 1px solid #ddd; max-width: 100%; display: block; margin: 0 auto; height: auto;" alt="Estanho, Níquel" />
                     <div style="margin-top: 10px; text-align: center;">
                         ${generateKpiCard('Estanho', 'estanho', comp)}
                         ${generateKpiCard('Níquel', 'niquel', comp)}
