@@ -114,7 +114,7 @@ const METAL_KEYS = ['cobre', 'zinco', 'aluminio', 'chumbo', 'estanho', 'niquel']
  * Renderiza gráfico de barras (Semana Anterior vs LME Atual)
  * Tenta ChartJSNodeCanvas localmente e, caso falhe, usa QuickChart.io como fallback
  */
-async function buildChartBuffer(labels, dataAnt, dataLme) {
+async function buildChartBuffer(labels, dataAnt, dataLme, chartW = 1200, chartH = 350) {
     const bgColors = labels.map((_, i) => {
         const valAtu = dataLme[i] || 0;
         const valAnt = dataAnt[i] || 0;
@@ -158,7 +158,7 @@ async function buildChartBuffer(labels, dataAnt, dataLme) {
     // 1. Tentar ChartJSNodeCanvas local
     try {
         const { ChartJSNodeCanvas } = require('chartjs-node-canvas');
-        const cvs = new ChartJSNodeCanvas({ width: 700, height: 350, backgroundColour: 'white' });
+        const cvs = new ChartJSNodeCanvas({ width: chartW, height: chartH, backgroundColour: 'white' });
         return await cvs.renderToBuffer(chartConfig);
     } catch (canvasErr) {
         console.warn('⚠️ ChartJSNodeCanvas não disponível, gerando via QuickChart.io:', canvasErr.message);
@@ -168,8 +168,8 @@ async function buildChartBuffer(labels, dataAnt, dataLme) {
     try {
         const qcRes = await axios.get('https://quickchart.io/chart', {
             params: {
-                w: 700,
-                h: 350,
+                w: chartW,
+                h: chartH,
                 bkg: 'white',
                 c: JSON.stringify(chartConfig)
             },
@@ -415,18 +415,14 @@ async function gerarPdfRelatorioLME(semana) {
     doc.addPage();
     let curY = 15;
 
-    let chart1 = null;
-    let chart2 = null;
+    let chartFull = null;
     try {
-        chart1 = await buildChartBuffer(
-            ['COBRE', 'ZINCO', 'ALUMÍNIO', 'CHUMBO'],
-            ['cobre', 'zinco', 'aluminio', 'chumbo'].map(k => ant[k] || 0),
-            ['cobre', 'zinco', 'aluminio', 'chumbo'].map(k => lme[k] || 0)
-        );
-        chart2 = await buildChartBuffer(
-            ['ESTANHO', 'NÍQUEL'],
-            ['estanho', 'niquel'].map(k => ant[k] || 0),
-            ['estanho', 'niquel'].map(k => lme[k] || 0)
+        chartFull = await buildChartBuffer(
+            ['COBRE', 'ZINCO', 'ALUMÍNIO', 'CHUMBO', 'ESTANHO', 'NÍQUEL'],
+            ['cobre', 'zinco', 'aluminio', 'chumbo', 'estanho', 'niquel'].map(k => ant[k] || 0),
+            ['cobre', 'zinco', 'aluminio', 'chumbo', 'estanho', 'niquel'].map(k => lme[k] || 0),
+            1200,
+            350
         );
     } catch (chartErr) {
         console.warn('⚠️ Aviso ao renderizar gráficos no PDF:', chartErr.message);
@@ -439,9 +435,9 @@ async function gerarPdfRelatorioLME(semana) {
     doc.setFont(undefined, 'normal');
     curY += 6;
 
-    if (chart1 && chart2) {
-        doc.addImage('data:image/png;base64,' + chart1.toString('base64'), 'PNG', 10, curY, 150, 75);
-        doc.addImage('data:image/png;base64,' + chart2.toString('base64'), 'PNG', 170, curY, 100, 75);
+    if (chartFull) {
+        // Margem de 10mm de cada lado -> 297 - 20 = 277mm de largura
+        doc.addImage('data:image/png;base64,' + chartFull.toString('base64'), 'PNG', 10, curY, 277, 80);
         curY += 85;
     } else {
         curY += 10;
