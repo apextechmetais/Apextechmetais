@@ -16,6 +16,9 @@ const helmet    = require('helmet');
 const rateLimit = require('express-rate-limit');
 const logger    = require('./config/logger');
 
+// Carregar variáveis de ambiente (precisa vir antes de qualquer leitura de process.env)
+dotenv.config();
+
 let JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
     console.warn('⚠️ AVISO CRÍTICO: JWT_SECRET não definido no .env. Gerando chave aleatória temporária. Todos os usuários serão deslogados caso o servidor reinicie.');
@@ -30,9 +33,6 @@ const uploadMemory = multer({
         else cb(new Error('Apenas imagens são permitidas'), false);
     }
 });
-
-// Carregar variáveis de ambiente
-dotenv.config();
 
 const app  = express();
 app.set('trust proxy', 1); // Necessário para o express-rate-limit funcionar atrás de um proxy (Railway)
@@ -59,8 +59,13 @@ function formatarNomeCapitalizado(nome) {
 }
 const PORT = process.env.PORT || 3000;
 
-// ─── SEGURANÇA BÁSICA (HELMET REMOVIDO TEMPORARIAMENTE) ──────────────────────
-// app.use(helmet());
+// ─── SEGURANÇA BÁSICA (HELMET) ───────────────────────────────────────────────
+// CSP fica desligado: as páginas usam scripts inline e CDNs. Os demais headers ficam ativos.
+// CORP "cross-origin" permite que o logo seja carregado pelos e-mails de relatório.
+app.use(helmet({
+    contentSecurityPolicy: false,
+    crossOriginResourcePolicy: { policy: 'cross-origin' }
+}));
 
 // ─── PostgreSQL Pool (opcional) ──────────────────────────────────────────────
 let pool = null;
@@ -1250,31 +1255,31 @@ app.use((req, res, next) => {
     next();
 });
 
-// Endpoint temporário de DEBUG
-app.get('/api/debug-logs', (req, res) => {
-    const fs = require('fs');
-    const path = require('path');
-    try {
-        const logContent = fs.readFileSync(path.join(__dirname, 'logs', 'error.log'), 'utf8');
-        res.send(logContent);
-    } catch(e) {
-        res.send('No logs: ' + e.message);
-    }
-});
-
-app.get('/api/db-test', async (req, res) => {
-    try {
-        if (!pool) return res.send('No pool');
-        const result = await pool.query('SELECT * FROM estrategiav3_mix');
-        res.json(result.rows);
-    } catch(e) {
-        res.send('SQL Error: ' + e.message);
-    }
-});
-
 // ─── Arquivos Estáticos ───────────────────────────────────────────────────────
+// Somente o front-end é público. O restante da raiz (código do servidor, planilhas de
+// clientes/fornecedores, logs, scripts, migrations) nunca é servido.
+const PUBLIC_ROOT_FILES = new Set([
+    '/', '/index.html', '/admin.html', '/contato.html', '/cotacoes.html', '/noticias.html',
+    '/onde-comprar.html', '/produtos.html', '/servicos.html', '/sobre.html',
+    '/style.css', '/admin.css', '/script.js', '/admin.js', '/partials.js',
+    '/sw.js', '/manifest.json', '/lib/calculationengine.js'
+]);
+
+function isPublicAsset(reqPath) {
+    let decoded;
+    try {
+        decoded = decodeURIComponent(reqPath);
+    } catch (e) {
+        return false;
+    }
+    if (decoded.includes('..') || decoded.includes('\\') || decoded.includes('\0')) return false;
+    const normalized = path.posix.normalize(decoded).toLowerCase();
+    if (normalized.startsWith('/assets/excel/')) return false;
+    return PUBLIC_ROOT_FILES.has(normalized) || normalized.startsWith('/assets/');
+}
+
 // Desabilita cache agressivo de arquivos estáticos para que atualizações apareçam instantaneamente
-app.use(express.static(__dirname, {
+const serveStatic = express.static(__dirname, {
     etag: false,
     maxAge: 0,
     setHeaders: (res, path) => {
@@ -1282,14 +1287,13 @@ app.use(express.static(__dirname, {
         res.setHeader('Pragma', 'no-cache');
         res.setHeader('Expires', '0');
     }
-}));
+});
+app.use((req, res, next) => (isPublicAsset(req.path) ? serveStatic(req, res, next) : next()));
 
 // ─── MIDDLEWARES DE SEGURANÇA (RBAC) ─────────────────────────────────────────
 const authMiddleware = (req, res, next) => {
     const publicRoutes = [
         '/login', '/solucoes', '/cotacoes-hoje',
-        '/admin/setup-db', '/admin/run-migrations',
-        '/admin/run-import-clientes', '/admin/run-import-fornecedores',
         '/lme/cron-trigger'
     ];
     // Configurações do site são públicas (para temas, ocultar menus etc)
@@ -1415,6 +1419,30 @@ app.use('/api/ligas-catalogo', requireRole(['Diretoria', 'Laboratório', 'Compra
 app.use('/api/pedidos-venda', requireRole(['Diretoria', 'Comercial', 'Financeiro']));
 app.use('/api/estoque', requireRole(['Diretoria', 'Produção', 'Laboratório', 'Compras', 'Comercial']));
 app.use('/api/audit-logs', requireRole(['Diretoria']));
+// Setup/migrações/importações e endpoints de diagnóstico: somente Diretoria/Administrador
+app.use('/api/admin', requireRole(['Diretoria']));
+app.use('/api/debug-logs', requireRole(['Diretoria']));
+app.use('/api/db-test', requireRole(['Diretoria']));
+
+app.get('/api/debug-logs', (req, res) => {
+    const fs = require('fs');
+    try {
+        const logContent = fs.readFileSync(path.join(__dirname, 'logs', 'error.log'), 'utf8');
+        res.type('text/plain').send(logContent);
+    } catch(e) {
+        res.type('text/plain').send('No logs: ' + e.message);
+    }
+});
+
+app.get('/api/db-test', async (req, res) => {
+    try {
+        if (!pool) return res.send('No pool');
+        const result = await pool.query('SELECT * FROM estrategiav3_mix');
+        res.json(result.rows);
+    } catch(e) {
+        res.send('SQL Error: ' + e.message);
+    }
+});
 
 // ─── API: Login ───────────────────────────────────────────────────────────────
 const loginLimiter = rateLimit({

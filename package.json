@@ -39,7 +39,17 @@
     "pg-format": "^1.0.4",
     "puppeteer": "^25.3.0",
     "qrcode": "^1.5.4",
+    "resend": "^6.32.1",
     "winston": "^3.19.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": [
+      "<rootDir>/tests/**/*.test.js"
+    ],
+    "moduleNameMapper": {
+      "^@whiskeysockets/baileys$": "<rootDir>/tests/__mocks__/baileys.js"
+    }
   },
   "devDependencies": {
     "cross-env": "^10.1.0",
