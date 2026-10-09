@@ -3462,3 +3462,33 @@ p.mb-0 { margin-bottom: 0; }
 [data-theme="light"] #boxtabela table th { background-color: #f1f1f1 !important; color: #111 !important; }
 [data-theme="light"] #boxtabela table td { border-color: #ddd !important; }
 
+/* ─── HOVER E ACTIVE STATE DA NAVBAR ─── */
+.menu-desktop li a {
+    position: relative;
+    padding-bottom: 5px; /* space for the underline */
+}
+
+.menu-desktop li a::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    transform: scaleX(0);
+    height: 3px;
+    bottom: 0;
+    left: 0;
+    background-color: var(--cor-verde);
+    transform-origin: bottom right;
+    transition: transform 0.25s ease-out;
+    border-radius: 2px;
+}
+
+.menu-desktop li:hover a::after,
+.menu-desktop li.current a::after {
+    transform: scaleX(1);
+    transform-origin: bottom left;
+}
+
+.menu-desktop li.current a,
+.menu-desktop li a:hover {
+    color: var(--cor-verde);
+}
