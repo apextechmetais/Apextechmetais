@@ -3471,21 +3471,20 @@ p.mb-0 { margin-bottom: 0; }
 .menu-desktop li a::after {
     content: '';
     position: absolute;
-    width: 100%;
-    transform: scaleX(0);
+    width: calc(100% - 24px); /* desconta o padding para ficar só no texto */
+    transform: translateX(-50%) scaleX(0);
     height: 3px;
-    bottom: 0;
-    left: 0;
+    bottom: 2px;
+    left: 50%;
     background-color: var(--cor-verde);
-    transform-origin: bottom right;
+    transform-origin: center;
     transition: transform 0.25s ease-out;
     border-radius: 2px;
 }
 
 .menu-desktop li:hover a::after,
 .menu-desktop li.current a::after {
-    transform: scaleX(1);
-    transform-origin: bottom left;
+    transform: translateX(-50%) scaleX(1);
 }
 
 .menu-desktop li.current a,
