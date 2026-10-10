@@ -437,17 +437,26 @@ html.ax .transformando-text p { font-size: 1.08rem; line-height: 1.6; color: var
 html.ax .transformando-text p:first-of-type { font-size: 1.4rem; line-height: 1.35; color: #fff; font-weight: 500; }
 html.ax .sobre-mvv { background: var(--zinco) !important; color: var(--tinta); }
 html.ax body:not(.ax-home) #page-content .sobre-mvv h2 { color: var(--tinta); max-width: 22ch; }
-html.ax .mvv-card { background: none !important; border: 0 !important; border-top: 2px solid var(--tinta) !important; border-radius: 0 !important; padding: 20px 0 0 !important; text-align: left !important; }
+html.ax .mvv-card {
+    position: relative; overflow: hidden;
+    background: #FBFBF8 !important; border: 0 !important; border-radius: 12px !important;
+    padding: 30px 28px 32px !important; text-align: left !important;
+    box-shadow: 0 1px 2px rgba(15, 31, 24, 0.06), 0 10px 28px -14px rgba(15, 31, 24, 0.22) !important;
+    transition: box-shadow 0.25s var(--suave), translate 0.25s var(--suave) !important;
+}
+html.ax .mvv-card:hover { translate: 0 -3px; box-shadow: 0 1px 2px rgba(15, 31, 24, 0.08), 0 18px 36px -16px rgba(15, 31, 24, 0.3) !important; }
+html.ax .mvv-card > *:not(.mvv-watermark) { position: relative; z-index: 1; }
 html.ax .mvv-card .mvv-title { font-size: 1.5rem; font-weight: 660; font-stretch: 112%; color: var(--tinta); text-align: left; margin: 0 0 12px; }
 html.ax .mvv-card p, html.ax .mvv-card li { color: var(--tinta-2) !important; text-align: left !important; font-size: 1.02rem !important; }
 html.ax .mvv-card strong, html.ax .mvv-card b { color: var(--tinta) !important; }
-html.ax .mvv-watermark { display: none !important; }
+/* marca d'água com o logo da empresa no fundo de cada cartão */
+html.ax .mvv-watermark { display: block !important; position: absolute; top: 50%; left: 50%; width: 190px; height: 190px; max-width: none; translate: -50% -50%; transform: none; object-fit: contain; opacity: 0.08; filter: grayscale(1); pointer-events: none; user-select: none; z-index: 0; }
 html.ax .mvv-card { align-items: flex-start !important; }
 html.ax .btn_saiba_mais p { margin: 0 !important; font-size: 1rem !important; line-height: 1 !important; color: inherit !important; font-weight: 600 !important; }
 html.ax .btn_saiba_mais i { display: none; }
 html.ax .mvv-card *, html.ax .catalogo-card *, html.ax .onde-card * { text-align: left !important; }
 html.ax body:not(.ax-home) #page-content .sobre-mvv h2 { margin-left: 0; margin-right: auto; text-align: left !important; }
-html.ax .mvv-grid { max-width: none !important; align-items: start; }
+html.ax .mvv-grid { max-width: none !important; align-items: stretch; gap: 22px; }
 html.ax .transformando-text a, html.ax .catalogo-cta a, html.ax .onde-cta a { white-space: nowrap; }
 html.ax .transformando-text a *, html.ax .catalogo-cta a *, html.ax .onde-cta a * { color: inherit !important; }
 html.ax .galeria-header { text-align: left !important; }
