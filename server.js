@@ -15,6 +15,7 @@ const jwt       = require('jsonwebtoken');
 const helmet    = require('helmet');
 const rateLimit = require('express-rate-limit');
 const logger    = require('./config/logger');
+const ApexEngine = require('./lib/calculationEngine');
 
 // Carregar variáveis de ambiente (precisa vir antes de qualquer leitura de process.env)
 dotenv.config();
@@ -954,6 +955,7 @@ async function initDatabase() {
                 investimento_necessario NUMERIC(14,2) DEFAULT 0.00,
                 faturamento_realizado NUMERIC(14,2) DEFAULT 0.00
             );
+            ALTER TABLE estrategiav3_mix ADD COLUMN IF NOT EXISTS rendimento_pct NUMERIC(5,2) DEFAULT 100.00;
         `);
 
         // Migrações adicionais para Planejamento Comercial
@@ -1394,6 +1396,7 @@ app.use('/api/planejamento-estrategico', requireRole(['Diretoria']));
 app.use('/api/planejamento-estrategicov3', requireRole(['Diretoria']));
 app.get('/api/estrategiav3_planos', requireRole(['Diretoria', 'Compras', 'Financeiro', 'Produção', 'Comercial']));
 app.post('/api/estrategiav3_planos', requireRole(['Diretoria']));
+app.get('/api/estrategiav3_planos/:id/realizado-pedidos', requireRole(['Diretoria', 'Compras', 'Financeiro', 'Produção', 'Comercial']));
 app.put('/api/estrategiav3_planos/:id/status', requireRole(['Diretoria']));
 app.put('/api/estrategiav3_planos/:id/resultado_real', requireRole(['Diretoria']));
 app.delete('/api/estrategiav3_planos/:id', requireRole(['Diretoria']));
@@ -3366,8 +3369,8 @@ app.get('/api/planejamento/producao-insumos', async (req, res) => {
             return res.json(result);
         }
     } catch (err) {
-        console.warn('⚠️ Erro de banco no GET producao-insumos. Acionando fallback local:', err.message);
-        dbAvailable = false;
+        console.warn('⚠️ Erro de banco no GET producao-insumos. ', err.message);
+        return res.status(500).json({ error: 'Erro de banco de dados. Tente novamente em instantes.' });
     }
 
     const pl = memStore.planejamento_producao_insumos || [];
@@ -3433,8 +3436,8 @@ app.post('/api/planejamento/producao-insumos', async (req, res) => {
             return res.json({ ...planejamento, linhas: linhasResult });
         }
     } catch (err) {
-        console.warn('⚠️ Erro de banco no POST producao-insumos. Acionando fallback local:', err.message);
-        dbAvailable = false;
+        console.warn('⚠️ Erro de banco no POST producao-insumos. ', err.message);
+        return res.status(500).json({ error: 'Erro de banco de dados. Tente novamente em instantes.' });
     }
 
     if (!memStore.planejamento_producao_insumos) memStore.planejamento_producao_insumos = [];
@@ -3493,8 +3496,8 @@ app.post('/api/planejamento/producao-insumos/:planId/linhas/:linhaId/movimentaca
             return res.json(r.rows[0]);
         }
     } catch (err) {
-        console.warn('⚠️ Erro de banco no POST movimentacao. Acionando fallback local:', err.message);
-        dbAvailable = false;
+        console.warn('⚠️ Erro de banco no POST movimentacao. ', err.message);
+        return res.status(500).json({ error: 'Erro de banco de dados. Tente novamente em instantes.' });
     }
 
     if (!memStore.planejamento_producao_movimentacoes) memStore.planejamento_producao_movimentacoes = [];
@@ -3564,8 +3567,8 @@ app.get('/api/planejamento-estrategico', async (req, res) => {
             return res.json(result.rows);
         }
     } catch (err) {
-        console.warn('⚠️ Erro de banco no GET planejamento-estrategico, usando memStore:', err.message);
-        dbAvailable = false;
+        console.warn('⚠️ Erro de banco no GET planejamento-estrategico:', err.message);
+        return res.status(500).json({ error: 'Erro de banco de dados. Tente novamente em instantes.' });
     }
 
     const list = memStore.planejamento_estrategico || [];
@@ -3634,8 +3637,8 @@ app.post('/api/planejamento-estrategico', async (req, res) => {
             return res.json(r.rows[0]);
         }
     } catch (err) {
-        console.warn('⚠️ Erro de banco no POST planejamento-estrategico, usando memStore:', err.message);
-        dbAvailable = false;
+        console.warn('⚠️ Erro de banco no POST planejamento-estrategico:', err.message);
+        return res.status(500).json({ error: 'Erro de banco de dados. Tente novamente em instantes.' });
     }
 
     if (!memStore.planejamento_estrategico) memStore.planejamento_estrategico = [];
@@ -3670,8 +3673,8 @@ app.delete('/api/planejamento-estrategico/:id', async (req, res) => {
             return res.json({ success: true });
         }
     } catch (err) {
-        console.warn('⚠️ Erro de banco no DELETE planejamento-estrategico, usando memStore:', err.message);
-        dbAvailable = false;
+        console.warn('⚠️ Erro de banco no DELETE planejamento-estrategico:', err.message);
+        return res.status(500).json({ error: 'Erro de banco de dados. Tente novamente em instantes.' });
     }
 
     memStore.planejamento_estrategico = (memStore.planejamento_estrategico || []).filter(x => x.id !== id);
@@ -3705,8 +3708,8 @@ app.get('/api/planejamento-estrategicov3', async (req, res) => {
             return res.json(result.rows);
         }
     } catch (err) {
-        console.warn('⚠️ Erro de banco no GET planejamento-estrategicov3, usando memStore:', err.message);
-        dbAvailable = false;
+        console.warn('⚠️ Erro de banco no GET planejamento-estrategicov3:', err.message);
+        return res.status(500).json({ error: 'Erro de banco de dados. Tente novamente em instantes.' });
     }
 
     const list = memStore.planejamento_estrategicov3 || [];
@@ -3768,8 +3771,8 @@ app.post('/api/planejamento-estrategicov3', async (req, res) => {
             return res.json(r.rows[0]);
         }
     } catch (err) {
-        console.warn('⚠️ Erro de banco no POST planejamento-estrategicov3, usando memStore:', err.message);
-        dbAvailable = false;
+        console.warn('⚠️ Erro de banco no POST planejamento-estrategicov3:', err.message);
+        return res.status(500).json({ error: 'Erro de banco de dados. Tente novamente em instantes.' });
     }
 
     if (!memStore.planejamento_estrategicov3) memStore.planejamento_estrategicov3 = [];
@@ -3802,128 +3805,12 @@ app.delete('/api/planejamento-estrategicov3/:id', async (req, res) => {
             return res.json({ success: true });
         }
     } catch (err) {
-        console.warn('⚠️ Erro de banco no DELETE planejamento-estrategicov3, usando memStore:', err.message);
-        dbAvailable = false;
+        console.warn('⚠️ Erro de banco no DELETE planejamento-estrategicov3:', err.message);
+        return res.status(500).json({ error: 'Erro de banco de dados. Tente novamente em instantes.' });
     }
 
     memStore.planejamento_estrategicov3 = (memStore.planejamento_estrategicov3 || []).filter(x => x.id !== id);
     res.json({ success: true });
-});
-
-// ─── API: Planejamento Estratégico V3 (Planos e Mix) ─────────────────
-app.get('/api/estrategiav3_planos', async (req, res) => {
-    try {
-        if (!dbAvailable || !pool) throw new Error('DB not available');
-        const planosRes = await pool.query('SELECT * FROM estrategiav3_planos ORDER BY id DESC');
-        const planos = planosRes.rows;
-        const mixRes = await pool.query('SELECT * FROM estrategiav3_mix');
-        const mix = mixRes.rows;
-
-        const resultado = planos.map(p => {
-            return {
-                ...p,
-                itens: mix.filter(m => m.plano_id === p.id)
-            };
-        });
-        res.json({ success: true, planos: resultado });
-    } catch (err) {
-        console.warn('⚠️ Erro GET estrategiav3_planos', err.message);
-        res.status(500).json({ error: 'Erro ao buscar planos' });
-    }
-});
-
-app.post('/api/estrategiav3_planos', async (req, res) => {
-    const { titulo, data_inicial, data_final, frente, meta_faturamento, mix, cenario_conservador_pct, cenario_moderado_pct, cenario_agressivo_pct } = req.body;
-    try {
-        if (!dbAvailable || !pool) throw new Error('DB not available');
-        const client = await pool.connect();
-        try {
-            await client.query('BEGIN');
-            const planoRes = await client.query(`
-                INSERT INTO estrategiav3_planos (titulo, data_inicial, data_final, frente, meta_faturamento, cenario_conservador_pct, cenario_moderado_pct, cenario_agressivo_pct)
-                VALUES ($1, $2, $3, $4, $5, COALESCE($6, 80), COALESCE($7, 100), COALESCE($8, 120)) RETURNING id
-            `, [titulo, data_inicial, data_final, frente, meta_faturamento, cenario_conservador_pct, cenario_moderado_pct, cenario_agressivo_pct]);
-            const planoId = planoRes.rows[0].id;
-
-            for (let item of mix) {
-                await client.query(`
-                    INSERT INTO estrategiav3_mix (plano_id, material_id, fracao_pct, volume_necessario, faturamento_alvo, investimento_necessario)
-                    VALUES ($1, $2, $3, $4, $5, $6)
-                `, [planoId, item.material_id, item.fracao_pct, item.volume_necessario, item.faturamento_alvo, item.investimento_necessario]);
-            }
-            await client.query('COMMIT');
-            res.json({ success: true, plano_id: planoId });
-        } catch (e) {
-            await client.query('ROLLBACK');
-            throw e;
-        } finally {
-            client.release();
-        }
-    } catch (err) {
-        console.error('⚠️ Erro POST estrategiav3_planos', err);
-        res.status(500).json({ error: 'Erro ao salvar plano estratégico' });
-    }
-});
-
-app.delete('/api/estrategiav3_planos/:id', async (req, res) => {
-    const id = parseInt(req.params.id);
-    try {
-        if (!dbAvailable || !pool) throw new Error('DB not available');
-        await pool.query('DELETE FROM estrategiav3_planos WHERE id = $1', [id]);
-        res.json({ success: true });
-    } catch (err) {
-        console.error('⚠️ Erro DELETE estrategiav3_planos', err);
-        res.status(500).json({ error: 'Erro ao excluir plano' });
-    }
-});
-
-app.put('/api/estrategiav3_planos/:id/status', async (req, res) => {
-    const id = parseInt(req.params.id);
-    const { status } = req.body;
-    try {
-        if (!dbAvailable || !pool) throw new Error('DB not available');
-        await pool.query('UPDATE estrategiav3_planos SET status = $1 WHERE id = $2', [status, id]);
-        res.json({ success: true });
-    } catch (err) {
-        console.error('⚠️ Erro PUT STATUS', err);
-        res.status(500).json({ error: 'Erro ao atualizar status' });
-    }
-});
-
-app.put('/api/estrategiav3_planos/:id/resultado_real', async (req, res) => {
-    const id = parseInt(req.params.id);
-    const { faturamento_realizado, investimento_realizado, volume_realizado, observacoes } = req.body;
-    try {
-        if (!dbAvailable || !pool) throw new Error('DB not available');
-        await pool.query(`
-            UPDATE estrategiav3_planos 
-            SET faturamento_realizado = $1, 
-                investimento_realizado = $2, 
-                volume_realizado = $3, 
-                observacoes = $4,
-                status = 'CONCLUIDO'
-            WHERE id = $5
-        `, [faturamento_realizado, investimento_realizado, volume_realizado, observacoes, id]);
-        res.json({ success: true });
-    } catch (err) {
-        console.error('⚠️ Erro PUT resultado_real', err);
-        res.status(500).json({ error: 'Erro ao salvar resultado real' });
-    }
-});
-
-app.put('/api/estrategiav3_mix/:id/realizado', async (req, res) => {
-    const id = parseInt(req.params.id);
-    const { faturamento_realizado } = req.body;
-    try {
-        if (!dbAvailable || !pool) throw new Error('DB not available');
-        await pool.query(`
-            UPDATE estrategiav3_mix SET faturamento_realizado = $1 WHERE id = $2
-        `, [faturamento_realizado, id]);
-        res.json({ success: true });
-    } catch (err) {
-        console.error('⚠️ Erro PUT estrategiav3_mix', err);
-        res.status(500).json({ error: 'Erro ao atualizar realizado' });
-    }
 });
 
 
@@ -7793,6 +7680,69 @@ app.put('/api/usuarios/:id/password', authMiddleware, async (req, res) => {
 });
 
 // ─── API: Planejamento Estratégico V3 (Planos e Mix) ─────────────────────────
+const ESTRATEGIA_STATUS_VALIDOS = ['EM ANDAMENTO', 'CONCLUIDO', 'FINALIZADO'];
+// Pedidos que ainda não representam venda/compra efetiva não entram no realizado
+const PEDIDO_STATUS_NAO_REALIZADO = ['Cancelado', 'Rascunho', 'Em Cotação'];
+
+function _numOuNulo(v) {
+    if (v === null || v === undefined || v === '') return null;
+    const n = parseFloat(v);
+    return Number.isFinite(n) ? n : NaN;
+}
+
+/** Valida e normaliza o corpo de um plano estratégico. Retorna { erro } ou { plano }. */
+function validarPlanoEstrategico(body) {
+    const b = body || {};
+    const titulo = String(b.titulo || b.nome || '').trim().slice(0, 150);
+    const data_inicial = b.data_inicial || b.data_inicio;
+    const data_final = b.data_final || b.data_fim;
+    const itensRecebidos = b.mix || b.itens || [];
+
+    if (!titulo) return { erro: 'Informe o título do plano.' };
+    const dIni = new Date(data_inicial), dFim = new Date(data_final);
+    if (!data_inicial || !data_final || isNaN(dIni) || isNaN(dFim)) return { erro: 'Informe datas de início e fim válidas.' };
+    if (dFim < dIni) return { erro: 'A data final deve ser igual ou posterior à data inicial.' };
+
+    const frente = b.frente === 'compra' ? 'compra' : 'venda';
+    const meta = _numOuNulo(b.meta_faturamento);
+    if (Number.isNaN(meta) || (meta !== null && meta < 0)) return { erro: 'Meta de faturamento inválida.' };
+    if (!Array.isArray(itensRecebidos)) return { erro: 'O mix de produtos é inválido.' };
+
+    const cenarios = {};
+    for (const [campo, padrao] of [['cenario_conservador_pct', 80], ['cenario_moderado_pct', 100], ['cenario_agressivo_pct', 120]]) {
+        const v = _numOuNulo(b[campo]);
+        if (Number.isNaN(v) || (v !== null && (v <= 0 || v > 999))) return { erro: 'Percentuais de cenário devem ficar entre 0 e 999.' };
+        cenarios[campo] = v === null ? padrao : v;
+    }
+
+    let somaFracao = 0;
+    const mix = [];
+    for (const item of itensRecebidos) {
+        const material_id = parseInt(item && item.material_id);
+        if (!Number.isInteger(material_id)) return { erro: 'Há um item do mix sem material.' };
+        const campos = {};
+        for (const campo of ['fracao_pct', 'volume_necessario', 'faturamento_alvo', 'investimento_necessario', 'rendimento_pct']) {
+            const v = _numOuNulo(item[campo]);
+            if (Number.isNaN(v) || (v !== null && v < 0)) return { erro: `Valor inválido em "${campo}" no mix.` };
+            campos[campo] = v;
+        }
+        const fracao_pct = campos.fracao_pct === null ? 0 : campos.fracao_pct;
+        const rendimento_pct = campos.rendimento_pct === null ? 100 : campos.rendimento_pct;
+        if (fracao_pct > 100) return { erro: 'A fração de um produto não pode passar de 100%.' };
+        if (rendimento_pct <= 0 || rendimento_pct > 100) return { erro: 'O rendimento deve ficar entre 0 e 100%.' };
+        somaFracao += fracao_pct;
+        mix.push({
+            material_id, fracao_pct, rendimento_pct,
+            volume_necessario: campos.volume_necessario || 0,
+            faturamento_alvo: campos.faturamento_alvo || 0,
+            investimento_necessario: campos.investimento_necessario || 0
+        });
+    }
+    if (somaFracao > 100.5) return { erro: `O mix soma ${somaFracao.toFixed(1)}%. Reduza as frações para no máximo 100%.` };
+
+    return { plano: { titulo, data_inicial, data_final, frente, meta_faturamento: meta || 0, ...cenarios, mix } };
+}
+
 app.get('/api/estrategiav3_planos', async (req, res) => {
     try {
         if (!dbAvailable) {
@@ -7818,33 +7768,23 @@ app.get('/api/estrategiav3_planos', async (req, res) => {
 });
 
 app.post('/api/estrategiav3_planos', async (req, res) => {
-    const { titulo, data_inicial, data_final, frente, meta_faturamento, mix, cenario_conservador_pct, cenario_moderado_pct, cenario_agressivo_pct } = req.body;
+    const { erro, plano } = validarPlanoEstrategico(req.body);
+    if (erro) return res.status(400).json({ error: erro });
+    const { titulo, data_inicial, data_final, frente, meta_faturamento, mix, cenario_conservador_pct, cenario_moderado_pct, cenario_agressivo_pct } = plano;
     try {
         if (!dbAvailable) {
             if (!memStore.estrategiav3_planos) memStore.estrategiav3_planos = [];
             if (!memStore.estrategiav3_mix) memStore.estrategiav3_mix = [];
             const newId = nextId++;
-            const plano = {
+            memStore.estrategiav3_planos.push({
                 id: newId,
-                titulo, data_inicial, data_final, frente,
-                meta_faturamento: parseFloat(meta_faturamento || 0),
+                titulo, data_inicial, data_final, frente, meta_faturamento,
                 status: 'EM ANDAMENTO',
-                cenario_conservador_pct: cenario_conservador_pct || 80,
-                cenario_moderado_pct: cenario_moderado_pct || 100,
-                cenario_agressivo_pct: cenario_agressivo_pct || 120,
+                cenario_conservador_pct, cenario_moderado_pct, cenario_agressivo_pct,
                 criado_em: new Date().toISOString()
-            };
-            memStore.estrategiav3_planos.push(plano);
-            for (let item of (mix || [])) {
-                memStore.estrategiav3_mix.push({
-                    id: nextId++,
-                    plano_id: newId,
-                    material_id: item.material_id,
-                    fracao_pct: item.fracao_pct,
-                    volume_necessario: item.volume_necessario,
-                    faturamento_alvo: item.faturamento_alvo,
-                    investimento_necessario: item.investimento_necessario
-                });
+            });
+            for (const item of mix) {
+                memStore.estrategiav3_mix.push({ id: nextId++, plano_id: newId, ...item, faturamento_realizado: 0 });
             }
             return res.json({ success: true, plano_id: newId });
         }
@@ -7854,16 +7794,16 @@ app.post('/api/estrategiav3_planos', async (req, res) => {
             await client.query('BEGIN');
             const planoRes = await client.query(`
                 INSERT INTO estrategiav3_planos (titulo, data_inicial, data_final, frente, meta_faturamento, cenario_conservador_pct, cenario_moderado_pct, cenario_agressivo_pct)
-                VALUES ($1, $2, $3, $4, $5, COALESCE($6, 80), COALESCE($7, 100), COALESCE($8, 120))
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                 RETURNING id
             `, [titulo, data_inicial, data_final, frente, meta_faturamento, cenario_conservador_pct, cenario_moderado_pct, cenario_agressivo_pct]);
             const planoId = planoRes.rows[0].id;
 
-            for (let item of (mix || [])) {
+            for (const item of mix) {
                 await client.query(`
-                    INSERT INTO estrategiav3_mix (plano_id, material_id, fracao_pct, volume_necessario, faturamento_alvo, investimento_necessario)
-                    VALUES ($1, $2, $3, $4, $5, $6)
-                `, [planoId, item.material_id, item.fracao_pct, item.volume_necessario, item.faturamento_alvo, item.investimento_necessario]);
+                    INSERT INTO estrategiav3_mix (plano_id, material_id, fracao_pct, volume_necessario, faturamento_alvo, investimento_necessario, rendimento_pct)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7)
+                `, [planoId, item.material_id, item.fracao_pct, item.volume_necessario, item.faturamento_alvo, item.investimento_necessario, item.rendimento_pct]);
             }
             await client.query('COMMIT');
             res.json({ success: true, plano_id: planoId });
@@ -7897,7 +7837,10 @@ app.delete('/api/estrategiav3_planos/:id', async (req, res) => {
 
 app.put('/api/estrategiav3_planos/:id/status', async (req, res) => {
     const id = parseInt(req.params.id);
-    const { status } = req.body;
+    const status = String((req.body || {}).status || '').trim().toUpperCase();
+    if (!ESTRATEGIA_STATUS_VALIDOS.includes(status)) {
+        return res.status(400).json({ error: `Status inválido. Use: ${ESTRATEGIA_STATUS_VALIDOS.join(', ')}.` });
+    }
     try {
         if (!dbAvailable) {
             const p = (memStore.estrategiav3_planos || []).find(x => x.id === id);
@@ -7914,7 +7857,13 @@ app.put('/api/estrategiav3_planos/:id/status', async (req, res) => {
 
 app.put('/api/estrategiav3_planos/:id/resultado_real', async (req, res) => {
     const id = parseInt(req.params.id);
-    const { faturamento_realizado, investimento_realizado, volume_realizado, observacoes } = req.body;
+    const { observacoes } = req.body || {};
+    const faturamento_realizado = _numOuNulo((req.body || {}).faturamento_realizado);
+    const investimento_realizado = _numOuNulo((req.body || {}).investimento_realizado);
+    const volume_realizado = _numOuNulo((req.body || {}).volume_realizado);
+    for (const v of [faturamento_realizado, investimento_realizado, volume_realizado]) {
+        if (Number.isNaN(v) || (v !== null && v < 0)) return res.status(400).json({ error: 'Valores do resultado real inválidos.' });
+    }
     try {
         if (!dbAvailable) {
             const p = (memStore.estrategiav3_planos || []).find(x => x.id === id);
@@ -7928,14 +7877,14 @@ app.put('/api/estrategiav3_planos/:id/resultado_real', async (req, res) => {
             return res.json({ success: true });
         }
         await pool.query(`
-            UPDATE estrategiav3_planos 
-            SET faturamento_realizado = $1, 
-                investimento_realizado = $2, 
-                volume_realizado = $3, 
+            UPDATE estrategiav3_planos
+            SET faturamento_realizado = $1,
+                investimento_realizado = $2,
+                volume_realizado = $3,
                 observacoes = $4,
                 status = 'CONCLUIDO'
             WHERE id = $5
-        `, [faturamento_realizado, investimento_realizado, volume_realizado, observacoes, id]);
+        `, [faturamento_realizado, investimento_realizado, volume_realizado, observacoes || '', id]);
         res.json({ success: true });
     } catch (err) {
         console.error('⚠️ Erro PUT resultado_real:', err);
@@ -7943,9 +7892,97 @@ app.put('/api/estrategiav3_planos/:id/resultado_real', async (req, res) => {
     }
 });
 
+// Realizado automático: soma os pedidos de venda e de compra do período do plano, por material do mix
+app.get('/api/estrategiav3_planos/:id/realizado-pedidos', async (req, res) => {
+    const id = parseInt(req.params.id);
+    try {
+        let plano, itensMix, vendas = [], compras = [];
+
+        if (!dbAvailable) {
+            plano = (memStore.estrategiav3_planos || []).find(x => x.id === id);
+            if (!plano) return res.status(404).json({ error: 'Plano não encontrado.' });
+            itensMix = (memStore.estrategiav3_mix || []).filter(m => m.plano_id === id);
+            const ini = String(plano.data_inicial).slice(0, 10), fim = String(plano.data_final).slice(0, 10);
+            const somar = (pedidos) => {
+                const acc = {};
+                (pedidos || []).forEach(pd => {
+                    const data = String(pd.data_emissao || pd.criado_em || '').slice(0, 10);
+                    if (PEDIDO_STATUS_NAO_REALIZADO.includes(pd.status) || data < ini || data > fim) return;
+                    (pd.itens || []).forEach(i => {
+                        if (i.material_id == null) return;
+                        const a = acc[i.material_id] || (acc[i.material_id] = { material_id: i.material_id, kg: 0, valor: 0 });
+                        a.kg += parseFloat(i.quantidade || 0);
+                        a.valor += parseFloat(i.total_item != null ? i.total_item : (i.quantidade || 0) * (i.preco_unitario || 0));
+                    });
+                });
+                return Object.values(acc);
+            };
+            vendas = somar(memStore.pedidos_venda);
+            compras = somar(memStore.pedidos_compra);
+        } else {
+            const planoRes = await pool.query('SELECT * FROM estrategiav3_planos WHERE id = $1', [id]);
+            if (planoRes.rows.length === 0) return res.status(404).json({ error: 'Plano não encontrado.' });
+            plano = planoRes.rows[0];
+            itensMix = (await pool.query('SELECT * FROM estrategiav3_mix WHERE plano_id = $1', [id])).rows;
+            const somaSql = (tabela) => `
+                SELECT i.material_id, COALESCE(SUM(i.quantidade), 0) AS kg, COALESCE(SUM(i.total_item), 0) AS valor
+                FROM ${tabela}_itens i
+                JOIN ${tabela} p ON p.id = i.pedido_id
+                WHERE p.status <> ALL($1) AND p.data_emissao BETWEEN $2 AND $3 AND i.material_id IS NOT NULL
+                GROUP BY i.material_id
+            `;
+            const params = [PEDIDO_STATUS_NAO_REALIZADO, plano.data_inicial, plano.data_final];
+            vendas = (await pool.query(somaSql('pedidos_venda'), params)).rows;
+            compras = (await pool.query(somaSql('pedidos_compra'), params)).rows;
+        }
+
+        const idsMix = itensMix.map(m => parseInt(m.material_id));
+        const porMaterial = (lista, matId) => lista.find(x => parseInt(x.material_id) === matId) || { kg: 0, valor: 0 };
+        const itens = itensMix.map(m => {
+            const matId = parseInt(m.material_id);
+            const v = porMaterial(vendas, matId), c = porMaterial(compras, matId);
+            return {
+                mix_id: m.id,
+                material_id: matId,
+                faturamento_alvo: parseFloat(m.faturamento_alvo || 0),
+                volume_planejado_kg: parseFloat(m.volume_necessario || 0),
+                investimento_planejado: parseFloat(m.investimento_necessario || 0),
+                vendido_kg: parseFloat(v.kg || 0),
+                faturamento_realizado: parseFloat(v.valor || 0),
+                comprado_kg: parseFloat(c.kg || 0),
+                investimento_realizado: parseFloat(c.valor || 0)
+            };
+        });
+        const soma = (campo) => parseFloat(itens.reduce((t, i) => t + i[campo], 0).toFixed(2));
+        const foraDoMix = (lista) => parseFloat(lista.filter(x => !idsMix.includes(parseInt(x.material_id))).reduce((t, x) => t + parseFloat(x.valor || 0), 0).toFixed(2));
+
+        res.json({
+            success: true,
+            plano_id: id,
+            periodo: { inicio: plano.data_inicial, fim: plano.data_final },
+            criterio: `Pedidos emitidos no período, exceto ${PEDIDO_STATUS_NAO_REALIZADO.join(', ')}; somente materiais do mix.`,
+            itens,
+            totais: {
+                faturamento_realizado: soma('faturamento_realizado'),
+                investimento_realizado: soma('investimento_realizado'),
+                vendido_kg: soma('vendido_kg'),
+                comprado_kg: soma('comprado_kg'),
+                faturamento_fora_do_mix: foraDoMix(vendas),
+                investimento_fora_do_mix: foraDoMix(compras)
+            }
+        });
+    } catch (err) {
+        console.error('⚠️ Erro GET realizado-pedidos:', err);
+        res.status(500).json({ error: 'Erro ao calcular o realizado a partir dos pedidos' });
+    }
+});
+
 app.put('/api/estrategiav3_mix/:id/realizado', async (req, res) => {
     const id = parseInt(req.params.id);
-    const { faturamento_realizado } = req.body;
+    const faturamento_realizado = _numOuNulo((req.body || {}).faturamento_realizado);
+    if (faturamento_realizado === null || Number.isNaN(faturamento_realizado) || faturamento_realizado < 0) {
+        return res.status(400).json({ error: 'Faturamento realizado inválido.' });
+    }
     try {
         if (!dbAvailable) {
             const m = (memStore.estrategiav3_mix || []).find(x => x.id === id);
@@ -7974,6 +8011,10 @@ app.get('/api/planejamento/compras/forecast', async (req, res) => {
                     COALESCE(mc.estoque_atual, 0) as estoque_atual, 
                     COALESCE(tp.preco_entregar, 0) as preco_compra, 
                     COALESCE(tp.venda_ref, 0) as preco_venda,
+                    COALESCE(tp.comissao, 0) as comissao,
+                    COALESCE(tp.pis_cofins, 0) as pis_cofins,
+                    COALESCE(tp.fidc, 0) as fidc,
+                    COALESCE(tp.icms, 0) as icms,
                     (SELECT COALESCE(SUM(pvi.quantidade), 0) 
                      FROM pedidos_venda_itens pvi 
                      JOIN pedidos_venda pv ON pvi.pedido_id = pv.id 
@@ -8009,10 +8050,12 @@ app.get('/api/planejamento/compras/forecast', async (req, res) => {
             let demanda_90d = 0;
             let compras_pendentes = 0;
             
+            const limite90d = Date.now() - 90 * 24 * 60 * 60 * 1000;
             (memStore.pedidos_venda || []).forEach(pv => {
-                if (pv.status !== 'Cancelado') {
+                const criado = new Date(pv.criado_em || pv.data_emissao || Date.now()).getTime();
+                if (pv.status !== 'Cancelado' && criado >= limite90d) {
                     (pv.itens || []).forEach(i => {
-                        if (i.material_id === mc.id) demanda_90d += i.quantidade;
+                        if (i.material_id === mc.id) demanda_90d += parseFloat(i.quantidade || 0);
                     });
                 }
             });
@@ -8032,6 +8075,10 @@ app.get('/api/planejamento/compras/forecast', async (req, res) => {
                 estoque_atual: mc.estoque_atual || 0,
                 preco_compra: tp.preco_entregar || 0,
                 preco_venda: tp.venda_ref || 0,
+                comissao: tp.comissao || 0,
+                pis_cofins: tp.pis_cofins || 0,
+                fidc: tp.fidc || 0,
+                icms: tp.icms || 0,
                 demanda_90d: demanda_90d,
                 compras_pendentes: compras_pendentes
             };
@@ -8041,7 +8088,12 @@ app.get('/api/planejamento/compras/forecast', async (req, res) => {
         const forecast = rows.map(r => {
             const pVenda = parseFloat(r.preco_venda || 0);
             const pCompra = parseFloat(r.preco_compra || 0);
-            const margem = pVenda > 0 ? ((pVenda - pCompra) / pVenda) * 100 : 0;
+            // Margem líquida (após comissão, PIS/COFINS, FIDC e ICMS): mesma regra do simulador e do ranking
+            const mg = ApexEngine.calcularMargemMaterial(
+                { venda_ref: pVenda, preco_entregar: pCompra, comissao: r.comissao, pis_cofins: r.pis_cofins, fidc: r.fidc, icms: r.icms },
+                { operacao: 'entrega' }
+            );
+            const margem = mg.margemLiquidaPct;
             const demanda_mensal_media = parseFloat(r.demanda_90d || 0) / 3.0;
             const estoque_projetado = parseFloat(r.estoque_atual || 0) + parseFloat(r.compras_pendentes || 0);
             
@@ -8076,6 +8128,8 @@ app.get('/api/planejamento/compras/forecast', async (req, res) => {
                 preco_compra: pCompra,
                 preco_venda: pVenda,
                 margem_pct: parseFloat(margem.toFixed(2)),
+                margem_bruta_pct: parseFloat(mg.margemBrutaPct.toFixed(2)),
+                lucro_liquido_kg: parseFloat(mg.lucroLiquidoKg.toFixed(4)),
                 acao_recomendada: acao,
                 motivo_acao: motivo,
                 cenarios: {

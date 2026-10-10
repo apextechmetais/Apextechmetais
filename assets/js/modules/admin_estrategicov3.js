@@ -309,7 +309,7 @@
         // Adiciona com fração padrão dividindo igualmente
         const count = _mixSimulacaoV3.length + 1;
         const defaultFracao = parseFloat((100 / count).toFixed(1));
-        _mixSimulacaoV3.push({ material_id: matId, fracaoPct: defaultFracao });
+        _mixSimulacaoV3.push({ material_id: matId, fracaoPct: defaultFracao, rendimentoPct: 100 });
 
         // Redistribui se for o caso
         let sum = _mixSimulacaoV3.reduce((acc, x) => acc + x.fracaoPct, 0);
@@ -344,6 +344,30 @@
         window.recalcularSimulacaoV3(false);
     };
 
+    window.onChangeRendimentoSimulacaoV3 = function(matId, val) {
+        const item = _mixSimulacaoV3.find(x => x.material_id == matId);
+        if (item) {
+            const parsed = parseFloat(val);
+            item.rendimentoPct = parsed > 0 && parsed <= 100 ? parsed : 100;
+        }
+        window.recalcularSimulacaoV3(false);
+    };
+
+    // Monta o cálculo do mix com o motor único (ApexEngine), usado na tela, ao salvar e no payback
+    window.calcularMixAtualV3 = function(choques) {
+        const inputFat = document.getElementById('plestv3-sim-meta-faturamento');
+        const selectFrente = document.getElementById('plestv3-sim-frente');
+        const valLimpo = (inputFat?.value || '0').replace(/\./g, '').replace(',', '.');
+        return window.ApexEngine.calcularMixEstrategico({
+            metaFaturamento: parseFloat(valLimpo) || 0,
+            frente: selectFrente?.value || 'venda',
+            itens: _mixSimulacaoV3,
+            tabelaPrecos: _listTabelaPrecosEstrategica,
+            choqueVendaPct: choques ? choques.venda : 0,
+            choqueCompraPct: choques ? choques.compra : 0
+        });
+    };
+
     window.recalcularSimulacaoV3 = function(redesenharTabela = true) {
         const inputFat = document.getElementById('plestv3-sim-meta-faturamento');
         const selectFrente = document.getElementById('plestv3-sim-frente');
@@ -352,96 +376,58 @@
 
         if (!inputFat || !selectFrente || !mixTbody || !rankingTbody) return;
 
-        let valLimpo = inputFat.value.replace(/\./g, '').replace(',', '.');
-        const fatTotalAlvo = parseFloat(valLimpo) || 0;
-        const frente = selectFrente.value; // 'venda' ou 'compra'
+        const fmtNum = (v, casas) => v.toLocaleString('pt-BR', {minimumFractionDigits: casas, maximumFractionDigits: casas});
 
-        // 1. Renderizar o ranking de melhores margens
-        const listPrecosSorted = [..._listTabelaPrecosEstrategica].map(tp => {
-            const comissao = parseFloat(tp.comissao || 0);
-            const pisCofins = parseFloat(tp.pis_cofins || 0);
-            const fidc = parseFloat(tp.fidc || 0);
-            const icms = parseFloat(tp.icms || 0);
-            const freteColeta = parseFloat(tp.frete_coleta || 0);
-            const totalDedPct = comissao + pisCofins + fidc + icms;
-            const valDeducoes = (parseFloat(tp.preco_venda || tp.venda_ref || 0)) * (totalDedPct / 100);
-            const vendaLiquida = (parseFloat(tp.preco_venda || tp.venda_ref || 0)) - valDeducoes;
-
-            const lucroEnt = vendaLiquida - (parseFloat(tp.preco_entregar || tp.preco_compra || 0));
-            const margemEnt = (parseFloat(tp.preco_venda || tp.venda_ref || 0)) > 0 ? (lucroEnt / (parseFloat(tp.preco_venda || tp.venda_ref || 0))) * 100 : 0;
-
-            const lucroCol = vendaLiquida - (parseFloat(tp.preco_coletar || tp.preco_compra || 0)) - freteColeta;
-            const margemCol = (parseFloat(tp.preco_venda || tp.venda_ref || 0)) > 0 ? (lucroCol / (parseFloat(tp.preco_venda || tp.venda_ref || 0))) * 100 : 0;
-
-            return {
-                nome: tp.material_nome,
-                margemEnt,
-                margemCol
-            };
-        }).sort((a, b) => Math.max(b.margemEnt, b.margemCol) - Math.max(a.margemEnt, a.margemCol));
+        // 1. Renderizar o ranking de melhores margens (margem líquida, regra única do ApexEngine)
+        const listPrecosSorted = [..._listTabelaPrecosEstrategica].map(tp => ({
+            nome: tp.material_nome,
+            margemEnt: window.ApexEngine.calcularMargemMaterial(tp, { operacao: 'entrega' }).margemLiquidaPct,
+            margemCol: window.ApexEngine.calcularMargemMaterial(tp, { operacao: 'coleta' }).margemLiquidaPct
+        })).sort((a, b) => Math.max(b.margemEnt, b.margemCol) - Math.max(a.margemEnt, a.margemCol));
 
         rankingTbody.innerHTML = listPrecosSorted.slice(0, 10).map((x, idx) => `
             <tr style="border-bottom:1px solid #1a2e3f;">
                 <td style="padding:6px 4px; color:#fff;"><strong>#${idx+1}</strong> ${x.nome}</td>
-                <td style="padding:6px 4px; text-align:right; color:#2AD07A; font-weight:bold;">${x.margemEnt.toLocaleString('pt-BR', {minimumFractionDigits: 1, maximumFractionDigits: 1})}%</td>
-                <td style="padding:6px 4px; text-align:right; color:#3e7cb1; font-weight:bold;">${x.margemCol.toLocaleString('pt-BR', {minimumFractionDigits: 1, maximumFractionDigits: 1})}%</td>
+                <td style="padding:6px 4px; text-align:right; color:#2AD07A; font-weight:bold;">${fmtNum(x.margemEnt, 1)}%</td>
+                <td style="padding:6px 4px; text-align:right; color:#3e7cb1; font-weight:bold;">${fmtNum(x.margemCol, 1)}%</td>
             </tr>
         `).join('');
 
         // 2. Renderizar e Calcular Mix de Simulação
+        const calc = window.calcularMixAtualV3();
+        const fatTotalAlvo = parseFloat((inputFat.value || '0').replace(/\./g, '').replace(',', '.')) || 0;
+
         if (redesenharTabela) {
             mixTbody.innerHTML = '';
         }
 
-        let totalKgCalculado = 0;
-        let totalPctAlocado = 0;
-        let totalInvestimentoNecessario = 0;
-
-        _mixSimulacaoV3.forEach((mixItem) => {
-            let tp = _listTabelaPrecosEstrategica.find(x => x.material_id == mixItem.material_id);
-            if (!tp) {
-                const materialNome = document.querySelector(`#plestv3-consulta-material option[value="${mixItem.material_id}"]`)?.textContent || 'Produto Indefinido';
-                tp = { material_id: mixItem.material_id, material_nome: materialNome, preco_venda: 0, preco_compra: 0 };
-            }
-
-            const faturamentoAlvoProduto = fatTotalAlvo * (mixItem.fracaoPct / 100);
-
-            // Preço de venda (referência para calcular volume)
-            const pRef = frente === 'venda'
-                ? parseFloat(tp.preco_venda || tp.venda_ref || 0)
-                : parseFloat(tp.preco_entregar || tp.preco_compra || 0);
-
-            // Preço de compra (quanto investe para adquirir o material)
-            const pCompra = frente === 'venda'
-                ? parseFloat(tp.preco_entregar || tp.preco_compra || 0)
-                : parseFloat(tp.preco_coletar || tp.preco_compra || 0);
-
-            // Volume necessário em kg (baseado no preço de venda)
-            const volumeKg = pRef > 0 ? (faturamentoAlvoProduto / pRef) : 0;
-
-            // Investimento necessário para comprar essa quantidade
-            const investimentoProduto = volumeKg * pCompra;
-
-            totalKgCalculado += volumeKg;
-            totalPctAlocado += mixItem.fracaoPct;
-            totalInvestimentoNecessario += investimentoProduto;
+        _mixSimulacaoV3.forEach((mixItem, idx) => {
+            const linha = calc.linhas[idx];
+            const tp = _listTabelaPrecosEstrategica.find(x => x.material_id == mixItem.material_id);
+            const materialNome = tp ? tp.material_nome
+                : (document.querySelector(`#plestv3-consulta-material option[value="${mixItem.material_id}"]`)?.textContent || 'Produto Indefinido');
+            const rendimento = linha.rendimentoPct;
+            const volumeTxt = rendimento < 100
+                ? `${fmtNum(linha.volumeKg, 1)} kg <span style="display:block; font-weight:normal; font-size:0.7rem; color:#ffb74d;">comprar ${fmtNum(linha.volumeCompraKg, 1)} kg</span>`
+                : `${fmtNum(linha.volumeKg, 1)} kg`;
 
             if (redesenharTabela) {
                 const tr = document.createElement('tr');
                 tr.style.borderBottom = '1px solid #223547';
                 tr.innerHTML = `
-                    <td style="padding:6px 4px; color:#fff;"><strong>${tp.material_nome}</strong></td>
+                    <td style="padding:6px 4px; color:#fff;"><strong>${materialNome}</strong></td>
                     <td style="padding:6px 4px; text-align:center;">
                         <input type="number" class="noble-input" value="${mixItem.fracaoPct}" style="width:70px; text-align:center; padding:3px; font-size:0.75rem; margin:0;" oninput="window.onChangeFracaoSimulacaoV3(${mixItem.material_id}, this.value)">
                     </td>
-                    <td style="padding:6px 4px; text-align:right; color:#00e5ff; font-weight:bold;">R$ ${faturamentoAlvoProduto.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                    <td style="padding:6px 4px; text-align:right; color:#ccc;">R$ ${window.fmtBRL(pRef)}</td>
-                    <td style="padding:6px 4px; text-align:right; font-weight:bold; color:#2AD07A;" id="plestv3-mix-kg-${mixItem.material_id}">
-                        ${volumeKg.toLocaleString('pt-BR', {minimumFractionDigits: 1, maximumFractionDigits: 1})} kg
+                    <td style="padding:6px 4px; text-align:center;">
+                        <input type="number" class="noble-input" value="${rendimento}" min="1" max="100" step="1" title="Quanto do material comprado vira produto vendável. 100% = sem perda." style="width:64px; text-align:center; padding:3px; font-size:0.75rem; margin:0;" oninput="window.onChangeRendimentoSimulacaoV3(${mixItem.material_id}, this.value)">
                     </td>
-                    <td style="padding:6px 4px; text-align:right; color:#ffb74d;" id="plestv3-mix-pcompra-${mixItem.material_id}">R$ ${window.fmtBRL(pCompra)}</td>
+                    <td style="padding:6px 4px; text-align:right; color:#00e5ff; font-weight:bold;" id="plestv3-mix-fat-${mixItem.material_id}">R$ ${fmtNum(linha.faturamentoAlvo, 2)}</td>
+                    <td style="padding:6px 4px; text-align:right; color:#ccc;">R$ ${window.fmtBRL(linha.precoRef)}</td>
+                    <td style="padding:6px 4px; text-align:right; font-weight:bold; color:#2AD07A;" id="plestv3-mix-kg-${mixItem.material_id}">${volumeTxt}</td>
+                    <td style="padding:6px 4px; text-align:right; color:#ffb74d;" id="plestv3-mix-pcompra-${mixItem.material_id}">R$ ${window.fmtBRL(linha.precoCompra)}</td>
                     <td style="padding:6px 4px; text-align:right; font-weight:bold; color:#ff9800;" id="plestv3-mix-invest-${mixItem.material_id}">
-                        R$ ${investimentoProduto.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                        R$ ${fmtNum(linha.investimento, 2)}
                     </td>
                     <td style="padding:6px 4px; text-align:center;">
                         <button onclick="window.removerMaterialSimulacaoV3(${mixItem.material_id})" style="background:none; border:none; color:#ff6b6b; cursor:pointer;" title="Remover"><i class="fa-solid fa-trash"></i></button>
@@ -450,15 +436,17 @@
                 mixTbody.appendChild(tr);
             } else {
                 // Atualização dinâmica sem redesenhar toda a tabela
-                const lblKg = document.getElementById(`plestv3-mix-kg-${mixItem.material_id}`);
-                if (lblKg) lblKg.textContent = `${volumeKg.toLocaleString('pt-BR', {minimumFractionDigits: 1, maximumFractionDigits: 1})} kg`;
-                const lblInvest = document.getElementById(`plestv3-mix-invest-${mixItem.material_id}`);
-                if (lblInvest) lblInvest.textContent = `R$ ${investimentoProduto.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                const lblFat = document.getElementById(`plestv3-mix-fat-${mixItem.material_id}`);
+                if (lblFat) lblFat.textContent = `R$ ${fmtNum(linha.faturamentoAlvo, 2)}`;
+                const lblKgItem = document.getElementById(`plestv3-mix-kg-${mixItem.material_id}`);
+                if (lblKgItem) lblKgItem.innerHTML = volumeTxt;
+                const lblInvestItem = document.getElementById(`plestv3-mix-invest-${mixItem.material_id}`);
+                if (lblInvestItem) lblInvestItem.textContent = `R$ ${fmtNum(linha.investimento, 2)}`;
             }
         });
 
         if (_mixSimulacaoV3.length === 0) {
-            mixTbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:15px; color:#aaa;">Nenhum produto adicionado ao mix. Selecione acima e clique em "Adicionar ao Mix".</td></tr>`;
+            mixTbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:15px; color:#aaa;">Nenhum produto adicionado ao mix. Selecione acima e clique em "Adicionar ao Mix".</td></tr>`;
         }
 
         // 3. Atualizar rodapés (tfoot com Totais e Médias), totais e indicadores estratégicos
@@ -468,96 +456,60 @@
         const lblFeed   = document.getElementById('plestv3-mix-feedback');
 
         const countItems = _mixSimulacaoV3.length || 1;
-        let totalVendaLiquidaCalculada = 0;
-
-        _mixSimulacaoV3.forEach((mixItem) => {
-            let tp = _listTabelaPrecosEstrategica.find(x => x.material_id == mixItem.material_id);
-            if (!tp) tp = { preco_venda: 0, preco_compra: 0 };
-            const faturamentoAlvoProduto = fatTotalAlvo * (mixItem.fracaoPct / 100);
-            const pRef = frente === 'venda'
-                ? parseFloat(tp.preco_venda || tp.venda_ref || 0)
-                : parseFloat(tp.preco_entregar || tp.preco_compra || 0);
-            const volumeKg = pRef > 0 ? (faturamentoAlvoProduto / pRef) : 0;
-            
-            const comissao = parseFloat(tp.comissao || 0);
-            const pisCofins = parseFloat(tp.pis_cofins || 0);
-            const fidc = parseFloat(tp.fidc || 0);
-            const icms = parseFloat(tp.icms || 0);
-            const freteColeta = parseFloat(tp.frete_coleta || 0);
-            const totalDedPct = comissao + pisCofins + fidc + icms;
-            const valDeducoesUnit = pRef * (totalDedPct / 100);
-            const vendaLiquidaUnit = Math.max(0, pRef - valDeducoesUnit - freteColeta);
-            
-            totalVendaLiquidaCalculada += (volumeKg * vendaLiquidaUnit);
-        });
-
-        const pVendaMedioPonderado = totalKgCalculado > 0 ? (fatTotalAlvo / totalKgCalculado) : 0;
-        const pCompraMedioPonderado = totalKgCalculado > 0 ? (totalInvestimentoNecessario / totalKgCalculado) : 0;
-
-        const medFracaoPct = totalPctAlocado / countItems;
-        const medFatAlvo = fatTotalAlvo / countItems;
-        const medVolKg = totalKgCalculado / countItems;
-        const medInvestimento = totalInvestimentoNecessario / countItems;
-
-        const lucroBruto = fatTotalAlvo - totalInvestimentoNecessario;
-        const margemBrutaPct = fatTotalAlvo > 0 ? (lucroBruto / fatTotalAlvo) * 100 : 0;
-
-        const lucroLiquido = totalVendaLiquidaCalculada - totalInvestimentoNecessario;
-        const margemLiquidaPct = fatTotalAlvo > 0 ? (lucroLiquido / fatTotalAlvo) * 100 : 0;
-
-        const taxaVendaLiquida = fatTotalAlvo > 0 ? (totalVendaLiquidaCalculada / fatTotalAlvo) : 1;
-        const pontoEquilibrioFat = taxaVendaLiquida > 0 ? (totalInvestimentoNecessario / taxaVendaLiquida) : totalInvestimentoNecessario;
-        const pontoEquilibrioKg = pVendaMedioPonderado > 0 ? (pontoEquilibrioFat / pVendaMedioPonderado) : 0;
+        const totalKgCalculado = calc.totalKg;
+        const totalPctAlocado = calc.totalPct;
+        const totalInvestimentoNecessario = calc.totalInvestimento;
 
         if (lblPct) {
-            lblPct.textContent = `${totalPctAlocado.toLocaleString('pt-BR', {minimumFractionDigits: 1, maximumFractionDigits: 1})}%`;
+            lblPct.textContent = `${fmtNum(totalPctAlocado, 1)}%`;
             lblPct.style.color = Math.abs(totalPctAlocado - 100) < 0.1 ? '#2AD07A' : '#ff4d4d';
         }
         if (lblKg) {
-            lblKg.textContent = `${totalKgCalculado.toLocaleString('pt-BR', {minimumFractionDigits: 1, maximumFractionDigits: 1})} kg`;
+            lblKg.textContent = `${fmtNum(totalKgCalculado, 1)} kg`;
         }
         if (lblInvest) {
-            lblInvest.textContent = `R$ ${totalInvestimentoNecessario.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            lblInvest.textContent = `R$ ${fmtNum(totalInvestimentoNecessario, 2)}`;
         }
 
-        // Atualizar TFOOT - Linha de TOTAIS
-        const ftTotPct = document.getElementById('plestv3-tfoot-tot-pct');
-        const ftTotFat = document.getElementById('plestv3-tfoot-tot-fat');
-        const ftTotPVenda = document.getElementById('plestv3-tfoot-tot-pvenda');
-        const ftTotVol = document.getElementById('plestv3-tfoot-tot-vol');
-        const ftTotPCompra = document.getElementById('plestv3-tfoot-tot-pcompra');
-        const ftTotInvest = document.getElementById('plestv3-tfoot-tot-invest');
+        const setText = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
 
-        if (ftTotPct) ftTotPct.textContent = `${totalPctAlocado.toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:1})}%`;
-        if (ftTotFat) ftTotFat.textContent = `R$ ${fatTotalAlvo.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
-        if (ftTotPVenda) ftTotPVenda.textContent = '—';
-        if (ftTotVol) ftTotVol.textContent = `${totalKgCalculado.toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:1})} kg`;
-        if (ftTotPCompra) ftTotPCompra.textContent = '—';
-        if (ftTotInvest) ftTotInvest.textContent = `R$ ${totalInvestimentoNecessario.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
+        // TFOOT - Linha de TOTAIS
+        setText('plestv3-tfoot-tot-pct', `${fmtNum(totalPctAlocado, 1)}%`);
+        setText('plestv3-tfoot-tot-fat', `R$ ${fmtNum(fatTotalAlvo, 2)}`);
+        setText('plestv3-tfoot-tot-pvenda', '—');
+        setText('plestv3-tfoot-tot-vol', `${fmtNum(totalKgCalculado, 1)} kg`);
+        setText('plestv3-tfoot-tot-pcompra', '—');
+        setText('plestv3-tfoot-tot-invest', `R$ ${fmtNum(totalInvestimentoNecessario, 2)}`);
 
-        // Atualizar TFOOT - Linha de MÉDIAS
-        const ftMedPct = document.getElementById('plestv3-tfoot-med-pct');
-        const ftMedFat = document.getElementById('plestv3-tfoot-med-fat');
-        const ftMedPVenda = document.getElementById('plestv3-tfoot-med-pvenda');
-        const ftMedVol = document.getElementById('plestv3-tfoot-med-vol');
-        const ftMedPCompra = document.getElementById('plestv3-tfoot-med-pcompra');
-        const ftMedInvest = document.getElementById('plestv3-tfoot-med-invest');
+        // TFOOT - Linha de MÉDIAS
+        setText('plestv3-tfoot-med-pct', `${fmtNum(totalPctAlocado / countItems, 1)}%`);
+        setText('plestv3-tfoot-med-fat', `R$ ${fmtNum(fatTotalAlvo / countItems, 2)}`);
+        setText('plestv3-tfoot-med-pvenda', `R$ ${window.fmtBRL(calc.precoVendaMedio)}`);
+        setText('plestv3-tfoot-med-vol', `${fmtNum(totalKgCalculado / countItems, 1)} kg`);
+        setText('plestv3-tfoot-med-pcompra', `R$ ${window.fmtBRL(calc.precoCompraMedio)}`);
+        setText('plestv3-tfoot-med-invest', `R$ ${fmtNum(totalInvestimentoNecessario / countItems, 2)}`);
 
-        if (ftMedPct) ftMedPct.textContent = `${medFracaoPct.toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:1})}%`;
-        if (ftMedFat) ftMedFat.textContent = `R$ ${medFatAlvo.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
-        if (ftMedPVenda) ftMedPVenda.textContent = `R$ ${window.fmtBRL(pVendaMedioPonderado)}`;
-        if (ftMedVol) ftMedVol.textContent = `${medVolKg.toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:1})} kg`;
-        if (ftMedPCompra) ftMedPCompra.textContent = `R$ ${window.fmtBRL(pCompraMedioPonderado)}`;
-        if (ftMedInvest) ftMedInvest.textContent = `R$ ${medInvestimento.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
+        // Card de Indicadores (Margem Bruta, Margem Líquida, Ponto de Equilíbrio)
+        setText('plestv3-ind-margem-bruta', `R$ ${fmtNum(calc.lucroBruto, 2)} (${fmtNum(calc.margemBrutaPct, 1)}%)`);
+        setText('plestv3-ind-margem-liquida', `R$ ${fmtNum(calc.lucroLiquido, 2)} (${fmtNum(calc.margemLiquidaPct, 1)}%)`);
+        setText('plestv3-ind-ponto-equilibrio', `R$ ${fmtNum(calc.pontoEquilibrioFat, 2)} (${fmtNum(calc.pontoEquilibrioKg, 1)} kg)`);
 
-        // Atualizar Card de Indicadores (Margem Bruta, Margem Líquida, Ponto de Equilíbrio)
-        const indBruta = document.getElementById('plestv3-ind-margem-bruta');
-        const indLiquida = document.getElementById('plestv3-ind-margem-liquida');
-        const indEquilibrio = document.getElementById('plestv3-ind-ponto-equilibrio');
-
-        if (indBruta) indBruta.textContent = `R$ ${lucroBruto.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})} (${margemBrutaPct.toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:1})}%)`;
-        if (indLiquida) indLiquida.textContent = `R$ ${lucroLiquido.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})} (${margemLiquidaPct.toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:1})}%)`;
-        if (indEquilibrio) indEquilibrio.textContent = `R$ ${pontoEquilibrioFat.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})} (${pontoEquilibrioKg.toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:1})} kg)`;
+        // Sensibilidade: o que acontece com este mesmo plano se os preços de mercado mudarem
+        const resSens = document.getElementById('plestv3-sensibilidade-resultado');
+        if (resSens) {
+            const choqueVenda = parseFloat(document.getElementById('plestv3-choque-venda')?.value) || 0;
+            const choqueCompra = parseFloat(document.getElementById('plestv3-choque-compra')?.value) || 0;
+            if (_mixSimulacaoV3.length === 0) {
+                resSens.textContent = 'Adicione produtos ao mix para simular variações de preço.';
+            } else if (choqueVenda === 0 && choqueCompra === 0) {
+                resSens.textContent = 'Informe uma variação (ex.: -5 no preço de venda) para ver o efeito sobre o lucro deste plano, mantendo os volumes.';
+            } else {
+                const cen = window.calcularMixAtualV3({ venda: choqueVenda, compra: choqueCompra });
+                const delta = cen.lucroLiquido - calc.lucroLiquido;
+                const cor = delta >= 0 ? '#2AD07A' : '#ff6b6b';
+                resSens.innerHTML = `Com os mesmos volumes, o faturamento vai a <strong>R$ ${fmtNum(cen.receita, 2)}</strong> e o lucro líquido a <strong style="color:${cen.lucroLiquido >= 0 ? '#2AD07A' : '#ff6b6b'};">R$ ${fmtNum(cen.lucroLiquido, 2)} (${fmtNum(cen.margemLiquidaPct, 1)}%)</strong>: <strong style="color:${cor};">${delta >= 0 ? '+' : '−'} R$ ${fmtNum(Math.abs(delta), 2)}</strong> em relação ao plano.`;
+            }
+        }
 
         // Feedback visual de alocação
         if (lblFeed && _mixSimulacaoV3.length > 0) {
@@ -567,18 +519,18 @@
                 lblFeed.style.background = 'rgba(42, 208, 122, 0.12)';
                 lblFeed.style.border = '1px solid rgba(42, 208, 122, 0.4)';
                 lblFeed.style.color = '#2AD07A';
-                lblFeed.innerHTML = `✅ Mix 100% alocado! Para atingir sua meta de <strong>R$ ${fatTotalAlvo.toLocaleString('pt-BR', {minimumFractionDigits:2})}</strong>, você precisa investir <strong>R$ ${totalInvestimentoNecessario.toLocaleString('pt-BR', {minimumFractionDigits:2})}</strong> em compras e adquirir <strong>${totalKgCalculado.toLocaleString('pt-BR', {minimumFractionDigits:1})} kg</strong> de material.`;
+                lblFeed.innerHTML = `✅ Mix 100% alocado! Para atingir sua meta de <strong>R$ ${fmtNum(fatTotalAlvo, 2)}</strong>, você precisa investir <strong>R$ ${fmtNum(totalInvestimentoNecessario, 2)}</strong> em compras e adquirir <strong>${fmtNum(calc.totalKgCompra, 1)} kg</strong> de material.`;
             } else if (diff < 0) {
                 lblFeed.style.background = 'rgba(255, 184, 0, 0.1)';
                 lblFeed.style.border = '1px solid rgba(255, 184, 0, 0.4)';
                 lblFeed.style.color = '#ffb74d';
                 const faltando = fatTotalAlvo * (Math.abs(diff) / 100);
-                lblFeed.innerHTML = `⚠️ Ainda faltam <strong>${Math.abs(diff).toLocaleString('pt-BR', {minimumFractionDigits:1})}%</strong> para atingir 100% do mix — equivale a <strong>R$ ${faltando.toLocaleString('pt-BR', {minimumFractionDigits:2})}</strong> de faturamento não coberto. Adicione mais produtos.`;
+                lblFeed.innerHTML = `⚠️ Ainda faltam <strong>${fmtNum(Math.abs(diff), 1)}%</strong> para atingir 100% do mix — equivale a <strong>R$ ${fmtNum(faltando, 2)}</strong> de faturamento não coberto. Adicione mais produtos.`;
             } else {
                 lblFeed.style.background = 'rgba(255, 77, 77, 0.1)';
                 lblFeed.style.border = '1px solid rgba(255, 77, 77, 0.4)';
                 lblFeed.style.color = '#ff4d4d';
-                lblFeed.innerHTML = `❌ Mix ultrapassou 100% em <strong>${diff.toLocaleString('pt-BR', {minimumFractionDigits:1})}%</strong>. Reduza as frações para não exceder a meta.`;
+                lblFeed.innerHTML = `❌ Mix ultrapassou 100% em <strong>${fmtNum(diff, 1)}%</strong>. Reduza as frações para não exceder a meta.`;
             }
         } else if (lblFeed) {
             lblFeed.style.display = 'none';
@@ -693,7 +645,36 @@
         document.getElementById('modal-rr-invest-real').value = '';
         document.getElementById('modal-rr-volume-real').value = '';
         document.getElementById('modal-rr-obs').value = '';
+        const infoPedidos = document.getElementById('modal-rr-pedidos-info');
+        if (infoPedidos) infoPedidos.textContent = '';
         modal.style.display = 'flex';
+    };
+
+    // Preenche o resultado real com a soma dos pedidos de venda e de compra do período do plano
+    window.buscarRealizadoPedidosV3 = async function() {
+        const cicloId = parseInt(document.getElementById('modal-rr-ciclo-id')?.value);
+        const info = document.getElementById('modal-rr-pedidos-info');
+        if (!cicloId) return;
+        if (info) info.textContent = 'Buscando pedidos do período...';
+        try {
+            const res = await fetch('/api/estrategiav3_planos/' + cicloId + '/realizado-pedidos', { cache: 'no-store' });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Erro ao buscar pedidos');
+            const t = data.totais;
+            const fmt = (v) => Number(v || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            document.getElementById('modal-rr-fat-real').value = fmt(t.faturamento_realizado);
+            document.getElementById('modal-rr-invest-real').value = fmt(t.investimento_realizado);
+            document.getElementById('modal-rr-volume-real').value = fmt(t.vendido_kg);
+            if (info) {
+                const fora = (t.faturamento_fora_do_mix > 0 || t.investimento_fora_do_mix > 0)
+                    ? ` Fora do mix no período: R$ ${fmt(t.faturamento_fora_do_mix)} em vendas e R$ ${fmt(t.investimento_fora_do_mix)} em compras (não somados).`
+                    : '';
+                info.textContent = `${data.criterio}${fora} Confira os valores antes de confirmar.`;
+            }
+        } catch (e) {
+            console.error(e);
+            if (info) info.textContent = 'Não foi possível buscar os pedidos: ' + e.message;
+        }
     };
 
     window.fecharModalResultadoRealV3 = function() {
@@ -1504,24 +1485,14 @@ window.excluirCicloV3 = async function(cicloId) {
         const payload = {
             titulo, data_inicial, data_final, frente, meta_faturamento: fatTotalAlvo,
             cenario_conservador_pct, cenario_moderado_pct, cenario_agressivo_pct,
-            mix: _mixSimulacaoV3.map(m => {
-                const faturamentoAlvo = fatTotalAlvo * (m.fracaoPct / 100);
-                let pRef = 0; let pCompra = 0;
-                const tp = _listTabelaPrecosEstrategica.find(x => x.material_id === m.material_id);
-                if (tp) {
-                    pRef = frente === 'venda' ? parseFloat(tp.preco_venda || tp.venda_ref || 0) : parseFloat(tp.preco_entregar || tp.preco_compra || 0);
-                    pCompra = frente === 'venda' ? parseFloat(tp.preco_entregar || tp.preco_compra || 0) : parseFloat(tp.preco_coletar || tp.preco_compra || 0);
-                }
-                const vol = pRef > 0 ? (faturamentoAlvo / pRef) : 0;
-                const invest = vol * pCompra;
-                return {
-                    material_id: m.material_id,
-                    fracao_pct: m.fracaoPct,
-                    volume_necessario: vol,
-                    faturamento_alvo: faturamentoAlvo,
-                    investimento_necessario: invest
-                };
-            })
+            mix: window.calcularMixAtualV3().linhas.map(l => ({
+                material_id: l.material_id,
+                fracao_pct: l.fracaoPct,
+                rendimento_pct: l.rendimentoPct,
+                volume_necessario: l.volumeKg,
+                faturamento_alvo: l.faturamentoAlvo,
+                investimento_necessario: l.investimento
+            }))
         };
 
         try {
@@ -1535,11 +1506,12 @@ window.excluirCicloV3 = async function(cicloId) {
                 if (navEstrategico) navEstrategico.click();
                 if (window.alternarSubAbaEstrategico) window.alternarSubAbaEstrategico('ativos');
             } else {
-                throw new Error('Falha ao salvar');
+                const erroApi = await res.json().catch(() => ({}));
+                throw new Error(erroApi.error || 'Não foi possível salvar a estratégia.');
             }
         } catch(e) {
             console.error(e);
-            _apexNotify('Erro', 'Não foi possível salvar a estratégia.', 'error');
+            _apexNotify('Erro', e.message || 'Não foi possível salvar a estratégia.', 'error');
         }
     };
 
@@ -2761,7 +2733,8 @@ window.excluirCicloV3 = async function(cicloId) {
         for (let p of produtosVenda) {
             if (alvoAtingido >= valorMeta) break; // Já bateu a meta
 
-            let margemReaisPorKg = parseFloat(p.preco_venda) - parseFloat(p.preco_compra);
+            // Lucro líquido por kg (após deduções), calculado no servidor pela regra única
+            let margemReaisPorKg = p.lucro_liquido_kg != null ? parseFloat(p.lucro_liquido_kg) : (parseFloat(p.preco_venda) - parseFloat(p.preco_compra));
             let fatReaisPorKg = parseFloat(p.preco_venda);
             
             // Quanto desse produto eu posso realisticamente vender num "Tiro Curto" (ex: Vender 3 meses da demanda dele)
@@ -3154,104 +3127,9 @@ window.excluirCicloV3 = async function(cicloId) {
         `;
     };
 
+    // Desativado: gravava lotes fictícios (fornecedores e preços fixos) na tabela real de planejamento de compras.
     window.gerarPrevisaoAutomaticaMes = async function() {
-        if (!_mesPlanejamentoEstrategicoSelecionado || _mesPlanejamentoEstrategicoSelecionado === 'todos') {
-            _apexNotify('Atenção', 'Selecione um mês específico (Ex: 10 - Outubro) na caixa de seleção para gerar a previsão.', 'warning');
-            return;
-        }
-
-        if (!confirm(`Deseja gerar uma simulação automática de lotes para o mês ${_mesPlanejamentoEstrategicoSelecionado}? Isso substituirá simulações anteriores deste mês.`)) {
-            return;
-        }
-
-        const btn = document.getElementById('btn-gerar-previsao-mes');
-        if (btn) {
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Gerando...';
-        }
-
-        try {
-            // Remove lotes antigos deste mes localmente e na API
-            const lotesParaRemover = (_localPlanejamentoEstrategico || []).filter(lc => lc.mes === _mesPlanejamentoEstrategicoSelecionado);
-            for (const lote of lotesParaRemover) {
-                if (lote.id) {
-                    await fetch(`/api/planejamento-compras/${lote.id}`, { method: 'DELETE' }).catch(() => {});
-                }
-            }
-            _localPlanejamentoEstrategico = _localPlanejamentoEstrategico.filter(lc => lc.mes !== _mesPlanejamentoEstrategicoSelecionado);
-
-            // Gerar 5 lotes simulados que refletem o mix da empresa (sucata, aluminio, fio, conectores)
-            const novosLotes = [
-                {
-                    fornecedor_id: 1, fornecedor_nome: 'Fornecedor A',
-                    produto: 'Sucata de Alumínio Misturada',
-                    peso_comprado: 15000, preco_compra: 5.50, percentual_rendimento: 85.0,
-                    material_id: 1, material_nome: 'Alumínio Bloco', preco_venda_material: 7.80,
-                    comissao: 2.0, fidc: 2.3, mes: _mesPlanejamentoEstrategicoSelecionado
-                },
-                {
-                    fornecedor_id: 2, fornecedor_nome: 'Reciclagem B',
-                    produto: 'Cobre Limpo Desmontado',
-                    peso_comprado: 8000, preco_compra: 38.00, percentual_rendimento: 98.0,
-                    material_id: 2, material_nome: 'Cobre Mel', preco_venda_material: 46.50,
-                    comissao: 2.0, fidc: 2.3, mes: _mesPlanejamentoEstrategicoSelecionado
-                },
-                {
-                    fornecedor_id: 3, fornecedor_nome: 'Metalúrgica C',
-                    produto: 'Lote Conectores & Tomadas',
-                    peso_comprado: 12000, preco_compra: 8.20, percentual_rendimento: 72.0,
-                    material_id: 3, material_nome: 'Latão/Bronze', preco_venda_material: 14.50,
-                    comissao: 2.0, fidc: 2.3, mes: _mesPlanejamentoEstrategicoSelecionado
-                },
-                {
-                    fornecedor_id: 4, fornecedor_nome: 'Fornecedor D',
-                    produto: 'fio misto',
-                    peso_comprado: 25000, preco_compra: 15.67, percentual_rendimento: 40.0,
-                    material_id: 2, material_nome: 'Cobre Mel', preco_venda_material: 46.50,
-                    comissao: 2.0, fidc: 2.3, mes: _mesPlanejamentoEstrategicoSelecionado
-                },
-                {
-                    fornecedor_id: 5, fornecedor_nome: 'Fornecedor E',
-                    produto: 'fio terminais',
-                    peso_comprado: 10000, preco_compra: 14.00, percentual_rendimento: 30.0,
-                    material_id: 2, material_nome: 'Cobre Mel', preco_venda_material: 46.50,
-                    comissao: 2.0, fidc: 2.3, mes: _mesPlanejamentoEstrategicoSelecionado
-                }
-            ];
-
-            for (const lote of novosLotes) {
-                const res = await fetch('/api/planejamento-compras', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(lote)
-                });
-                if (res.ok) {
-                    const salvo = await res.json();
-                    _localPlanejamentoEstrategico.push(salvo);
-                }
-            }
-
-            if (typeof _apexNotify === 'function') {
-                _apexNotify('Sucesso', 'Simulação automática gerada com sucesso!', 'success');
-            } else {
-                (window._apexNotify ? window._apexNotify('Notificação', 'Simulação automática gerada com sucesso!', 'info') : alert('Simulação automática gerada com sucesso!'));
-            }
-            
-            window.renderPlanejamentoMesEstrategico();
-
-        } catch (err) {
-            console.error(err);
-            if (typeof _apexNotify === 'function') {
-                _apexNotify('Erro', 'Falha ao gerar previsão automática', 'error');
-            } else {
-                (window._apexNotify ? window._apexNotify('Notificação', 'Falha ao gerar previsão automática', 'info') : alert('Falha ao gerar previsão automática'));
-            }
-        } finally {
-            if (btn) {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Gerar Simulação';
-            }
-        }
+        _apexNotify('Função desativada', 'A simulação automática foi removida porque gravava lotes fictícios no planejamento. Use o Forecast Estratégico, que parte dos pedidos reais.', 'warning');
     };
 
     window.exportarPlanejamentoMesEstrategicoPdf = async function() {
@@ -3407,8 +3285,12 @@ window.excluirCicloV3 = async function(cicloId) {
         const historicoFat = [];
         const historicoLucro = [];
 
-        // Assumindo uma margem líquida média do sistema (ex: 15% para simulação se não tiver do mix, mas vamos fixar 15% para o exercício)
-        const margemLiquidaSimulada = 0.15; 
+        // Usa a margem líquida do mix simulado; sem mix montado, cai no padrão de 15%
+        let mixAtual = null;
+        try { mixAtual = window.calcularMixAtualV3 ? window.calcularMixAtualV3() : null; } catch (e) {}
+        const usaMix = !!(mixAtual && mixAtual.receita > 0);
+        const margemLiquidaSimulada = usaMix ? mixAtual.margemLiquidaPct / 100 : 0.15;
+        const origemMargem = `margem líquida de ${(margemLiquidaSimulada * 100).toLocaleString('pt-BR', {maximumFractionDigits: 1})}% (${usaMix ? 'do mix simulado' : 'padrão, sem mix montado'})`;
 
         for (let i = 1; i <= 36; i++) {
             fatMes = fatMes * (1 + (crescPct / 100));
@@ -3437,7 +3319,7 @@ window.excluirCicloV3 = async function(cicloId) {
                     <strong style="color:#2AD07A; font-size:1.5rem;">${mesesParaPayback > 0 ? mesesParaPayback + ' meses' : '> 36 meses'}</strong>
                 </div>
                 <div style="background:#162433; padding:15px; border-radius:8px; border-left:4px solid #ffb74d;">
-                    <span style="color:#aaa; font-size:0.8rem; display:block;">ROI Esperado (12 meses)</span>
+                    <span style="color:#aaa; font-size:0.8rem; display:block;">ROI Esperado (12 meses) — ${origemMargem}</span>
                     <strong style="color:#ffb74d; font-size:1.5rem;">${((historicoLucro[11] / invest) * 100).toFixed(1)}%</strong>
                 </div>
             `;
