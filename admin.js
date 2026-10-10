@@ -4997,7 +4997,7 @@ window.fmtDecimal4 = function(val) {
         const badgesDiv = document.getElementById('mat-categoria-badges');
         if (!matCat) return;
         
-        let cats = ["Alumínio", "Cobre", "Tomada/Conectores", "Chumbo", "Latão/Bronze", "Zamac", "Aço", "Outros"];
+        let cats = ["Alumínio", "Cobre", "Tomada/Conectores", "Chumbo", "Latão/Bronze", "Zamac", "Aço", "Garimpos", "Outros"];
         if (settingsPrecos && settingsPrecos['categorias_materiais']) {
             try {
                 cats = JSON.parse(settingsPrecos['categorias_materiais']);
@@ -5017,11 +5017,11 @@ window.fmtDecimal4 = function(val) {
 
         // Renderiza badges visuais
         if (badgesDiv) {
-            const catsDefault = ["Alumínio", "Cobre", "Tomada/Conectores", "Chumbo", "Latão/Bronze", "Zamac", "Aço", "Outros"];
+            const catsDefault = ["Alumínio", "Cobre", "Tomada/Conectores", "Chumbo", "Latão/Bronze", "Zamac", "Aço", "Garimpos", "Outros"];
             const corPaleta = {
                 'Alumínio': '#5a92b5', 'Cobre': '#e07b39', 'Tomada/Conectores': '#d4b896',
                 'Aço': '#7ea374', 'Chumbo': '#7a8a99', 'Latão/Bronze': '#c8a240',
-                'Zamac': '#8a7ba8', 'Outros': '#6b7280'
+                'Zamac': '#8a7ba8', 'Garimpos': '#b8860b', 'Outros': '#6b7280'
             };
             badgesDiv.innerHTML = cats.map(cat => {
                 const cor = settingsPrecos && settingsPrecos[`cor_categoria_${cat}`]
@@ -5063,7 +5063,7 @@ window.fmtDecimal4 = function(val) {
         const trim = nova.trim();
         if (trim === '') return;
         
-        let cats = ["Alumínio", "Cobre", "Tomada/Conectores", "Chumbo", "Latão/Bronze", "Zamac", "Aço", "Outros"];
+        let cats = ["Alumínio", "Cobre", "Tomada/Conectores", "Chumbo", "Latão/Bronze", "Zamac", "Aço", "Garimpos", "Outros"];
         if (settingsPrecos && settingsPrecos['categorias_materiais']) {
             try { cats = JSON.parse(settingsPrecos['categorias_materiais']); } catch(e) {}
         }
@@ -5096,7 +5096,7 @@ window.fmtDecimal4 = function(val) {
             if (!confirm(`Excluir o grupo "${cat}"?`)) return;
         }
 
-        let cats = ["Alumínio", "Cobre", "Tomada/Conectores", "Chumbo", "Latão/Bronze", "Zamac", "Aço", "Outros"];
+        let cats = ["Alumínio", "Cobre", "Tomada/Conectores", "Chumbo", "Latão/Bronze", "Zamac", "Aço", "Garimpos", "Outros"];
         if (settingsPrecos && settingsPrecos['categorias_materiais']) {
             try { cats = JSON.parse(settingsPrecos['categorias_materiais']); } catch(e) {}
         }
@@ -5125,7 +5125,7 @@ window.fmtDecimal4 = function(val) {
         const trim = novoNome.trim();
 
         // Atualiza a lista de categorias
-        let cats = ["Alumínio", "Cobre", "Tomada/Conectores", "Chumbo", "Latão/Bronze", "Zamac", "Aço", "Outros"];
+        let cats = ["Alumínio", "Cobre", "Tomada/Conectores", "Chumbo", "Latão/Bronze", "Zamac", "Aço", "Garimpos", "Outros"];
         if (settingsPrecos && settingsPrecos['categorias_materiais']) {
             try { cats = JSON.parse(settingsPrecos['categorias_materiais']); } catch(e) {}
         }
@@ -5298,7 +5298,7 @@ window.fmtDecimal4 = function(val) {
         container.innerHTML = '';
 
         // Agrupar por categorias
-        let categorias = ["Alumínio", "Cobre", "Tomada/Conectores", "Chumbo", "Latão/Bronze", "Zamac", "Aço", "Outros"];
+        let categorias = ["Alumínio", "Cobre", "Tomada/Conectores", "Chumbo", "Latão/Bronze", "Zamac", "Aço", "Garimpos", "Outros"];
         if (settingsPrecos && settingsPrecos['categorias_materiais']) {
             try {
                 categorias = JSON.parse(settingsPrecos['categorias_materiais']);
@@ -5700,7 +5700,7 @@ window.fmtDecimal4 = function(val) {
     function gerarHtmlTabelaPrecosParaPdf(precos, dataUltimaAtualizacao, settings, logoBase64, modo = 'fornecedor') {
         const activeSettings = settings || settingsPrecos || {};
         const isCompleta = modo === 'completa';
-        let categorias = ["Alumínio", "Cobre", "Tomada/Conectores", "Chumbo", "Latão/Bronze", "Zamac", "Aço", "Outros"];
+        let categorias = ["Alumínio", "Cobre", "Tomada/Conectores", "Chumbo", "Latão/Bronze", "Zamac", "Aço", "Garimpos", "Outros"];
         if (activeSettings && activeSettings['categorias_materiais']) {
             try {
                 categorias = JSON.parse(activeSettings['categorias_materiais']);

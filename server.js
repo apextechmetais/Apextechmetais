@@ -166,34 +166,153 @@ const memStore = {
         { id: 1, razao_social: "Davi Reciclagem de Metais LTDA", nome_fantasia: "davi", cnpj: "12.345.678/0001-99", contato: "Davi", telefone: "(11) 98765-4321", email: "davi@apextech.com", endereco: "Av. da Reciclagem, 1000", observacoes: "Fornecedor Parceiro LME" }
     ],
     materiais_catalogo: [
-        { id: 1, nome: "Sucata de chaparia de alumínio", unidade: "kg", categoria: "Alumínio", cor: "#7eb3d5", ncm: "7602.00.00", observacoes: "" },
-        { id: 2, nome: "Sucata de alumínio bloco limpo", unidade: "kg", categoria: "Alumínio", cor: "#5a92b5", ncm: "7602.00.00", observacoes: "" },
-        { id: 3, nome: "Sucata de alumínio roda", unidade: "kg", categoria: "Alumínio", cor: "#3b6d8c", ncm: "7602.00.00", observacoes: "" },
-        { id: 4, nome: "Sucata de radiador de alumínio e cobre", unidade: "kg", categoria: "Alumínio", cor: "#3b6d8a", ncm: "7602.00.00", observacoes: "" },
-        { id: 5, nome: "Sucata de cobre 1", unidade: "kg", categoria: "Cobre", cor: "#e07b39", ncm: "7404.00.00", observacoes: "" },
-        { id: 6, nome: "Sucata de cobre 2", unidade: "kg", categoria: "Cobre", cor: "#c25e20", ncm: "7404.00.00", observacoes: "" },
-        { id: 7, nome: "Sucata de cobre 4", unidade: "kg", categoria: "Cobre", cor: "#a3450c", ncm: "7404.00.00", observacoes: "" },
-        { id: 8, nome: "Sucata de fio de internet", unidade: "kg", categoria: "Cobre", cor: "#b0a0c0", ncm: "7404.00.00", observacoes: "" },
-        { id: 9, nome: "Sucata de fio de instalação", unidade: "kg", categoria: "Cobre", cor: "#8a7ba8", ncm: "7404.00.00", observacoes: "" },
-        { id: 10, nome: "Sucata de fio PP", unidade: "kg", categoria: "Cobre", cor: "#685b8c", ncm: "7404.00.00", observacoes: "" },
-        { id: 11, nome: "Sucata de tomada e conectores", unidade: "kg", categoria: "Tomada/Conectores", cor: "#d4b896", ncm: "7404.00.00", observacoes: "" },
-        { id: 12, nome: "Sucata de aço 201", unidade: "kg", categoria: "Aço", cor: "#a8c5a0", ncm: "7204.21.00", observacoes: "" },
-        { id: 13, nome: "Sucata de aço inox", unidade: "kg", categoria: "Aço", cor: "#7ea374", ncm: "7204.21.00", observacoes: "" },
-        { id: 14, nome: "Sucata de cavaco de aço inox", unidade: "kg", categoria: "Aço", cor: "#5a8050", ncm: "7204.21.00", observacoes: "" },
-        { id: 15, nome: "Plástico", unidade: "kg", categoria: "Outros", cor: "#cccccc", ncm: "3915.90.00", observacoes: "Resíduos e isolamentos" }
+        // ── ALUMÍNIO (17 itens) ──
+        { id: 1,  nome: "Sucata de aluminio bloco 50%", unidade: "kg", categoria: "Alumínio", cor: "#5a92b5", ncm: "7602.00.00", observacoes: "" },
+        { id: 2,  nome: "Sucata de alumínio bloco limpo", unidade: "kg", categoria: "Alumínio", cor: "#5a92b5", ncm: "7602.00.00", observacoes: "" },
+        { id: 3,  nome: "Sucata de aluminio bloco misto", unidade: "kg", categoria: "Alumínio", cor: "#5a92b5", ncm: "7602.00.00", observacoes: "" },
+        { id: 4,  nome: "Sucata de aluminio embraer", unidade: "kg", categoria: "Alumínio", cor: "#5a92b5", ncm: "7602.00.00", observacoes: "" },
+        { id: 5,  nome: "Sucata de aluminio estamparia", unidade: "kg", categoria: "Alumínio", cor: "#5a92b5", ncm: "7602.00.00", observacoes: "" },
+        { id: 6,  nome: "Sucata de aluminio latinha", unidade: "kg", categoria: "Alumínio", cor: "#5a92b5", ncm: "7602.00.00", observacoes: "" },
+        { id: 7,  nome: "Sucata de aluminio panela", unidade: "kg", categoria: "Alumínio", cor: "#5a92b5", ncm: "7602.00.00", observacoes: "" },
+        { id: 8,  nome: "Sucata de aluminio perfil limpo", unidade: "kg", categoria: "Alumínio", cor: "#5a92b5", ncm: "7602.00.00", observacoes: "" },
+        { id: 9,  nome: "Sucata de aluminio perfil misto", unidade: "kg", categoria: "Alumínio", cor: "#5a92b5", ncm: "7602.00.00", observacoes: "" },
+        { id: 10, nome: "Sucata de aluminio perfil pintado", unidade: "kg", categoria: "Alumínio", cor: "#5a92b5", ncm: "7602.00.00", observacoes: "" },
+        { id: 11, nome: "Sucata de aluminio roda", unidade: "kg", categoria: "Alumínio", cor: "#5a92b5", ncm: "7602.00.00", observacoes: "" },
+        { id: 12, nome: "Sucata de cavaco aluminio", unidade: "kg", categoria: "Alumínio", cor: "#5a92b5", ncm: "7602.00.00", observacoes: "" },
+        { id: 13, nome: "Sucata de chaparia de alumínio", unidade: "kg", categoria: "Alumínio", cor: "#5a92b5", ncm: "7602.00.00", observacoes: "" },
+        { id: 14, nome: "Sucata de off set", unidade: "kg", categoria: "Alumínio", cor: "#5a92b5", ncm: "7602.00.00", observacoes: "" },
+        { id: 15, nome: "Sucata de ponta de perfil", unidade: "kg", categoria: "Alumínio", cor: "#5a92b5", ncm: "7602.00.00", observacoes: "" },
+        { id: 16, nome: "Sucata de radiador de alumínio", unidade: "kg", categoria: "Alumínio", cor: "#5a92b5", ncm: "7602.00.00", observacoes: "" },
+        { id: 17, nome: "Sucata de radiador de alumínio e cobre", unidade: "kg", categoria: "Alumínio", cor: "#5a92b5", ncm: "7602.00.00", observacoes: "" },
+
+        // ── COBRE (10 itens) ──
+        { id: 18, nome: "Sucata de Cabos Flats", unidade: "kg", categoria: "Cobre", cor: "#e07b39", ncm: "7404.00.00", observacoes: "" },
+        { id: 19, nome: "Sucata de cavaco de cobre", unidade: "kg", categoria: "Cobre", cor: "#e07b39", ncm: "7404.00.00", observacoes: "" },
+        { id: 20, nome: "Sucata de cobre 1", unidade: "kg", categoria: "Cobre", cor: "#e07b39", ncm: "7404.00.00", observacoes: "" },
+        { id: 21, nome: "Sucata de cobre 2", unidade: "kg", categoria: "Cobre", cor: "#e07b39", ncm: "7404.00.00", observacoes: "" },
+        { id: 22, nome: "Sucata de cobre 4", unidade: "kg", categoria: "Cobre", cor: "#e07b39", ncm: "7404.00.00", observacoes: "" },
+        { id: 23, nome: "Sucata de fio de instalação", unidade: "kg", categoria: "Cobre", cor: "#e07b39", ncm: "7404.00.00", observacoes: "" },
+        { id: 24, nome: "Sucata de fio de internet", unidade: "kg", categoria: "Cobre", cor: "#e07b39", ncm: "7404.00.00", observacoes: "" },
+        { id: 25, nome: "Sucata de fio misto limpo", unidade: "kg", categoria: "Cobre", cor: "#e07b39", ncm: "7404.00.00", observacoes: "" },
+        { id: 26, nome: "Sucata de fio misto sujo (ELETRÔNICO)", unidade: "kg", categoria: "Cobre", cor: "#e07b39", ncm: "7404.00.00", observacoes: "" },
+        { id: 27, nome: "Sucata de fio PP", unidade: "kg", categoria: "Cobre", cor: "#e07b39", ncm: "7404.00.00", observacoes: "" },
+
+        // ── TOMADA/CONECTORES (3 itens) ──
+        { id: 28, nome: "Sucata de cooler", unidade: "kg", categoria: "Tomada/Conectores", cor: "#d4b896", ncm: "7404.00.00", observacoes: "" },
+        { id: 29, nome: "Sucata de disjuntores", unidade: "kg", categoria: "Tomada/Conectores", cor: "#d4b896", ncm: "7404.00.00", observacoes: "" },
+        { id: 30, nome: "Sucata de tomada e conectores", unidade: "kg", categoria: "Tomada/Conectores", cor: "#d4b896", ncm: "7404.00.00", observacoes: "" },
+
+        // ── CHUMBO (7 itens) ──
+        { id: 31, nome: "Sucata de bateria", unidade: "kg", categoria: "Chumbo", cor: "#7a8a99", ncm: "7802.00.00", observacoes: "" },
+        { id: 32, nome: "Sucata de chumbo de roda", unidade: "kg", categoria: "Chumbo", cor: "#7a8a99", ncm: "7802.00.00", observacoes: "" },
+        { id: 33, nome: "Sucata de chumbo duro", unidade: "kg", categoria: "Chumbo", cor: "#7a8a99", ncm: "7802.00.00", observacoes: "" },
+        { id: 34, nome: "Sucata de chumbo estatua", unidade: "kg", categoria: "Chumbo", cor: "#7a8a99", ncm: "7802.00.00", observacoes: "" },
+        { id: 35, nome: "Sucata de chumbo linotipo", unidade: "kg", categoria: "Chumbo", cor: "#7a8a99", ncm: "7802.00.00", observacoes: "" },
+        { id: 36, nome: "Sucata de chumbo misto", unidade: "kg", categoria: "Chumbo", cor: "#7a8a99", ncm: "7802.00.00", observacoes: "" },
+        { id: 37, nome: "Sucata de chumbo mole", unidade: "kg", categoria: "Chumbo", cor: "#7a8a99", ncm: "7802.00.00", observacoes: "" },
+
+        // ── LATÃO/BRONZE (8 itens) ──
+        { id: 38, nome: "Sucata de bronze", unidade: "kg", categoria: "Latão/Bronze", cor: "#c8a240", ncm: "7404.00.00", observacoes: "" },
+        { id: 39, nome: "Sucata de cavaco de bronze", unidade: "kg", categoria: "Latão/Bronze", cor: "#c8a240", ncm: "7404.00.00", observacoes: "" },
+        { id: 40, nome: "Sucata de cavaco de metal", unidade: "kg", categoria: "Latão/Bronze", cor: "#c8a240", ncm: "7404.00.00", observacoes: "" },
+        { id: 41, nome: "Sucata de cavaco de vergalhão", unidade: "kg", categoria: "Latão/Bronze", cor: "#c8a240", ncm: "7404.00.00", observacoes: "" },
+        { id: 42, nome: "Sucata de latão estamparia", unidade: "kg", categoria: "Latão/Bronze", cor: "#c8a240", ncm: "7404.00.00", observacoes: "" },
+        { id: 43, nome: "Sucata de metal", unidade: "kg", categoria: "Latão/Bronze", cor: "#c8a240", ncm: "7404.00.00", observacoes: "" },
+        { id: 44, nome: "Sucata de ponta de vergalhão", unidade: "kg", categoria: "Latão/Bronze", cor: "#c8a240", ncm: "7404.00.00", observacoes: "" },
+        { id: 45, nome: "Sucata de radiador de metal", unidade: "kg", categoria: "Latão/Bronze", cor: "#c8a240", ncm: "7404.00.00", observacoes: "" },
+
+        // ── ZAMAC (4 itens) ──
+        { id: 46, nome: "Sucata de borra de zamac", unidade: "kg", categoria: "Zamac", cor: "#8a7ba8", ncm: "7902.00.00", observacoes: "" },
+        { id: 47, nome: "Sucata de cavaco de zamac", unidade: "kg", categoria: "Zamac", cor: "#8a7ba8", ncm: "7902.00.00", observacoes: "" },
+        { id: 48, nome: "Sucata de zamac", unidade: "kg", categoria: "Zamac", cor: "#8a7ba8", ncm: "7902.00.00", observacoes: "" },
+        { id: 49, nome: "Sucata de zamac gg", unidade: "kg", categoria: "Zamac", cor: "#8a7ba8", ncm: "7902.00.00", observacoes: "" },
+
+        // ── AÇO (4 itens) ──
+        { id: 50, nome: "Sucata de aço 201", unidade: "kg", categoria: "Aço", cor: "#7ea374", ncm: "7204.21.00", observacoes: "" },
+        { id: 51, nome: "Sucata de aco ferroso 430", unidade: "kg", categoria: "Aço", cor: "#7ea374", ncm: "7204.21.00", observacoes: "" },
+        { id: 52, nome: "Sucata de aço inox", unidade: "kg", categoria: "Aço", cor: "#7ea374", ncm: "7204.21.00", observacoes: "" },
+        { id: 53, nome: "Sucata de cavaco de aço inox", unidade: "kg", categoria: "Aço", cor: "#7ea374", ncm: "7204.21.00", observacoes: "" },
+
+        // ── GARIMPOS (3 itens) ──
+        { id: 54, nome: "Sucata de induzidos", unidade: "kg", categoria: "Garimpos", cor: "#b8860b", ncm: "7404.00.00", observacoes: "" },
+        { id: 55, nome: "Sucata de Motorzinhos Eletrônicos", unidade: "kg", categoria: "Garimpos", cor: "#b8860b", ncm: "7404.00.00", observacoes: "" },
+        { id: 56, nome: "Sucata de transformadores Cobre", unidade: "kg", categoria: "Garimpos", cor: "#b8860b", ncm: "7404.00.00", observacoes: "" },
+
+        // ── OUTROS ──
+        { id: 57, nome: "Plástico", unidade: "kg", categoria: "Outros", cor: "#cccccc", ncm: "3915.90.00", observacoes: "Resíduos e isolamentos" }
     ],
     tabela_precos: [
-        { id: 1, material_id: 1, preco_entregar: 11.30, preco_coletar: 11.00, venda_ref: 12.80, validade: "2026-12-31" },
-        { id: 2, material_id: 2, preco_entregar: 11.00, preco_coletar: 10.80, venda_ref: 12.30, validade: "2026-12-31" },
-        { id: 3, material_id: 3, preco_entregar: 16.00, preco_coletar: 15.50, venda_ref: 17.50, validade: "2026-12-31" },
-        { id: 4, material_id: 4, preco_entregar: 33.50, preco_coletar: 33.00, venda_ref: 37.00, validade: "2026-12-31" },
-        { id: 5, material_id: 5, preco_entregar: 68.00, preco_coletar: 67.50, venda_ref: 70.00, validade: "2026-12-31" },
-        { id: 8, material_id: 8, preco_entregar: 19.00, preco_coletar: 18.50, venda_ref: 28.10, validade: "2026-12-31" },
-        { id: 10, material_id: 10, preco_entregar: 15.00, preco_coletar: 14.50, venda_ref: 23.20, validade: "2026-12-31" },
-        { id: 11, material_id: 11, preco_entregar: 4.30, preco_coletar: 4.10, venda_ref: 10.29, validade: "2026-12-31" },
-        { id: 12, material_id: 12, preco_entregar: 0.80, preco_coletar: 0.70, venda_ref: 1.60, validade: "2026-12-31" },
-        { id: 13, material_id: 13, preco_entregar: 4.50, preco_coletar: 4.30, venda_ref: 5.70, validade: "2026-12-31" },
-        { id: 14, material_id: 14, preco_entregar: 4.00, preco_coletar: 3.80, venda_ref: 5.30, validade: "2026-12-31" }
+        // ── ALUMÍNIO ──
+        { id: 1,  material_id: 1,  preco_entregar: 6.50,  preco_coletar: 6.30,  venda_ref: 7.50,  validade: "2026-10-16", comissao: 0.50, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+        { id: 2,  material_id: 2,  preco_entregar: 10.50, preco_coletar: 10.20, venda_ref: 11.60, validade: "2026-10-16", comissao: 0.50, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.10 },
+        { id: 3,  material_id: 3,  preco_entregar: 8.80,  preco_coletar: 8.60,  venda_ref: 9.90,  validade: "2026-10-16", comissao: 0.50, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.10 },
+        { id: 4,  material_id: 4,  preco_entregar: 10.30, preco_coletar: 10.10, venda_ref: 12.00, validade: "2026-10-16", comissao: 0.50, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.20 },
+        { id: 5,  material_id: 5,  preco_entregar: 12.00, preco_coletar: 11.80, venda_ref: 13.00, validade: "2026-10-16", comissao: 0.50, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.10 },
+        { id: 6,  material_id: 6,  preco_entregar: 12.20, preco_coletar: 12.00, venda_ref: 13.20, validade: "2026-10-16", comissao: 0.50, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+        { id: 7,  material_id: 7,  preco_entregar: 12.50, preco_coletar: 12.20, venda_ref: 14.00, validade: "2026-10-16", comissao: 0.50, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+        { id: 8,  material_id: 8,  preco_entregar: 15.00, preco_coletar: 14.80, venda_ref: 16.20, validade: "2026-10-16", comissao: 0.50, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+        { id: 9,  material_id: 9,  preco_entregar: 11.80, preco_coletar: 11.50, venda_ref: 12.80, validade: "2026-10-16", comissao: 0.50, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+        { id: 10, material_id: 10, preco_entregar: 13.80, preco_coletar: 13.50, venda_ref: 14.80, validade: "2026-10-16", comissao: 0.50, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+        { id: 11, material_id: 11, preco_entregar: 14.50, preco_coletar: 14.20, venda_ref: 16.50, validade: "2026-10-16", comissao: 0.50, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+        { id: 12, material_id: 12, preco_entregar: 7.00,  preco_coletar: 6.80,  venda_ref: 9.00,  validade: "2026-10-16", comissao: 0.50, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+        { id: 13, material_id: 13, preco_entregar: 10.00, preco_coletar: 9.80,  venda_ref: 11.00, validade: "2026-10-16", comissao: 0.50, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+        { id: 14, material_id: 14, preco_entregar: 12.50, preco_coletar: 12.20, venda_ref: 13.50, validade: "2026-10-16", comissao: 0.50, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+        { id: 15, material_id: 15, preco_entregar: 6.50,  preco_coletar: 6.20,  venda_ref: 8.50,  validade: "2026-10-16", comissao: 0.50, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+        { id: 16, material_id: 16, preco_entregar: 10.30, preco_coletar: 10.10, venda_ref: 11.70, validade: "2026-10-16", comissao: 0.50, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+        { id: 17, material_id: 17, preco_entregar: 35.00, preco_coletar: 34.50, venda_ref: 37.00, validade: "2026-10-16", comissao: 0.50, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+
+        // ── COBRE ──
+        { id: 18, material_id: 18, preco_entregar: 8.00,  preco_coletar: 7.80,  venda_ref: 14.74, validade: "2026-10-16", comissao: 2.00, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+        { id: 19, material_id: 19, preco_entregar: 54.00, preco_coletar: 53.50, venda_ref: 60.00, validade: "2026-10-16", comissao: 0.20, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+        { id: 20, material_id: 20, preco_entregar: 66.60, preco_coletar: 66.10, venda_ref: 69.00, validade: "2026-10-16", comissao: 0.20, pis_cofins: 0.0, fidc: 0.00, icms: 0.0, frete_coleta: 0.00 },
+        { id: 21, material_id: 21, preco_entregar: 62.00, preco_coletar: 61.70, venda_ref: 64.00, validade: "2026-10-16", comissao: 0.20, pis_cofins: 0.0, fidc: 0.00, icms: 0.0, frete_coleta: 0.00 },
+        { id: 22, material_id: 22, preco_entregar: 53.00, preco_coletar: 52.50, venda_ref: 59.00, validade: "2026-10-16", comissao: 0.20, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.40 },
+        { id: 23, material_id: 23, preco_entregar: 38.00, preco_coletar: 37.50, venda_ref: 42.78, validade: "2026-10-16", comissao: 0.50, pis_cofins: 0.0, fidc: 0.00, icms: 0.0, frete_coleta: 0.00 },
+        { id: 24, material_id: 24, preco_entregar: 19.00, preco_coletar: 18.50, venda_ref: 31.00, validade: "2026-10-16", comissao: 2.00, pis_cofins: 0.0, fidc: 0.00, icms: 0.0, frete_coleta: 0.00 },
+        { id: 25, material_id: 25, preco_entregar: 18.00, preco_coletar: 17.50, venda_ref: 23.50, validade: "2026-10-16", comissao: 2.00, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+        { id: 26, material_id: 26, preco_entregar: 12.50, preco_coletar: 12.20, venda_ref: 19.20, validade: "2026-10-16", comissao: 2.00, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+        { id: 27, material_id: 27, preco_entregar: 16.50, preco_coletar: 16.00, venda_ref: 24.15, validade: "2026-10-16", comissao: 2.00, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+
+        // ── TOMADA/CONECTORES ──
+        { id: 28, material_id: 28, preco_entregar: 1.70,  preco_coletar: 1.50,  venda_ref: 4.50,  validade: "2026-10-16", comissao: 4.00, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+        { id: 29, material_id: 29, preco_entregar: 4.30,  preco_coletar: 4.10,  venda_ref: 10.07, validade: "2026-10-16", comissao: 4.00, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+        { id: 30, material_id: 30, preco_entregar: 4.50,  preco_coletar: 4.20,  venda_ref: 11.13, validade: "2026-10-16", comissao: 4.00, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+
+        // ── CHUMBO ──
+        { id: 31, material_id: 31, preco_entregar: 4.00,  preco_coletar: 3.70,  venda_ref: 4.50,  validade: "2026-10-16", comissao: 0.50, pis_cofins: 0.0, fidc: 0.00, icms: 0.0, frete_coleta: 0.00 },
+        { id: 32, material_id: 32, preco_entregar: 6.00,  preco_coletar: 5.70,  venda_ref: 7.50,  validade: "2026-10-16", comissao: 0.50, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+        { id: 33, material_id: 33, preco_entregar: 6.50,  preco_coletar: 6.20,  venda_ref: 7.50,  validade: "2026-10-16", comissao: 0.50, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+        { id: 34, material_id: 34, preco_entregar: 5.50,  preco_coletar: 5.20,  venda_ref: 6.80,  validade: "2026-10-16", comissao: 0.50, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+        { id: 35, material_id: 35, preco_entregar: 10.50, preco_coletar: 10.00, venda_ref: 13.50, validade: "2026-10-16", comissao: 0.50, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+        { id: 36, material_id: 36, preco_entregar: 7.00,  preco_coletar: 6.70,  venda_ref: 8.00,  validade: "2026-10-16", comissao: 0.50, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+        { id: 37, material_id: 37, preco_entregar: 9.00,  preco_coletar: 8.80,  venda_ref: 10.30, validade: "2026-10-16", comissao: 0.50, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+
+        // ── LATÃO/BRONZE ──
+        { id: 38, material_id: 38, preco_entregar: 52.00, preco_coletar: 51.50, venda_ref: 57.00, validade: "2026-10-16", comissao: 0.20, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+        { id: 39, material_id: 39, preco_entregar: 42.00, preco_coletar: 41.50, venda_ref: 47.00, validade: "2026-10-16", comissao: 0.20, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+        { id: 40, material_id: 40, preco_entregar: 30.00, preco_coletar: 29.50, venda_ref: 36.00, validade: "2026-10-16", comissao: 0.20, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+        { id: 41, material_id: 41, preco_entregar: 32.50, preco_coletar: 32.00, venda_ref: 36.00, validade: "2026-10-16", comissao: 0.20, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+        { id: 42, material_id: 42, preco_entregar: 46.00, preco_coletar: 45.50, venda_ref: 51.00, validade: "2026-10-16", comissao: 0.20, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+        { id: 43, material_id: 43, preco_entregar: 41.00, preco_coletar: 40.50, venda_ref: 43.50, validade: "2026-10-16", comissao: 0.20, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+        { id: 44, material_id: 44, preco_entregar: 42.80, preco_coletar: 42.50, venda_ref: 47.00, validade: "2026-10-16", comissao: 0.20, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+        { id: 45, material_id: 45, preco_entregar: 40.00, preco_coletar: 39.50, venda_ref: 43.50, validade: "2026-10-16", comissao: 0.20, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+
+        // ── ZAMAC ──
+        { id: 46, material_id: 46, preco_entregar: 11.00, preco_coletar: 10.70, venda_ref: 15.00, validade: "2026-10-16", comissao: 0.50, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+        { id: 47, material_id: 47, preco_entregar: 9.00,  preco_coletar: 8.80,  venda_ref: 13.00, validade: "2026-10-16", comissao: 0.50, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+        { id: 48, material_id: 48, preco_entregar: 13.00, preco_coletar: 12.80, venda_ref: 14.50, validade: "2026-10-16", comissao: 0.50, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+        { id: 49, material_id: 49, preco_entregar: 5.50,  preco_coletar: 5.20,  venda_ref: 7.50,  validade: "2026-10-16", comissao: 0.50, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+
+        // ── AÇO ──
+        { id: 50, material_id: 50, preco_entregar: 0.80,  preco_coletar: 0.70,  venda_ref: 1.60,  validade: "2026-10-16", comissao: 0.50, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+        { id: 51, material_id: 51, preco_entregar: 0.80,  preco_coletar: 0.70,  venda_ref: 1.20,  validade: "2026-10-16", comissao: 0.50, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+        { id: 52, material_id: 52, preco_entregar: 4.50,  preco_coletar: 4.30,  venda_ref: 5.70,  validade: "2026-10-16", comissao: 0.50, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+        { id: 53, material_id: 53, preco_entregar: 4.00,  preco_coletar: 3.80,  venda_ref: 5.30,  validade: "2026-10-16", comissao: 0.50, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+
+        // ── GARIMPOS ──
+        { id: 54, material_id: 54, preco_entregar: 7.30,  preco_coletar: 6.80,  venda_ref: 11.16, validade: "2026-10-16", comissao: 2.00, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+        { id: 55, material_id: 55, preco_entregar: 2.00,  preco_coletar: 1.90,  venda_ref: 3.80,  validade: "2026-10-16", comissao: 2.00, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 },
+        { id: 56, material_id: 56, preco_entregar: 5.50,  preco_coletar: 5.30,  venda_ref: 9.92,  validade: "2026-10-16", comissao: 2.00, pis_cofins: 0.0, fidc: 2.30, icms: 0.0, frete_coleta: 0.00 }
     ],
     amostras: [
         { id: 1, numero_amostra: "AM-001", nome_material: "Fio de Instalação 1.5mm", data: "2026-07-15", fornecedor_id: 1, responsavel: "Eng. Roberto", peso_inicial: 5000, status: "Processado", observacoes: "Fio de Instalação do Fornecedor davi", foto_original: "assets/img/photo-1595246140625-573b715d11dc.jpg" },
@@ -1099,25 +1218,43 @@ async function initDatabase() {
             console.log('✅ Fornecedores e amostras semeados.');
         }
 
-        // Seed materiais_catalogo — SEMPRE (ON CONFLICT protege dados existentes)
+        // Seed materiais_catalogo — SEMPRE (ON CONFLICT atualiza dados existentes com tabela vigente)
         {
             const mats = memStore.materiais_catalogo;
             for (const m of mats) {
                 await client.query(`
                     INSERT INTO materiais_catalogo (id, nome, unidade, categoria, cor, ncm, observacoes)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (id) DO NOTHING;
+                    VALUES ($1, $2, $3, $4, $5, $6, $7)
+                    ON CONFLICT (id) DO UPDATE SET
+                        nome = EXCLUDED.nome,
+                        unidade = EXCLUDED.unidade,
+                        categoria = EXCLUDED.categoria,
+                        cor = EXCLUDED.cor,
+                        ncm = EXCLUDED.ncm,
+                        observacoes = EXCLUDED.observacoes;
                 `, [m.id, m.nome, m.unidade, m.categoria, m.cor, m.ncm, m.observacoes]);
             }
             console.log('✅ Catálogo de materiais verificado/semeado.');
         }
 
-        // Seed tabela_precos — SEMPRE (ON CONFLICT protege dados existentes)
+        // Seed tabela_precos — SEMPRE (ON CONFLICT atualiza dados existentes com tabela vigente)
         {
             const precos = memStore.tabela_precos;
             for (const p of precos) {
                 await client.query(`
                     INSERT INTO tabela_precos (id, material_id, preco_entregar, preco_coletar, venda_ref, validade, comissao, pis_cofins, fidc, icms, frete_coleta)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) ON CONFLICT (id) DO NOTHING;
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                    ON CONFLICT (id) DO UPDATE SET
+                        material_id = EXCLUDED.material_id,
+                        preco_entregar = EXCLUDED.preco_entregar,
+                        preco_coletar = EXCLUDED.preco_coletar,
+                        venda_ref = EXCLUDED.venda_ref,
+                        validade = EXCLUDED.validade,
+                        comissao = EXCLUDED.comissao,
+                        pis_cofins = EXCLUDED.pis_cofins,
+                        fidc = EXCLUDED.fidc,
+                        icms = EXCLUDED.icms,
+                        frete_coleta = EXCLUDED.frete_coleta;
                 `, [p.id, p.material_id, p.preco_entregar, p.preco_coletar, p.venda_ref, p.validade,
                     p.comissao||0, p.pis_cofins||0, p.fidc||0, p.icms||0, p.frete_coleta||0]);
             }
