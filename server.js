@@ -1300,6 +1300,8 @@ const authMiddleware = (req, res, next) => {
     ];
     // Configurações do site são públicas (para temas, ocultar menus etc)
     if (req.path === '/settings' && req.method === 'GET') return next();
+    // Imagens do site (trocadas pelo administrador) são exibidas nas páginas públicas
+    if (req.method === 'GET' && /^\/site-imagens\/[a-z0-9-]+$/.test(req.path)) return next();
     // Notícias e galeria são exibidas no site público (somente leitura)
     if (req.method === 'GET' && (req.path === '/noticias' || req.path === '/galeria')) return next();
     // Rotas de cotação LME são públicas (usadas na página cotacoes.html e home sem login)
@@ -4904,6 +4906,123 @@ app.put('/api/settings', async (req, res) => {
     } catch (err) {
         console.error('Erro PUT /api/settings:', err);
         res.status(500).json({ error: 'Erro ao salvar configurações.' });
+    }
+});
+
+// ─── API: Imagens do site (fotos fixas das páginas, trocáveis pelo administrador) ─────
+// Cada "espaço" tem uma imagem padrão do projeto; o administrador pode enviar outra no lugar.
+const SITE_IMAGENS = {
+    'home-compramos':  { rotulo: 'Página inicial — foto da seção "O que compramos de você"', padrao: '/assets/img/img-transformando-residuos.webp' },
+    'sobre-principal': { rotulo: 'Sobre — foto ao lado do texto de apresentação',            padrao: '/assets/img/img-transformando-residuos.webp' }
+};
+const SITE_IMAGEM_TIPOS = ['image/jpeg', 'image/png', 'image/webp'];
+const SITE_IMAGEM_MAX_BYTES = 5 * 1024 * 1024;
+
+// A tabela é criada no primeiro uso, fora do initDatabase, para que uma falha aqui afete só este recurso
+let _siteImagensPronta = null;
+function garantirTabelaSiteImagens() {
+    if (!_siteImagensPronta) {
+        _siteImagensPronta = pool.query(`
+            CREATE TABLE IF NOT EXISTS site_imagens (
+                slot          TEXT PRIMARY KEY,
+                mimetype      TEXT NOT NULL,
+                data_b64      TEXT NOT NULL,
+                atualizado_em TIMESTAMP DEFAULT NOW()
+            )
+        `).catch(err => { _siteImagensPronta = null; throw err; });
+    }
+    return _siteImagensPronta;
+}
+
+async function buscarSiteImagem(slot) {
+    if (dbAvailable && pool) {
+        await garantirTabelaSiteImagens();
+        const r = await pool.query('SELECT mimetype, data_b64, atualizado_em FROM site_imagens WHERE slot = $1', [slot]);
+        return r.rows[0] || null;
+    }
+    return (memStore.site_imagens || {})[slot] || null;
+}
+
+// Pública: devolve a imagem enviada pelo administrador ou redireciona para a imagem padrão
+app.get('/api/site-imagens/:slot', async (req, res) => {
+    const slot = req.params.slot;
+    const definicao = SITE_IMAGENS[slot];
+    if (!definicao) return res.status(404).json({ error: 'Imagem não encontrada.' });
+    try {
+        const img = await buscarSiteImagem(slot);
+        if (!img) return res.redirect(302, definicao.padrao);
+        const buf = Buffer.from(img.data_b64, 'base64');
+        res.set('Content-Type', img.mimetype);
+        res.set('Cache-Control', 'no-cache');
+        res.set('Content-Length', buf.length);
+        res.send(buf);
+    } catch (err) {
+        logger.error('Erro ao servir imagem do site: ' + err.message);
+        res.redirect(302, definicao.padrao);
+    }
+});
+
+// Lista os espaços de imagem e se cada um está personalizado (painel administrativo)
+app.get('/api/site-imagens', requireRole(['Diretoria']), async (req, res) => {
+    try {
+        const lista = [];
+        for (const [slot, def] of Object.entries(SITE_IMAGENS)) {
+            const img = await buscarSiteImagem(slot);
+            lista.push({ slot, rotulo: def.rotulo, padrao: def.padrao, personalizada: !!img, atualizado_em: img ? img.atualizado_em : null });
+        }
+        res.json({ imagens: lista, tipos: SITE_IMAGEM_TIPOS, max_mb: SITE_IMAGEM_MAX_BYTES / 1024 / 1024 });
+    } catch (err) {
+        logger.error('Erro ao listar imagens do site: ' + err.message);
+        res.status(500).json({ error: 'Erro ao listar as imagens do site.' });
+    }
+});
+
+const receberImagemSite = (req, res, next) => uploadMemory.single('imagem')(req, res, (err) => {
+    if (err) return res.status(400).json({ error: err.code === 'LIMIT_FILE_SIZE' ? 'A imagem passa do tamanho máximo.' : err.message });
+    next();
+});
+
+app.post('/api/site-imagens/:slot', requireRole(['Diretoria']), receberImagemSite, async (req, res) => {
+    const slot = req.params.slot;
+    if (!SITE_IMAGENS[slot]) return res.status(404).json({ error: 'Imagem não encontrada.' });
+    const arquivo = req.file;
+    if (!arquivo) return res.status(400).json({ error: 'Envie um arquivo de imagem.' });
+    if (!SITE_IMAGEM_TIPOS.includes(arquivo.mimetype)) return res.status(400).json({ error: 'Use uma imagem JPG, PNG ou WebP.' });
+    if (arquivo.size > SITE_IMAGEM_MAX_BYTES) return res.status(400).json({ error: 'A imagem deve ter no máximo 5 MB.' });
+    try {
+        const data_b64 = arquivo.buffer.toString('base64');
+        if (dbAvailable && pool) {
+            await garantirTabelaSiteImagens();
+            await pool.query(`
+                INSERT INTO site_imagens (slot, mimetype, data_b64, atualizado_em) VALUES ($1, $2, $3, NOW())
+                ON CONFLICT (slot) DO UPDATE SET mimetype = EXCLUDED.mimetype, data_b64 = EXCLUDED.data_b64, atualizado_em = NOW()
+            `, [slot, arquivo.mimetype, data_b64]);
+        } else {
+            if (!memStore.site_imagens) memStore.site_imagens = {};
+            memStore.site_imagens[slot] = { mimetype: arquivo.mimetype, data_b64, atualizado_em: new Date().toISOString() };
+        }
+        res.json({ success: true, slot });
+    } catch (err) {
+        logger.error('Erro ao salvar imagem do site: ' + err.message);
+        res.status(500).json({ error: 'Erro ao salvar a imagem.' });
+    }
+});
+
+// Volta para a imagem padrão do projeto
+app.delete('/api/site-imagens/:slot', requireRole(['Diretoria']), async (req, res) => {
+    const slot = req.params.slot;
+    if (!SITE_IMAGENS[slot]) return res.status(404).json({ error: 'Imagem não encontrada.' });
+    try {
+        if (dbAvailable && pool) {
+            await garantirTabelaSiteImagens();
+            await pool.query('DELETE FROM site_imagens WHERE slot = $1', [slot]);
+        } else if (memStore.site_imagens) {
+            delete memStore.site_imagens[slot];
+        }
+        res.json({ success: true, slot });
+    } catch (err) {
+        logger.error('Erro ao restaurar imagem do site: ' + err.message);
+        res.status(500).json({ error: 'Erro ao restaurar a imagem padrão.' });
     }
 });
 
