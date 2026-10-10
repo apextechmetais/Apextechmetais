@@ -510,3 +510,42 @@ html.ax #noticias-empty { padding: 40px 0; color: var(--sobre-escuro); font-size
     html.ax .ax-noticias__lista .noticia-meta { grid-row: auto; display: flex; gap: 12px; }
     html.ax .ax-noticias__lista .noticia-titulo, html.ax .ax-noticias__lista .noticia-resumo, html.ax .ax-noticias__lista .noticia-link { grid-column: 1; }
 }
+
+
+/* ── Cabeçalho com mais contraste, logo maior e redes sociais ── */
+html.ax .ax-header.header-desktop { background: #05130C; border-bottom: 2px solid var(--verde-vivo); }
+html.ax .ax-header.header-desktop.scrolled { box-shadow: 0 14px 30px -16px rgba(0, 0, 0, 0.8); }
+.ax-header__bar { height: 104px; gap: 24px; }
+.scrolled .ax-header__bar { height: 76px; }
+.ax-logo img { width: 250px; }
+.scrolled .ax-logo img { width: 188px; }
+html.ax .ax-nav .menu-desktop li a { color: #fff; font-weight: 550; font-size: 1rem; }
+html.ax .ax-nav .menu-desktop li a:hover { color: var(--verde-vivo); }
+html.ax .ax-nav .menu-desktop li.current a { color: var(--verde-vivo); }
+html.ax .ax-redes { display: flex; gap: 8px; list-style: none; margin: 0; padding: 0; }
+html.ax .ax-redes li { margin: 0; padding: 0; border: 0; opacity: 1; translate: none; }
+html.ax .ax-redes a {
+    display: grid; place-items: center; width: 40px; height: 40px;
+    color: #fff; border: 1.5px solid rgba(255, 255, 255, 0.28); border-radius: 50%;
+    transition: color 0.18s var(--suave), background-color 0.18s var(--suave), border-color 0.18s var(--suave), scale 0.12s var(--suave);
+}
+html.ax .ax-redes a:hover { background: var(--verde-vivo); border-color: var(--verde-vivo); color: #05130C; }
+html.ax .ax-redes a:active { scale: 0.94; }
+.ax-drawer .ax-redes { margin-top: 4px; }
+.ax-pagehead { background: var(--floresta-2); }
+@media (max-width: 1480px) { .ax-header .ax-fone { display: none; } }
+@media (max-width: 1320px) {
+    .ax-nav { display: none; }
+    .ax-header__acoes { margin-left: auto; }
+    .ax-menu-btn { display: block; }
+}
+@media (max-width: 760px) {
+    html.ax .ax-header .ax-redes { display: none; }
+    .ax-header__bar { height: 84px; }
+    .ax-logo img { width: 196px; }
+    .scrolled .ax-logo img { width: 164px; }
+}
+@media (max-width: 620px) {
+    .ax-header__bar { height: 76px; }
+    .ax-logo img { width: 176px; }
+}

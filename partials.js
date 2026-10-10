@@ -27,19 +27,28 @@
 
   const iconeWhats = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.5 8.5 0 0 1-12.6 7.4L3 20.5l1.7-5.1A8.5 8.5 0 1 1 21 11.5Z"/></svg>';
 
+  const iconeInsta = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r="0.6" fill="currentColor"/></svg>';
+  const iconeFace = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h-2a4 4 0 0 0-4 4v3H6v4h3v7h4v-7h3l1-4h-4V7a1 1 0 0 1 1-1h2V3Z"/></svg>';
+  const redesHTML = `
+            <ul class="ax-redes" aria-label="Redes sociais">
+                <li><a href="https://www.instagram.com/apextechmetais/" target="_blank" rel="noopener" aria-label="Instagram da ApexTech">${iconeInsta}</a></li>
+                <li><a href="https://www.facebook.com/apextechmetais" target="_blank" rel="noopener" aria-label="Facebook da ApexTech">${iconeFace}</a></li>
+                <li><a href="${WHATSAPP}" target="_blank" rel="noopener" aria-label="WhatsApp da ApexTech">${iconeWhats}</a></li>
+            </ul>`;
+
   /* ─── Cabeçalho ─── */
   const headerHTML = `
 <a class="ax-skip" href="#page-content">Pular para o conteúdo</a>
 <header class="header-desktop ax-header">
     <div class="ax-header__bar">
         <a href="/index.html" class="ax-logo" aria-label="ApexTech Metais — página inicial">
-            <img src="/assets/img/logo-apextech.svg" alt="ApexTech Metais" width="188" height="56">
+            <img src="/assets/img/logo-apextech.svg" alt="ApexTech Metais" width="250" height="75">
         </a>
         <nav class="ax-nav" aria-label="Principal">
             <ul class="menu-desktop">${navDesktop}</ul>
         </nav>
         <div class="ax-header__acoes">
-            <a href="${TELEFONE_HREF}" class="ax-fone">${TELEFONE}</a>
+            <a href="${TELEFONE_HREF}" class="ax-fone">${TELEFONE}</a>${redesHTML}
             <a href="/contato.html" class="ax-btn ax-btn--solido ax-btn--pequeno">Pedir avaliação</a>
             <button class="ax-menu-btn" id="btn-open-menu" aria-label="Abrir menu" aria-controls="mobile-drawer">
                 <span></span><span></span>
@@ -56,8 +65,7 @@
     <div class="ax-drawer__contato">
         <a href="${TELEFONE_HREF}">${TELEFONE}</a>
         <a href="mailto:${EMAIL}">${EMAIL}</a>
-        <a href="${WHATSAPP}" target="_blank" rel="noopener">WhatsApp</a>
-    </div>
+    </div>${redesHTML}
 </div>
 <div class="ax-drawer-fundo" id="drawer-overlay"></div>`;
 
