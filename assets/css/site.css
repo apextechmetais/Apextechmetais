@@ -442,6 +442,9 @@ html.ax .mvv-card .mvv-title { font-size: 1.5rem; font-weight: 660; font-stretch
 html.ax .mvv-card p, html.ax .mvv-card li { color: var(--tinta-2) !important; text-align: left !important; font-size: 1.02rem !important; }
 html.ax .mvv-card strong, html.ax .mvv-card b { color: var(--tinta) !important; }
 html.ax .mvv-watermark { display: none !important; }
+html.ax .mvv-card { align-items: flex-start !important; }
+html.ax .btn_saiba_mais p { margin: 0 !important; font-size: 1rem !important; line-height: 1 !important; color: inherit !important; font-weight: 600 !important; }
+html.ax .btn_saiba_mais i { display: none; }
 html.ax .mvv-card *, html.ax .catalogo-card *, html.ax .onde-card * { text-align: left !important; }
 html.ax body:not(.ax-home) #page-content .sobre-mvv h2 { margin-left: 0; margin-right: auto; text-align: left !important; }
 html.ax .mvv-grid { max-width: none !important; align-items: start; }
