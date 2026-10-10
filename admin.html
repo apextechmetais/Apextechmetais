@@ -13,7 +13,7 @@
     <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.default.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
     <!-- Monkey Patch JWT Auth -->
-    <script src="assets/js/modules/admin_auth_interceptor_v4.js"></script>
+    <script src="assets/js/modules/admin_auth_interceptor_v4.js?v=2"></script>
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
@@ -3999,6 +3999,11 @@
                         <div class="perm-module-row"><span class="perm-module-name"><i class="fa-solid fa-truck"></i> Fornecedores</span><div class="perm-toggle-group" data-module="fornecedores"><input type="radio" class="perm-toggle" name="perm_fornecedores" id="perm_fornecedores_none" value="none" checked><label for="perm_fornecedores_none">Sem Acesso</label><input type="radio" class="perm-toggle" name="perm_fornecedores" id="perm_fornecedores_view" value="view"><label for="perm_fornecedores_view">Visualizar</label><input type="radio" class="perm-toggle" name="perm_fornecedores" id="perm_fornecedores_edit" value="edit"><label for="perm_fornecedores_edit">Editar</label></div></div>
                         <div class="perm-module-row"><span class="perm-module-name"><i class="fa-solid fa-users"></i> Clientes</span><div class="perm-toggle-group" data-module="clientes"><input type="radio" class="perm-toggle" name="perm_clientes" id="perm_clientes_none" value="none" checked><label for="perm_clientes_none">Sem Acesso</label><input type="radio" class="perm-toggle" name="perm_clientes" id="perm_clientes_view" value="view"><label for="perm_clientes_view">Visualizar</label><input type="radio" class="perm-toggle" name="perm_clientes" id="perm_clientes_edit" value="edit"><label for="perm_clientes_edit">Editar</label></div></div>
                         <div class="perm-module-row"><span class="perm-module-name"><i class="fa-solid fa-flask"></i> Laboratório / Amostras</span><div class="perm-toggle-group" data-module="laboratorio"><input type="radio" class="perm-toggle" name="perm_laboratorio" id="perm_laboratorio_none" value="none" checked><label for="perm_laboratorio_none">Sem Acesso</label><input type="radio" class="perm-toggle" name="perm_laboratorio" id="perm_laboratorio_view" value="view"><label for="perm_laboratorio_view">Visualizar</label><input type="radio" class="perm-toggle" name="perm_laboratorio" id="perm_laboratorio_edit" value="edit"><label for="perm_laboratorio_edit">Editar</label></div></div>
+                        <div id="perm-amostras-acoes" style="margin:0 0 10px 0; padding:10px 14px; border-left:3px solid #3e7cb1; background:#132433; border-radius:0 6px 6px 0;">
+                            <p style="margin:0 0 8px 0; font-size:0.78rem; color:#a0b4c8;"><i class="fa-solid fa-list-check"></i> O que este perfil pode fazer nas Amostras <span id="perm-amostras-origem" style="color:#ffb74d;"></span></p>
+                            <div id="perm-amostras-lista" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:6px 16px;"></div>
+                            <p style="margin:8px 0 0 0; font-size:0.72rem; color:#7f95ab;">Estas ações são conferidas no servidor a cada operação. O nível acima (Sem Acesso / Visualizar / Editar) controla apenas a exibição do menu.</p>
+                        </div>
                         <div class="perm-module-row"><span class="perm-module-name"><i class="fa-solid fa-warehouse"></i> Estoque</span><div class="perm-toggle-group" data-module="estoque"><input type="radio" class="perm-toggle" name="perm_estoque" id="perm_estoque_none" value="none" checked><label for="perm_estoque_none">Sem Acesso</label><input type="radio" class="perm-toggle" name="perm_estoque" id="perm_estoque_view" value="view"><label for="perm_estoque_view">Visualizar</label><input type="radio" class="perm-toggle" name="perm_estoque" id="perm_estoque_edit" value="edit"><label for="perm_estoque_edit">Editar</label></div></div>
 
                         <p class="perm-section-header" style="margin-top:10px;"><i class="fa-solid fa-file-invoice"></i> Pedidos</p>
@@ -6627,12 +6632,12 @@
     <!-- Modal Webcam criado dinamicamente pelo admin.js -->
 
     <script src="lib/calculationEngine.js?v=3"></script>
-    <script defer src="admin.js?v=1852_fix_img_jwt"></script>
+    <script defer src="admin.js?v=1853_perm_amostras"></script>
     <script defer src="assets/js/modules/admin_cotacoes.js?v=3"></script>
     <script defer src="assets/js/modules/admin_fidc.js?v=3"></script>
     <script defer src="assets/js/modules/admin_estrategicov3.js?v=13"></script>
     <script defer src="assets/js/modules/admin_auditoria.js?v=7_cache_bust"></script>
-    <script defer src="assets/js/modules/admin_planejamento_v4.js?v=4"></script>
+    <script defer src="assets/js/modules/admin_planejamento_v4.js?v=5"></script>
     <script defer src="assets/js/modules/pcp_live.js?v=1"></script>
     <script defer src="assets/js/modules/admin_compras.js?v=3"></script>
     <script defer src="assets/js/modules/admin_whatsapp.js?v=8"></script>

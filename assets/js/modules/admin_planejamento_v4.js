@@ -4876,7 +4876,11 @@
         document.getElementById('grid-permissoes').style.pointerEvents = 'none';
         document.getElementById('perfil-selecionado-lbl').textContent = 'Nenhum';
         document.getElementById('msg-admin-lock').style.display = 'none';
-        document.querySelectorAll('.perm-checkbox input').forEach(c => c.checked = false);
+        document.querySelectorAll('#grid-permissoes .perm-toggle-group input[value="none"]').forEach(r => { r.checked = true; });
+        const listaAmostras = document.getElementById('perm-amostras-lista');
+        if (listaAmostras) listaAmostras.innerHTML = '<span style="color:#a0b4c8; font-size:0.8rem;">Selecione um perfil.</span>';
+        const btnSalvarPerm = document.getElementById('btn-salvar-permissoes');
+        if (btnSalvarPerm) btnSalvarPerm.style.display = 'none';
         perfilSelecionado = null;
     };
 
@@ -4892,35 +4896,65 @@
         `).join('');
     }
 
-    window.selecionarPerfilPermissoes = function(perfil) {
+    let _permAmostrasInfo = null; // resposta de /api/permissoes/amostras
+
+    async function carregarInfoAmostrasPermissoes() {
+        try {
+            const r = await fetch('/api/permissoes/amostras', { cache: 'no-store' });
+            _permAmostrasInfo = r.ok ? await r.json() : null;
+        } catch (e) {
+            _permAmostrasInfo = null;
+        }
+        return _permAmostrasInfo;
+    }
+
+    function renderAcoesAmostras(perfil) {
+        const lista = document.getElementById('perm-amostras-lista');
+        const origem = document.getElementById('perm-amostras-origem');
+        if (!lista) return;
+        if (!_permAmostrasInfo) {
+            lista.innerHTML = '<span style="color:#ff6b6b; font-size:0.8rem;">Não foi possível carregar as ações de amostras.</span>';
+            if (origem) origem.textContent = '';
+            return;
+        }
+        const info = _permAmostrasInfo.perfis[perfil] || { acoes: [], personalizado: false };
+        lista.innerHTML = _permAmostrasInfo.acoes.map(a => `
+            <label style="display:flex; align-items:center; gap:8px; font-size:0.82rem; color:#fff; cursor:pointer;">
+                <input type="checkbox" class="perm-amostra-acao" value="${a.id}" ${info.acoes.includes(a.id) ? 'checked' : ''}> ${a.label}
+            </label>
+        `).join('');
+        if (origem) origem.textContent = perfil === 'Administrador' ? '' : (info.personalizado ? '— personalizado' : '— padrão do perfil (ainda não personalizado)');
+    }
+
+    window.selecionarPerfilPermissoes = async function(perfil) {
         perfilSelecionado = perfil;
-        
+
         // Highlights
         document.querySelectorAll('#lista-perfis-permissoes div').forEach(el => el.style.background = '#1a3045');
         const btn = document.getElementById(`btn-perfil-${perfil.toLowerCase().replace(/[^a-z0-9]/g,'')}`);
         if (btn) btn.style.background = '#223547';
 
         document.getElementById('perfil-selecionado-lbl').textContent = perfil;
-        
-        const grid = document.getElementById('grid-permissoes');
-        const msgAdmin = document.getElementById('msg-admin-lock');
-        const checkboxes = grid.querySelectorAll('input[type="checkbox"]');
 
-        if (perfil === 'Administrador') {
-            grid.style.opacity = '0.5';
-            grid.style.pointerEvents = 'none';
-            msgAdmin.style.display = 'block';
-            checkboxes.forEach(chk => chk.checked = true);
-        } else {
-            grid.style.opacity = '1';
-            grid.style.pointerEvents = 'auto';
-            msgAdmin.style.display = 'none';
-            
-            const permissoes = globalRolePermissions[perfil] || [];
-            checkboxes.forEach(chk => {
-                chk.checked = permissoes.includes(chk.value);
-            });
-        }
+        const grid = document.getElementById('grid-permissoes');
+        const admin = perfil === 'Administrador';
+        grid.style.opacity = admin ? '0.5' : '1';
+        grid.style.pointerEvents = admin ? 'none' : 'auto';
+        document.getElementById('msg-admin-lock').style.display = admin ? 'block' : 'none';
+        const btnSalvar = document.getElementById('btn-salvar-permissoes');
+        if (btnSalvar) btnSalvar.style.display = admin ? 'none' : '';
+
+        // Nível de cada módulo: Sem Acesso / Visualizar / Editar
+        const permissoes = globalRolePermissions[perfil] || [];
+        grid.querySelectorAll('.perm-toggle-group').forEach(grupo => {
+            const modulo = grupo.dataset.module;
+            const nivel = admin || permissoes.includes('edit_' + modulo) ? 'edit' : (permissoes.includes('view_' + modulo) ? 'view' : 'none');
+            const radio = grupo.querySelector(`input[value="${nivel}"]`);
+            if (radio) radio.checked = true;
+        });
+
+        await carregarInfoAmostrasPermissoes();
+        if (perfilSelecionado === perfil) renderAcoesAmostras(perfil);
     };
 
     window.salvarPermissoesPerfil = async function() {
@@ -4928,26 +4962,57 @@
             _apexNotify('Sistema', 'Selecione um perfil primeiro.', 'info');
             return;
         }
-        
-        if (perfilSelecionado !== 'Administrador') {
-            const grid = document.getElementById('grid-permissoes');
-            const checkboxes = grid.querySelectorAll('input[type="checkbox"]:checked');
-            const permissoes = Array.from(checkboxes).map(chk => chk.value);
-            
-            globalRolePermissions[perfilSelecionado] = permissoes;
+        if (perfilSelecionado === 'Administrador') {
+            _apexNotify('Sistema', 'O Administrador sempre tem acesso total.', 'info');
+            return;
         }
 
+        const grid = document.getElementById('grid-permissoes');
+        const grupos = Array.from(grid.querySelectorAll('.perm-toggle-group'));
+        const modulos = grupos.map(g => g.dataset.module);
+        const anteriores = globalRolePermissions[perfilSelecionado] || [];
+        const ehDeAmostras = (p) => p.startsWith('amostras_');
+
+        // Mantém permissões antigas que esta tela não representa (ex.: edit_producao)
+        const novas = anteriores.filter(p => {
+            if (ehDeAmostras(p)) return false;
+            const m = p.match(/^(view|edit)_(.+)$/);
+            return !(m && modulos.includes(m[2]));
+        });
+        grupos.forEach(grupo => {
+            const nivel = grupo.querySelector('input:checked')?.value || 'none';
+            if (nivel === 'view' || nivel === 'edit') novas.push('view_' + grupo.dataset.module);
+            if (nivel === 'edit') novas.push('edit_' + grupo.dataset.module);
+        });
+
+        const caixas = grid.querySelectorAll('.perm-amostra-acao');
+        if (caixas.length > 0 && _permAmostrasInfo) {
+            novas.push(_permAmostrasInfo.marcador);
+            caixas.forEach(c => { if (c.checked) novas.push(c.value); });
+        } else {
+            anteriores.filter(ehDeAmostras).forEach(p => novas.push(p));
+        }
+
+        const matriz = { ...globalRolePermissions, [perfilSelecionado]: [...new Set(novas)] };
         try {
-            await fetch('/api/settings', {
+            const res = await fetch('/api/settings', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ role_permissions: JSON.stringify(globalRolePermissions) })
+                body: JSON.stringify({ role_permissions: JSON.stringify(matriz) })
             });
-            _apexNotify('Sistema', 'Permissões salvas com sucesso!', 'info');
+            const dados = await res.json().catch(() => ({}));
+            if (!res.ok || (dados.ignoradas || []).includes('role_permissions')) {
+                throw new Error(dados.error || 'Apenas Diretoria ou Administrador podem alterar permissões.');
+            }
+            globalRolePermissions = matriz;
+            _apexNotify('Sistema', `Permissões do perfil ${perfilSelecionado} salvas com sucesso!`, 'info');
+            if (window.carregarPermissoesAmostras) await window.carregarPermissoesAmostras();
             applyRolePermissions();
+            await carregarInfoAmostrasPermissoes();
+            renderAcoesAmostras(perfilSelecionado);
         } catch (err) {
             console.error('Erro ao salvar permissões:', err);
-            _apexNotify('Atenção', 'Erro ao salvar permissões.', 'error');
+            _apexNotify('Atenção', err.message || 'Erro ao salvar permissões.', 'error');
         }
     };
 

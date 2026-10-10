@@ -1299,7 +1299,14 @@ const authMiddleware = (req, res, next) => {
         '/lme/cron-trigger'
     ];
     // Configurações do site são públicas (para temas, ocultar menus etc)
-    if (req.path === '/settings' && req.method === 'GET') return next();
+    if (req.path === '/settings' && req.method === 'GET') {
+        // Continua pública, mas identifica o usuário quando há token (define o que pode ser devolvido)
+        const tokenOpcional = (req.headers.authorization || '').split(' ')[1];
+        if (tokenOpcional) {
+            try { req.user = jwt.verify(tokenOpcional, JWT_SECRET); } catch (e) {}
+        }
+        return next();
+    }
     // Rotas de cotação LME são públicas (usadas na página cotacoes.html e home sem login)
     if (req.path.startsWith('/lme/tabela') || req.path.startsWith('/lme/graflme') || req.path.startsWith('/lme/varialme') || req.path === '/cotacoes-hoje') return next();
     if (publicRoutes.includes(req.path) || req.path.startsWith('/public')) return next();
@@ -1377,6 +1384,81 @@ const globalAuditMiddleware = async (req, res, next) => {
 
 app.use('/api', globalAuditMiddleware);
 
+// ─── Permissões por perfil (matriz configurável na tela "Permissões") ─────────
+// Ações do módulo de Amostras que podem ser ligadas/desligadas por perfil.
+const AMOSTRAS_ACOES = [
+    { id: 'amostras_ver',       label: 'Ver amostras, laudos e fotos' },
+    { id: 'amostras_cadastrar', label: 'Cadastrar nova amostra' },
+    { id: 'amostras_analisar',  label: 'Lançar análise de desmonte (componentes, fotos e parecer)' },
+    { id: 'amostras_decidir',   label: 'Aprovar ou reprovar a compra e definir preços' },
+    { id: 'amostras_liberar',   label: 'Liberar para produção e marcar como processado' },
+    { id: 'amostras_excluir',   label: 'Excluir amostra' }
+];
+const AMOSTRAS_ACOES_IDS = AMOSTRAS_ACOES.map(a => a.id);
+// Presente na lista do perfil quando as ações de amostras já foram configuradas na tela de Permissões
+const AMOSTRAS_MARCADOR = 'amostras_cfg';
+// Enquanto um perfil não for configurado, vale este padrão (o comportamento que o sistema já tinha)
+const AMOSTRAS_PADRAO = {
+    'diretoria':   [...AMOSTRAS_ACOES_IDS],
+    'laboratório': ['amostras_ver', 'amostras_cadastrar', 'amostras_analisar', 'amostras_liberar'],
+    'produção':    ['amostras_ver', 'amostras_cadastrar', 'amostras_analisar', 'amostras_liberar']
+};
+
+const _normPerfil = (perfil) => String(perfil || '').trim().toLowerCase();
+const ehGestor = (user) => ['administrador', 'diretoria'].includes(_normPerfil(user && user.perfil));
+
+let _rolePermCache = { em: 0, matriz: null };
+function invalidarCachePermissoes() { _rolePermCache = { em: 0, matriz: null }; }
+
+async function carregarMatrizPermissoes() {
+    if (_rolePermCache.matriz && Date.now() - _rolePermCache.em < 30000) return _rolePermCache.matriz;
+    let bruto = null;
+    if (dbAvailable && pool) {
+        const r = await pool.query("SELECT value FROM settings WHERE key = 'role_permissions'");
+        bruto = r.rows.length ? r.rows[0].value : null;
+    } else {
+        bruto = memStore.settings.role_permissions;
+    }
+    let matriz = {};
+    try { matriz = (typeof bruto === 'string' ? JSON.parse(bruto) : bruto) || {}; } catch (e) { matriz = {}; }
+    _rolePermCache = { em: Date.now(), matriz };
+    return matriz;
+}
+
+/** Ações de amostras que o perfil pode executar (configuração da tela de Permissões ou padrão). */
+async function permissoesAmostrasDoPerfil(perfil) {
+    const nome = _normPerfil(perfil);
+    if (nome === 'administrador') return [...AMOSTRAS_ACOES_IDS];
+    const matriz = await carregarMatrizPermissoes();
+    const chave = Object.keys(matriz).find(k => _normPerfil(k) === nome);
+    const lista = chave && Array.isArray(matriz[chave]) ? matriz[chave] : null;
+    if (lista && lista.includes(AMOSTRAS_MARCADOR)) return AMOSTRAS_ACOES_IDS.filter(a => lista.includes(a));
+    return [...(AMOSTRAS_PADRAO[nome] || [])];
+}
+
+/** Exige ao menos uma das ações informadas. */
+const requireAmostra = (...acoes) => async (req, res, next) => {
+    try {
+        if (!req.user) return res.status(401).json({ error: 'Não autenticado' });
+        const permitidas = await permissoesAmostrasDoPerfil(req.user.perfil);
+        if (acoes.some(a => permitidas.includes(a))) return next();
+        const descricao = (AMOSTRAS_ACOES.find(a => a.id === acoes[0]) || {}).label || acoes[0];
+        return res.status(403).json({ error: `Acesso negado: o perfil ${req.user.perfil} não tem permissão para "${descricao}".` });
+    } catch (err) {
+        logger.error('Erro ao verificar permissão de amostras: ' + err.message);
+        return res.status(500).json({ error: 'Erro ao verificar permissões.' });
+    }
+};
+
+// A permissão exigida para mudar o status depende do status de destino
+const requireAmostraStatus = (req, res, next) => {
+    const destino = String((req.body || {}).status || '');
+    let acao = 'amostras_analisar';
+    if (['Liberado para Produção', 'Processado'].includes(destino)) acao = 'amostras_liberar';
+    else if (['Aprovado - Compra Autorizada', 'Reprovado'].includes(destino)) acao = 'amostras_decidir';
+    return requireAmostra(acao)(req, res, next);
+};
+
 // Regras de Autorização por Agrupamento de Rotas (RBAC)
 app.use('/api/usuarios', requireRole(['Diretoria']));
 app.use('/api/tabela-precos', requireRole(['Diretoria', 'Compras', 'Comercial']));
@@ -1389,7 +1471,47 @@ app.use('/api/tabela-precos-volume', requireRole(['Diretoria', 'Compras', 'Comer
 app.use('/api/tabela-precos-volume-validade', requireRole(['Diretoria', 'Compras', 'Comercial']));
 app.use('/api/tabela-precos-fundicao', requireRole(['Diretoria', 'Compras', 'Comercial']));
 app.use('/api/tabela-precos-fundicao-validade', requireRole(['Diretoria', 'Compras', 'Comercial']));
-app.use('/api/amostras', requireRole(['Diretoria', 'Laboratório', 'Produção']));
+// Amostras: permissão por ação, configurável por perfil
+app.get('/api/amostras', requireAmostra('amostras_ver'));
+app.post('/api/amostras', requireAmostra('amostras_cadastrar'));
+app.get('/api/amostras/:id', requireAmostra('amostras_ver'));
+app.delete('/api/amostras/:id', requireAmostra('amostras_excluir'));
+app.post('/api/amostras/:id/componentes', requireAmostra('amostras_analisar'));
+app.patch('/api/amostras/:id/status', requireAmostraStatus);
+app.patch('/api/amostras/:id/decisao', requireAmostra('amostras_decidir'));
+app.get('/api/amostras/:id/fotos', requireAmostra('amostras_ver'));
+app.get('/api/amostras/:id/fotos/:fotoId/img', requireAmostra('amostras_ver'));
+app.post('/api/amostras/:id/fotos', requireAmostra('amostras_analisar', 'amostras_cadastrar'));
+app.delete('/api/amostras/:id/fotos/:fotoId', requireAmostra('amostras_analisar', 'amostras_cadastrar'));
+app.post('/api/amostras/:id/enviar-laudo-email', requireAmostra('amostras_analisar', 'amostras_decidir'));
+// Qualquer outra rota de amostras exige, no mínimo, poder ver o módulo
+app.use('/api/amostras', requireAmostra('amostras_ver'));
+app.use('/api/permissoes', requireRole(['Diretoria']));
+
+// Permissões do usuário logado (a tela usa para esconder o que ele não pode fazer)
+app.get('/api/me/permissoes', async (req, res) => {
+    try {
+        res.json({ perfil: req.user.perfil, amostras: await permissoesAmostrasDoPerfil(req.user.perfil) });
+    } catch (err) {
+        res.status(500).json({ error: 'Erro ao carregar permissões.' });
+    }
+});
+
+// Situação das ações de amostras por perfil, para a tela de Permissões
+app.get('/api/permissoes/amostras', async (req, res) => {
+    try {
+        const matriz = await carregarMatrizPermissoes();
+        const nomes = [...new Set(['Administrador', 'Laboratório', 'Compras', 'Produção', 'Financeiro', 'Diretoria', 'Comercial', ...Object.keys(matriz)])];
+        const perfis = {};
+        for (const nome of nomes) {
+            const lista = Array.isArray(matriz[nome]) ? matriz[nome] : [];
+            perfis[nome] = { acoes: await permissoesAmostrasDoPerfil(nome), personalizado: lista.includes(AMOSTRAS_MARCADOR) };
+        }
+        res.json({ acoes: AMOSTRAS_ACOES, marcador: AMOSTRAS_MARCADOR, perfis });
+    } catch (err) {
+        res.status(500).json({ error: 'Erro ao carregar permissões de amostras.' });
+    }
+});
 app.use('/api/planejamento', requireRole(['Diretoria', 'Compras', 'Produção', 'Comercial']));
 app.use('/api/planejamento-compras', requireRole(['Diretoria', 'Compras']));
 app.use('/api/planejamento-estrategico', requireRole(['Diretoria']));
@@ -2766,10 +2888,12 @@ app.patch('/api/amostras/:id/status', async (req, res) => {
 app.patch('/api/amostras/:id/decisao', async (req, res) => {
     try {
         const id = parseInt(req.params.id);
-        const { decisao_diretoria, motivo_reprovacao, obs_diretoria, preco_compra_entregar, preco_compra_coletar, preco_validade, user_perfil, user_nome } = req.body;
-
-        if (user_perfil !== 'Administrador' && user_perfil !== 'Diretoria') {
-            return res.status(403).json({ error: 'Apenas o Administrador ou Diretoria pode tomar esta decisão.' });
+        const { decisao_diretoria, motivo_reprovacao, obs_diretoria, preco_compra_entregar, preco_compra_coletar, preco_validade } = req.body;
+        // Quem decide vem do token de login (permissão já conferida por requireAmostra('amostras_decidir'))
+        const user_perfil = req.user.perfil;
+        const user_nome = req.user.nome || req.user.user;
+        if (!['Aprovado', 'Reprovado'].includes(decisao_diretoria)) {
+            return res.status(400).json({ error: 'Decisão inválida. Use "Aprovado" ou "Reprovado".' });
         }
 
         // Checkup de segurança: verifica se a amostra passou pela etapa de desmonte do laboratório
@@ -2835,11 +2959,6 @@ app.patch('/api/amostras/:id/decisao', async (req, res) => {
 app.delete('/api/amostras/:id', async (req, res) => {
     try {
         const id = parseInt(req.params.id);
-        const { user_perfil } = req.query;
-
-        if (user_perfil !== 'Administrador' && user_perfil !== 'Diretoria') {
-            return res.status(403).json({ error: 'Apenas o Administrador ou Diretoria pode excluir registros.' });
-        }
 
         if (dbAvailable) {
             await pool.query('DELETE FROM componentes_amostra WHERE amostra_id=$1', [id]);
@@ -4868,6 +4987,16 @@ app.get('/api/ncm/buscar', async (req, res) => {
 });
 
 // ─── API: Configurações da Home ──────────────────────────────────────────────
+// Chaves que nunca saem para quem não é Diretoria/Administrador (a rota GET é pública)
+const SETTINGS_SECRETAS = ['lme_resend_api_key'];
+// Chaves que só Diretoria/Administrador podem alterar
+const SETTINGS_RESTRITAS = ['role_permissions', 'lme_resend_api_key', 'lme_resend_from'];
+
+function filtrarSettingsPara(user, settingsObj) {
+    if (!ehGestor(user)) SETTINGS_SECRETAS.forEach(k => { delete settingsObj[k]; });
+    return settingsObj;
+}
+
 app.get('/api/settings', async (req, res) => {
     try {
         if (dbAvailable) {
@@ -4876,9 +5005,9 @@ app.get('/api/settings', async (req, res) => {
             result.rows.forEach(row => {
                 settingsObj[row.key] = row.value;
             });
-            return res.json(settingsObj);
+            return res.json(filtrarSettingsPara(req.user, settingsObj));
         }
-        res.json(memStore.settings);
+        res.json(filtrarSettingsPara(req.user, { ...memStore.settings }));
     } catch (err) {
         console.error('Erro GET /api/settings:', err);
         res.status(500).json({ error: 'Erro ao buscar configurações.' });
@@ -4887,7 +5016,22 @@ app.get('/api/settings', async (req, res) => {
 
 app.put('/api/settings', async (req, res) => {
     try {
-        const settings = req.body;
+        const recebidas = req.body || {};
+        const gestor = ehGestor(req.user);
+        const ignoradas = Object.keys(recebidas).filter(k => SETTINGS_RESTRITAS.includes(k) && !gestor);
+        const settings = Object.fromEntries(Object.entries(recebidas).filter(([k]) => !ignoradas.includes(k)));
+        if (ignoradas.length > 0 && Object.keys(settings).length === 0) {
+            return res.status(403).json({ error: 'Apenas Diretoria ou Administrador podem alterar esta configuração.' });
+        }
+        if (settings.role_permissions !== undefined) {
+            let matriz;
+            try { matriz = typeof settings.role_permissions === 'string' ? JSON.parse(settings.role_permissions) : settings.role_permissions; } catch (e) { matriz = null; }
+            const valida = matriz && typeof matriz === 'object' && !Array.isArray(matriz)
+                && Object.values(matriz).every(l => Array.isArray(l) && l.every(x => typeof x === 'string'));
+            if (!valida) return res.status(400).json({ error: 'Matriz de permissões inválida.' });
+            settings.role_permissions = JSON.stringify(matriz);
+            invalidarCachePermissoes();
+        }
         if (dbAvailable) {
             for (const [key, value] of Object.entries(settings)) {
                 await pool.query(
@@ -4895,10 +5039,10 @@ app.put('/api/settings', async (req, res) => {
                     [key, String(value)]
                 );
             }
-            return res.json({ success: true });
+            return res.json({ success: true, ignoradas });
         }
         Object.assign(memStore.settings, settings);
-        res.json({ success: true });
+        res.json({ success: true, ignoradas });
     } catch (err) {
         console.error('Erro PUT /api/settings:', err);
         res.status(500).json({ error: 'Erro ao salvar configurações.' });

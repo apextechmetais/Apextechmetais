@@ -160,7 +160,10 @@
         if (response.status === 403) {
             console.warn('Acesso Negado (403): O seu perfil não tem permissão para acessar este recurso.');
             if (window._apexNotify) {
-                window._apexNotify('Acesso Negado', 'Seu perfil não possui permissão para acessar estes dados.', 'error');
+                const padrao = 'Seu perfil não possui permissão para acessar estes dados.';
+                response.clone().json()
+                    .then(dados => window._apexNotify('Acesso Negado', (dados && dados.error) || padrao, 'error'))
+                    .catch(() => window._apexNotify('Acesso Negado', padrao, 'error'));
             }
         }
         return response;

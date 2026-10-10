@@ -249,6 +249,7 @@ window.fmtDecimal4 = function(val) {
         } catch (e) {
             console.error('Erro ao buscar permissões:', e);
         }
+        await window.carregarPermissoesAmostras();
 
         initLMEDashboard();
         initLMEExcelReport();
@@ -4079,6 +4080,21 @@ window.fmtDecimal4 = function(val) {
     // APEX GESTÃO — SISTEMA DE PERMISSÕES, ANÁLISE, FINANCEIRO E ESTOQUE
     // ─────────────────────────────────────────────────────────────────────────
     let currentSimulatedRole = sessionStorage.getItem('apex_user_role') || 'Administrador';
+
+    // Permissões de amostras do usuário logado. A regra é aplicada no servidor; aqui só ajusta a tela.
+    window.apexPermAmostras = null;
+    window.carregarPermissoesAmostras = async function() {
+        try {
+            const r = await fetch('/api/me/permissoes', { cache: 'no-store' });
+            if (r.ok) window.apexPermAmostras = (await r.json()).amostras || [];
+        } catch (e) {}
+    };
+    function podeAmostra(acao) {
+        if (Array.isArray(window.apexPermAmostras)) return window.apexPermAmostras.includes(acao);
+        // Sem a lista carregada: ações sensíveis ficam só com Administrador/Diretoria; o servidor decide o resto
+        if (['amostras_decidir', 'amostras_excluir'].includes(acao)) return currentSimulatedRole === 'Administrador' || currentSimulatedRole === 'Diretoria';
+        return true;
+    }
     let localFornecedores = [];
     let localMateriais = [];
     let localPrecos = [];
@@ -4135,7 +4151,7 @@ window.fmtDecimal4 = function(val) {
         setNav('nav-clientes', temPermissao('view_clientes'));
         setNav('nav-materiais', temPermissao('view_catalogo'));
         setNav('nav-precos', temPermissao('view_precos'));
-        setNav('nav-amostras', temPermissao('view_laboratorio'));
+        setNav('nav-amostras', temPermissao('view_laboratorio') && podeAmostra('amostras_ver'));
         setNav('nav-planejamento', temPermissao('view_planejamento'));
         setNav('nav-planejamento-estrategicov3', temPermissao('view_estrategico'));
         setNav('nav-estoque', temPermissao('view_estoque'));
@@ -7938,8 +7954,8 @@ window.fmtDecimal4 = function(val) {
     };
 
     window.deletarAmostra = async function(id) {
-        if (currentSimulatedRole !== 'Administrador' && currentSimulatedRole !== 'Diretoria') {
-            _apexNotify('Atenção', 'Erro: Apenas o Administrador ou Diretoria podem excluir amostras.', 'error');
+        if (!podeAmostra('amostras_excluir')) {
+            _apexNotify('Atenção', 'Seu perfil não tem permissão para excluir amostras.', 'error');
             return;
         }
         if (!confirm('Tem certeza de que deseja excluir permanentemente esta amostra e todas as suas análises de componentes?')) return;
@@ -7959,6 +7975,10 @@ window.fmtDecimal4 = function(val) {
     };
 
     window.abrirModalAmostra = function() {
+        if (!podeAmostra('amostras_cadastrar')) {
+            _apexNotify('Atenção', 'Seu perfil não tem permissão para cadastrar amostras.', 'error');
+            return;
+        }
         const form = document.getElementById('form-amostra-apex');
         if (form) form.reset();
         const idEl = document.getElementById('amo-id');
@@ -8138,7 +8158,7 @@ window.fmtDecimal4 = function(val) {
 
         // Etapa 4: acesso restrito
         if (etapaNum === 4) {
-            if (currentSimulatedRole !== 'Administrador' && currentSimulatedRole !== 'Diretoria') {
+            if (!podeAmostra('amostras_decidir')) {
                 _apexNotify('Sistema', '🔒 Acesso Restrito ao Nível de Diretoria / Administrador (ERP Security Level).\n\nUsuários operacionais do laboratório não possuem permissão para visualizar ou definir preços estratégicos.', 'info');
                 return;
             }
@@ -8330,7 +8350,7 @@ window.fmtDecimal4 = function(val) {
             if (dirObsEl) dirObsEl.value = amostra.obs_diretoria || '';
 
             if (painelDir) {
-                if (currentSimulatedRole === 'Administrador' || currentSimulatedRole === 'Diretoria') {
+                if (podeAmostra('amostras_decidir')) {
                     painelDir.style.display = 'block';
                 } else {
                     painelDir.style.display = 'none';
@@ -8473,7 +8493,7 @@ window.fmtDecimal4 = function(val) {
         if (t2) t2.style.display = 'block';
         if (t3) t3.style.display = 'block';
         if (t4) {
-            if (currentSimulatedRole === 'Administrador' || currentSimulatedRole === 'Diretoria') {
+            if (podeAmostra('amostras_decidir')) {
                 t4.style.display = 'block';
             } else {
                 t4.style.display = 'none'; // Segurança ERP para usuários comuns
