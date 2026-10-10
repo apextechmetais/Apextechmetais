@@ -6677,7 +6677,7 @@
     <script defer src="assets/js/modules/admin_cotacoes.js?v=3"></script>
     <script defer src="assets/js/modules/admin_fidc.js?v=3"></script>
     <script defer src="assets/js/modules/admin_estrategicov3.js?v=13"></script>
-    <script defer src="assets/js/modules/admin_auditoria.js?v=7_cache_bust"></script>
+    <script defer src="assets/js/modules/admin_auditoria.js?v=8"></script>
     <script defer src="assets/js/modules/admin_planejamento_v4.js?v=4"></script>
     <script defer src="assets/js/modules/pcp_live.js?v=2"></script>
     <script defer src="assets/js/modules/admin_compras.js?v=4"></script>
@@ -6737,32 +6737,71 @@
         #_apex_notify_box { animation: _apex_slideup 0.28s cubic-bezier(.4,2,.6,1) both; }
     </style>
     <!-- MODAL TRILHA DE AUDITORIA -->
-    <div id="modal-audit-logs" class="fullscreen-overlay" style="display:none; align-items:center; justify-content:center; z-index: 1200;">
-        <div style="background:#132230; border:1px solid #1e4e8c; border-radius:12px; max-width:900px; width:95%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 12px 40px rgba(0,0,0,0.7);">
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:18px 24px; background:#1e3547; border-bottom:1px solid #1e4e8c;">
-                <h3 style="margin:0; color:#fff;"><i class="fa-solid fa-shield-halved" style="color:#3e7cb1;"></i> Trilha de Auditoria do Sistema</h3>
-                <button class="btn-secondary" onclick="fecharModalAuditLogs()" style="border:none; background:none; color:#aaa; font-size:1.4rem; cursor:pointer;">&times;</button>
+    <div id="modal-audit-logs" class="fullscreen-overlay" style="display:none; align-items:center; justify-content:center; z-index: 1200; padding:16px;">
+        <style>
+            #modal-audit-logs .audit-caixa { width:min(1180px, 100%); max-height:92vh; display:flex; flex-direction:column; overflow:hidden; background:#0C2A1D; border:1px solid rgba(245,246,243,.14); border-radius:14px; box-shadow:0 24px 60px -20px rgba(0,0,0,.9); }
+            #modal-audit-logs .audit-topo { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; padding:18px 22px 12px; }
+            #modal-audit-logs .audit-topo h3 { margin:0; color:#fff; font-size:1.25rem; }
+            #modal-audit-logs .audit-topo p { margin:4px 0 0; color:rgba(245,246,243,.68); font-size:.9rem; }
+            #modal-audit-logs .audit-x { background:none; border:0; color:rgba(245,246,243,.7); font-size:1.6rem; line-height:1; cursor:pointer; padding:0 4px; }
+            #modal-audit-logs .audit-x:hover { color:#fff; }
+            #modal-audit-logs .audit-filtros { display:flex; flex-wrap:wrap; gap:10px; align-items:center; padding:0 22px 14px; border-bottom:1px solid rgba(245,246,243,.10); }
+            #modal-audit-logs .audit-filtros .noble-input { margin:0; width:auto; min-height:40px; padding:8px 10px; }
+            #modal-audit-logs #audit-busca { flex:1 1 240px; min-width:200px; }
+            #modal-audit-logs .audit-filtros label { display:flex; align-items:center; gap:6px; color:rgba(245,246,243,.8); font-size:.88rem; white-space:nowrap; }
+            #modal-audit-logs .audit-corpo { overflow:auto; flex:1; padding:0 22px; }
+            #modal-audit-logs table { width:100%; border-collapse:collapse; font-size:.88rem; }
+            #modal-audit-logs thead th { position:sticky; top:0; background:#0C2A1D; padding:12px 10px; text-align:left; font-weight:600; font-size:.8rem; color:rgba(245,246,243,.68); border-bottom:1px solid rgba(245,246,243,.18); white-space:nowrap; }
+            #modal-audit-logs tbody td { padding:10px; border-bottom:1px solid rgba(245,246,243,.08); vertical-align:top; color:rgba(245,246,243,.88); }
+            #modal-audit-logs tbody tr:hover { background:rgba(255,255,255,.03); }
+            #modal-audit-logs .audit-data, #modal-audit-logs .audit-ip { white-space:nowrap; color:rgba(245,246,243,.62); font-variant-numeric:tabular-nums; }
+            #modal-audit-logs .audit-acao { display:inline-block; padding:2px 8px; border:1px solid rgba(245,246,243,.2); border-radius:999px; font-size:.75rem; font-weight:600; white-space:nowrap; color:#fff; }
+            #modal-audit-logs .audit-res { display:inline-block; margin-left:6px; padding:1px 8px; border-radius:999px; font-size:.75rem; font-weight:600; white-space:nowrap; border:1px solid transparent; }
+            #modal-audit-logs .audit-res.is-ok { color:#25D07F; border-color:rgba(37,208,127,.45); }
+            #modal-audit-logs .audit-res.is-falha { color:#ff7b72; border-color:rgba(255,123,114,.5); }
+            #modal-audit-logs details { margin-top:4px; }
+            #modal-audit-logs summary { cursor:pointer; color:rgba(245,246,243,.6); font-size:.8rem; }
+            #modal-audit-logs code { display:block; margin-top:4px; padding:8px; background:rgba(5,19,12,.6); border-radius:6px; font-size:.78rem; color:rgba(245,246,243,.8); word-break:break-word; white-space:pre-wrap; }
+            #modal-audit-logs .audit-vazio { text-align:center; padding:34px 10px; color:rgba(245,246,243,.68); }
+            #modal-audit-logs .audit-vazio.is-falha { color:#ff7b72; }
+            #modal-audit-logs .audit-rodape { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; padding:12px 22px; border-top:1px solid rgba(245,246,243,.10); }
+            #modal-audit-logs .audit-rodape > div { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+            #modal-audit-logs .btn-primary, #modal-audit-logs .btn-secondary { width:auto !important; flex:0 0 auto; white-space:nowrap; }
+            #modal-audit-logs #audit-contagem { color:rgba(245,246,243,.68); font-size:.88rem; }
+        </style>
+        <div class="audit-caixa" role="dialog" aria-modal="true" aria-labelledby="audit-titulo">
+            <div class="audit-topo">
+                <div>
+                    <h3 id="audit-titulo"><i class="fa-solid fa-shield-halved" style="color:#25D07F;"></i> Trilha de Auditoria</h3>
+                    <p>Quem incluiu, alterou ou excluiu dados no sistema, quando, de onde e com que resultado.</p>
+                </div>
+                <button type="button" class="audit-x" onclick="fecharModalAuditLogs()" aria-label="Fechar">&times;</button>
             </div>
-            <div style="padding:20px; overflow-y:auto; flex:1;">
-                <table class="admin-table" style="width:100%; border-collapse:collapse; font-size:0.85rem;">
-                    <thead>
-                        <tr style="background:#1e3547; text-align:left; color:#3e7cb1;">
-                            <th style="padding:10px;">Data / Hora</th>
-                            <th style="padding:10px;">Usuário</th>
-                            <th style="padding:10px;">Ação</th>
-                            <th style="padding:10px;">Detalhes</th>
-                            <th style="padding:10px;">IP</th>
-                        </tr>
-                    </thead>
-                    <tbody id="audit-logs-tbody">
-                        <tr><td colspan="5" style="text-align:center; padding:20px; color:#777;">Carregando logs...</td></tr>
-                    </tbody>
+            <div class="audit-filtros">
+                <input type="search" id="audit-busca" class="noble-input" placeholder="Buscar por usuário, rota, dado ou IP…" aria-label="Buscar" oninput="filtrarAuditLogs()">
+                <select id="audit-acao" class="noble-input" aria-label="Área" onchange="filtrarAuditLogs(true)"><option value="">Todas as áreas</option></select>
+                <select id="audit-usuario" class="noble-input" aria-label="Usuário" onchange="filtrarAuditLogs(true)"><option value="">Todos os usuários</option></select>
+                <label>De <input type="date" id="audit-de" class="noble-input" onchange="filtrarAuditLogs(true)"></label>
+                <label>até <input type="date" id="audit-ate" class="noble-input" onchange="filtrarAuditLogs(true)"></label>
+                <label><input type="checkbox" id="audit-falhas" onchange="filtrarAuditLogs(true)"> Só falhas e acessos negados</label>
+                <button type="button" class="btn-secondary" onclick="limparFiltrosAuditLogs()">Limpar</button>
+            </div>
+            <div class="audit-corpo">
+                <table>
+                    <thead><tr><th>Data e hora</th><th>Usuário</th><th>Área</th><th>O que aconteceu</th><th>IP</th></tr></thead>
+                    <tbody id="audit-logs-tbody"><tr><td colspan="5" class="audit-vazio">Carregando registros…</td></tr></tbody>
                 </table>
             </div>
-            <div style="padding:12px 24px; background:#132230; border-top:1px solid #1e4e8c; text-align:right;">
-                <button class="btn-secondary" onclick="fecharModalAuditLogs()">Fechar</button>
+            <div class="audit-rodape">
+                <span id="audit-contagem" aria-live="polite"></span>
+                <div>
+                    <button type="button" class="btn-secondary" id="audit-mais" onclick="carregarMaisAuditLogs()" style="display:none;">Carregar mais</button>
+                    <button type="button" class="btn-secondary" onclick="exportarAuditLogsCsv()"><i class="fa-solid fa-file-csv"></i> Exportar CSV</button>
+                    <button type="button" class="btn-primary" onclick="fecharModalAuditLogs()">Fechar</button>
+                </div>
             </div>
         </div>
+    </div>
     <!-- Modal: Novo / Editar Planejamento (Compra & Venda / Insumos da Indústria) -->
     <div id="modal-planejamento-compra" class="fullscreen-overlay" style="display:none; align-items:center; justify-content:center; z-index:1100;">
         <div style="width:840px; max-width:95vw; background:#101a24; border:1px solid #2AD07A; border-radius:12px; padding:25px; box-shadow: 0 10px 30px rgba(0,0,0,0.8);">

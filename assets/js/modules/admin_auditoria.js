@@ -1,39 +1,124 @@
 // ─── TRILHA DE AUDITORIA ─────────────────────────────────────────────────────
-    window.abrirModalAuditLogs = function() {
-        const modal = document.getElementById('modal-audit-logs');
-        if (modal) modal.style.display = 'flex';
-        carregarAuditLogs();
-    };
+    (function() {
+        const POR_PAGINA = 100;
+        let pagina = 1, total = 0, carregando = false, temporizador = null;
+        const el = (id) => document.getElementById(id);
+        const esc = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 
-    window.fecharModalAuditLogs = function() {
-        const modal = document.getElementById('modal-audit-logs');
-        if (modal) modal.style.display = 'none';
-    };
-
-    window.carregarAuditLogs = async function() {
-        const tbody = document.getElementById('audit-logs-tbody');
-        if (!tbody) return;
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:#777;"><i class="fa-solid fa-spinner fa-spin"></i> Carregando logs...</td></tr>';
-        try {
-            const res = await fetch('/api/audit-logs');
-            const data = await res.json();
-            if (!Array.isArray(data) || data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:#aaa;">Nenhum registro de auditoria encontrado.</td></tr>';
-                return;
-            }
-            tbody.innerHTML = data.map(log => `
-                <tr style="border-bottom:1px solid #2a3b4c;">
-                    <td style="padding:8px 10px; color:#aaa; font-size:0.8rem;">${new Date(log.criado_em).toLocaleString('pt-BR')}</td>
-                    <td style="padding:8px 10px; font-weight:bold; color:#3e7cb1;">${log.usuario || 'Sistema'}</td>
-                    <td style="padding:8px 10px;"><span style="background:#1e3a5f; color:#2AD07A; padding:3px 8px; border-radius:4px; font-size:0.78rem;">${log.acao}</span></td>
-                    <td style="padding:8px 10px; color:#ddd; font-size:0.85rem;">${log.detalhe || '-'}</td>
-                    <td style="padding:8px 10px; color:#888; font-size:0.78rem;">${log.ip || '-'}</td>
-                </tr>
-            `).join('');
-        } catch (err) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:#ff4d4d;">Erro ao carregar logs de auditoria.</td></tr>';
+        function filtros() {
+            const p = new URLSearchParams();
+            const v = (id) => (el(id) ? el(id).value.trim() : '');
+            if (v('audit-busca')) p.set('busca', v('audit-busca'));
+            if (v('audit-acao')) p.set('acao', v('audit-acao'));
+            if (v('audit-usuario')) p.set('usuario', v('audit-usuario'));
+            if (v('audit-de')) p.set('de', v('audit-de'));
+            if (v('audit-ate')) p.set('ate', v('audit-ate'));
+            if (el('audit-falhas') && el('audit-falhas').checked) p.set('falhas', '1');
+            return p;
         }
-    };
+
+        // Separa o texto "Alterou em /rota — resultado | Dados: {...}" para mostrar o resultado como etiqueta
+        function partes(detalhe) {
+            const texto = String(detalhe || '');
+            const [frase, dados] = texto.split(' | Dados: ');
+            const m = frase.match(/^(.*) — ([^(]+?)(?: \((\d+)\))?$/);
+            return m ? { frase: m[1], resultado: m[2].trim(), dados: dados || '' } : { frase, resultado: '', dados: dados || '' };
+        }
+
+        function linha(log) {
+            const p = partes(log.detalhe);
+            const falha = p.resultado && p.resultado !== 'sucesso';
+            const etiqueta = p.resultado ? `<span class="audit-res ${falha ? 'is-falha' : 'is-ok'}">${esc(p.resultado)}</span>` : '';
+            return `<tr>
+                <td class="audit-data">${esc(new Date(log.criado_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }))}</td>
+                <td><strong>${esc(log.usuario || 'Sistema')}</strong></td>
+                <td><span class="audit-acao">${esc(log.acao)}</span></td>
+                <td>${esc(p.frase)} ${etiqueta}${p.dados ? `<details><summary>ver dados enviados</summary><code>${esc(p.dados)}</code></details>` : ''}</td>
+                <td class="audit-ip">${esc(log.ip || '-')}</td>
+            </tr>`;
+        }
+
+        function preencherSelect(id, valores, rotulo) {
+            const sel = el(id);
+            if (!sel) return;
+            const atual = sel.value;
+            sel.innerHTML = `<option value="">${rotulo}</option>` + valores.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
+            sel.value = valores.includes(atual) ? atual : '';
+        }
+
+        async function carregar(acrescentar) {
+            const tbody = el('audit-logs-tbody');
+            if (!tbody || carregando) return;
+            carregando = true;
+            if (!acrescentar) { pagina = 1; tbody.innerHTML = '<tr><td colspan="5" class="audit-vazio">Carregando registros…</td></tr>'; }
+            try {
+                const p = filtros();
+                p.set('pagina', pagina); p.set('limite', POR_PAGINA);
+                const res = await fetch('/api/audit-logs?' + p.toString(), { cache: 'no-store' });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Erro ao carregar a trilha de auditoria.');
+                total = data.total || 0;
+                preencherSelect('audit-acao', data.acoes || [], 'Todas as áreas');
+                preencherSelect('audit-usuario', data.usuarios || [], 'Todos os usuários');
+                const html = (data.registros || []).map(linha).join('');
+                if (acrescentar) tbody.insertAdjacentHTML('beforeend', html);
+                else tbody.innerHTML = html || `<tr><td colspan="5" class="audit-vazio">${p.toString().replace(/pagina=\d+&?|limite=\d+&?/g, '') ? 'Nenhum registro com esses filtros.' : 'Ainda não há registros. As próximas alterações feitas no sistema aparecem aqui.'}</td></tr>`;
+                const mostrados = tbody.querySelectorAll('tr').length - (tbody.querySelector('.audit-vazio') ? 1 : 0);
+                el('audit-contagem').textContent = total ? `Mostrando ${mostrados} de ${total.toLocaleString('pt-BR')} registros` : '';
+                el('audit-mais').style.display = mostrados < total ? '' : 'none';
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="5" class="audit-vazio is-falha">${esc(err.message)}</td></tr>`;
+                el('audit-contagem').textContent = '';
+                el('audit-mais').style.display = 'none';
+            } finally {
+                carregando = false;
+            }
+        }
+
+        window.abrirModalAuditLogs = function() {
+            const modal = el('modal-audit-logs');
+            if (modal) modal.style.display = 'flex';
+            carregar(false);
+        };
+        window.fecharModalAuditLogs = function() {
+            const modal = el('modal-audit-logs');
+            if (modal) modal.style.display = 'none';
+        };
+        window.carregarAuditLogs = function() { carregar(false); };
+        // a busca por texto espera o usuário parar de digitar
+        window.filtrarAuditLogs = function(imediato) {
+            clearTimeout(temporizador);
+            temporizador = setTimeout(() => carregar(false), imediato ? 0 : 350);
+        };
+        window.limparFiltrosAuditLogs = function() {
+            ['audit-busca', 'audit-acao', 'audit-usuario', 'audit-de', 'audit-ate'].forEach(id => { if (el(id)) el(id).value = ''; });
+            if (el('audit-falhas')) el('audit-falhas').checked = false;
+            carregar(false);
+        };
+        window.carregarMaisAuditLogs = function() { pagina++; carregar(true); };
+
+        // Exporta para planilha o que os filtros atuais mostram (até 5.000 registros)
+        window.exportarAuditLogsCsv = async function() {
+            try {
+                const p = filtros();
+                p.set('limite', 5000);
+                const res = await fetch('/api/audit-logs?' + p.toString(), { cache: 'no-store' });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Erro ao exportar.');
+                const campo = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+                const linhas = [['Data e hora', 'Usuário', 'Área', 'Detalhes', 'IP'].map(campo).join(';')]
+                    .concat((data.registros || []).map(l => [new Date(l.criado_em).toLocaleString('pt-BR'), l.usuario, l.acao, l.detalhe, l.ip].map(campo).join(';')));
+                const blob = new Blob(['﻿' + linhas.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `trilha-de-auditoria-${new Date().toISOString().slice(0, 10)}.csv`;
+                document.body.appendChild(a); a.click(); a.remove();
+                setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+            } catch (err) {
+                if (window._apexNotify) window._apexNotify('Trilha de Auditoria', err.message, 'error');
+            }
+        };
+    })();
 
     // ══════════════════════════════════════════════════════════════════════════════
     // MÓDULO WEBCAM — completamente autocontido, modal criado via JS
