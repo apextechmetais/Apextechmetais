@@ -549,3 +549,17 @@ html.ax .ax-redes a:active { scale: 0.94; }
     .ax-header__bar { height: 76px; }
     .ax-logo img { width: 176px; }
 }
+
+
+/* ── Rodapé na mesma cor do cabeçalho, com degradê no miolo das páginas escuras ── */
+:root { --base-escura: #05130C; }
+html.ax .ax-header.header-desktop { background: var(--base-escura); }
+.ax-footer { background: var(--base-escura); border-top: 2px solid var(--verde-vivo); }
+html.ax body:not(.ax-home) { background: var(--base-escura); }
+html.ax body:not(.ax-home) #page-content {
+    background: linear-gradient(to bottom, var(--base-escura) 0, var(--floresta-2) 420px, #16402D 50%, var(--floresta-2) calc(100% - 420px), var(--base-escura) 100%);
+}
+html.ax body:not(.ax-home) #page-content section:not(.sobre-mvv),
+html.ax body:not(.ax-home) #page-content main,
+html.ax .ax-pagehead, html.ax .ax-noticias, html.ax .section_transformando { background-color: transparent !important; background-image: none !important; }
+html.ax .ax-pagehead { border-bottom-color: rgba(245, 246, 243, 0.1); }
