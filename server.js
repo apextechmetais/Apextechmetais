@@ -1300,6 +1300,8 @@ const authMiddleware = (req, res, next) => {
     ];
     // Configurações do site são públicas (para temas, ocultar menus etc)
     if (req.path === '/settings' && req.method === 'GET') return next();
+    // Notícias e galeria são exibidas no site público (somente leitura)
+    if (req.method === 'GET' && (req.path === '/noticias' || req.path === '/galeria')) return next();
     // Rotas de cotação LME são públicas (usadas na página cotacoes.html e home sem login)
     if (req.path.startsWith('/lme/tabela') || req.path.startsWith('/lme/graflme') || req.path.startsWith('/lme/varialme') || req.path === '/cotacoes-hoje') return next();
     if (publicRoutes.includes(req.path) || req.path.startsWith('/public')) return next();

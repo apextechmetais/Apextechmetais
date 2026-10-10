@@ -592,7 +592,7 @@ Responda de forma curta, amigável e profissional. Use o português do Brasil. N
             const noticias = res.ok ? await res.json() : [];
 
             if (!noticias.length) {
-                if (emptyEl) emptyEl.style.display = 'flex';
+                if (emptyEl) { emptyEl.textContent = 'Ainda não há notícias publicadas.'; emptyEl.style.display = 'flex'; }
                 return;
             }
 
@@ -628,7 +628,7 @@ Responda de forma curta, amigável e profissional. Use o português do Brasil. N
             });
         } catch (err) {
             console.error('Erro ao carregar notícias:', err);
-            if (emptyEl) emptyEl.style.display = 'flex';
+            if (emptyEl) { emptyEl.textContent = 'Não foi possível carregar as notícias agora. Tente de novo em instantes.'; emptyEl.style.display = 'flex'; }
         }
     }
 

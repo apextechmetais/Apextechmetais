@@ -3,606 +3,191 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <title>Home - ApexTech Metais | Reciclagem e Gestão de Resíduos Industriais</title>
+    <title>ApexTech Metais | Compra de sucata metálica em São Paulo</title>
+    <meta name="description" content="A ApexTech Metais compra sucata de cobre, alumínio, latão, fios, cabos e conectores de indústrias, obras e empresas em São Paulo e região. Coleta no local, pesagem na sua frente e pagamento no mesmo dia.">
     <link rel="icon" type="image/png" href="assets/img/icon.png">
-    <meta name="description" content="Apextech Metais — transformando resíduos em matérias-primas para o futuro. Tecnologia, confiança e valor para construir o ferro-velho do futuro.">
-    <link rel="icon" type="image/svg+xml" href="assets/img/logo-apextech.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700;800;900&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <link rel="stylesheet" href="style.css?v=7">
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/site.css?v=1">
     <script>window.CURRENT_PAGE = 'home';</script>
-    <script src="partials.js"></script>
-    <style>
-        /* ── HOME PAGE EXCLUSIVE STYLES ── */
-
-        /* HERO */
-        .home-hero {
-            min-height: 92vh;
-            background: linear-gradient(135deg, #020704 0%, #051007 40%, #07150a 100%); /* Fundo escurecido */
-            display: flex;
-            align-items: center;
-            position: relative;
-            overflow: hidden;
-        }
-        .home-hero::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background:
-                radial-gradient(ellipse 60% 60% at 80% 50%, rgba(42,208,122,0.07) 0%, transparent 70%),
-                radial-gradient(ellipse 40% 40% at 20% 80%, rgba(42,208,122,0.04) 0%, transparent 60%);
-        }
-        /* Animated grid lines */
-        .home-hero::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background-image:
-                linear-gradient(rgba(42,208,122,0.04) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(42,208,122,0.04) 1px, transparent 1px);
-            background-size: 60px 60px;
-            mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 0%, transparent 100%);
-        }
-        .hero-inner {
-            position: relative;
-            z-index: 2;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 80px 40px 60px;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 60px;
-            align-items: center;
-            width: 100%;
-        }
-        .hero-left {}
-        .hero-eyebrow {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background: rgba(42,208,122,0.1);
-            border: 1px solid rgba(42,208,122,0.3);
-            color: #2ad07a;
-            font-size: 0.78rem;
-            font-weight: 700;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-            padding: 6px 14px;
-            border-radius: 100px;
-            margin-bottom: 24px;
-        }
-        .hero-eyebrow i { font-size: 0.7rem; }
-        .hero-h1 {
-            font-family: 'Raleway', sans-serif;
-            font-size: clamp(2.4rem, 4vw, 3.6rem);
-            font-weight: 900;
-            line-height: 1.12;
-            color: #fff;
-            margin: 0 0 22px;
-        }
-        .hero-h1 span { color: #2ad07a; }
-        .hero-sub {
-            font-family: 'Lato', sans-serif;
-            font-size: 1.15rem; /* Aumentado */
-            line-height: 1.7;
-            color: rgba(255,255,255,0.95); /* Mais claro e legível */
-            margin: 0 0 38px;
-            max-width: 520px;
-        }
-        .hero-ctas {
-            display: flex;
-            gap: 16px;
-            flex-wrap: wrap;
-        }
-        .btn-hero-primary {
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            background: #2ad07a;
-            color: #0a1a0f;
-            font-weight: 800;
-            font-size: 0.95rem;
-            padding: 14px 28px;
-            border-radius: 8px;
-            text-decoration: none;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 20px rgba(42,208,122,0.3);
-        }
-        .btn-hero-primary:hover {
-            background: #1fb868;
-            transform: translateY(-2px);
-            box-shadow: 0 8px 30px rgba(42,208,122,0.45);
-        }
-        .btn-hero-outline {
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            border: 1.5px solid #d48a60; /* Tom cobre */
-            color: #d48a60;
-            font-weight: 600;
-            font-size: 0.95rem;
-            padding: 13px 24px;
-            border-radius: 8px;
-            text-decoration: none;
-            transition: all 0.3s ease;
-            backdrop-filter: blur(4px);
-        }
-        .btn-hero-outline:hover {
-            border-color: #e5996e;
-            color: #fff;
-            background: #d48a60;
-        }
-
-        /* Hero right — Stats cards */
-        .hero-right {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-        }
-        .hero-stat-card {
-            background: #17201a; /* Grafite esverdeado */
-            border: 1px solid rgba(255,255,255,0.05);
-            border-radius: 16px;
-            padding: 28px 22px;
-            transition: all 0.3s ease;
-            backdrop-filter: blur(8px);
-        }
-        .hero-stat-card:hover {
-            background: #1c2720;
-            border-color: rgba(42,208,122,0.25);
-            transform: translateY(-3px);
-        }
-        .hero-stat-card.accent {
-            background: #1a251e;
-            border-color: rgba(42,208,122,0.15);
-        }
-        .stat-icon {
-            width: 44px; height: 44px;
-            background: rgba(42,208,122,0.12);
-            border-radius: 10px;
-            display: flex; align-items: center; justify-content: center;
-            margin-bottom: 16px;
-            color: #2ad07a;
-            font-size: 1.2rem;
-        }
-        .stat-number {
-            font-family: 'Raleway', sans-serif;
-            font-size: 2rem;
-            font-weight: 900;
-            color: #fff;
-            line-height: 1;
-            margin-bottom: 4px;
-        }
-        .stat-label {
-            font-size: 0.82rem;
-            color: rgba(255,255,255,0.5);
-            line-height: 1.4;
-        }
-
-        /* SETOR SECTION */
-        .home-setores {
-            background: #f8faf8;
-            padding: 90px 0;
-        }
-        .home-setores .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 40px;
-        }
-        .section-label {
-            font-size: 0.78rem;
-            font-weight: 700;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-            color: #2ad07a;
-            margin-bottom: 12px;
-        }
-        .section-title {
-            font-family: 'Raleway', sans-serif;
-            font-size: clamp(1.8rem, 3vw, 2.6rem);
-            font-weight: 800;
-            color: #0d2416;
-            margin: 0 0 16px;
-            line-height: 1.2;
-        }
-        .section-desc {
-            color: #5a7060;
-            font-size: 1.05rem;
-            line-height: 1.7;
-            max-width: 540px;
-            margin: 0 0 50px;
-        }
-        .setores-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 24px;
-        }
-        .setor-card {
-            background: #fff;
-            border-radius: 16px;
-            padding: 36px 28px;
-            border: 1px solid #e8f0ea;
-            transition: all 0.35s ease;
-            position: relative;
-            overflow: hidden;
-        }
-        .setor-card::before {
-            content: '';
-            position: absolute;
-            bottom: 0; left: 0; right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, #2ad07a, #1aad60);
-            transform: scaleX(0);
-            transform-origin: left;
-            transition: transform 0.35s ease;
-        }
-        .setor-card:hover {
-            box-shadow: 0 12px 40px rgba(13,36,22,0.1);
-            transform: translateY(-4px);
-            border-color: rgba(42,208,122,0.3);
-        }
-        .setor-card:hover::before { transform: scaleX(1); }
-        .setor-icon {
-            width: 56px; height: 56px;
-            background: linear-gradient(135deg, #e8f8ef, #d0f0e0);
-            border-radius: 14px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 1.5rem;
-            color: #0d7a3e;
-            margin-bottom: 20px;
-        }
-        .setor-title {
-            font-family: 'Raleway', sans-serif;
-            font-size: 1.15rem;
-            font-weight: 700;
-            color: #0d2416;
-            margin: 0 0 10px;
-        }
-        .setor-desc {
-            font-size: 0.9rem;
-            color: #5a7060;
-            line-height: 1.65;
-            margin: 0 0 20px;
-        }
-        .setor-link {
-            font-size: 0.88rem;
-            font-weight: 700;
-            color: #2ad07a;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            transition: gap 0.2s;
-        }
-        .setor-link:hover { gap: 10px; }
-
-        /* DIFERENCIAIS */
-        .home-diferenciais {
-            background: linear-gradient(135deg, #0a1a0f 0%, #0d2416 100%);
-            padding: 90px 0;
-            position: relative;
-            overflow: hidden;
-        }
-        .home-diferenciais::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background:
-                radial-gradient(ellipse 50% 80% at 0% 50%, rgba(42,208,122,0.05) 0%, transparent 60%),
-                radial-gradient(ellipse 40% 60% at 100% 50%, rgba(42,208,122,0.04) 0%, transparent 60%);
-        }
-        .home-diferenciais .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 40px;
-            position: relative;
-            z-index: 1;
-        }
-        .home-diferenciais .section-title { color: #fff; }
-        .home-diferenciais .section-desc { color: rgba(255,255,255,0.55); }
-        .diferenciais-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 20px;
-        }
-        .diferencial-card {
-            background: rgba(255,255,255,0.04);
-            border: 1px solid rgba(255,255,255,0.07);
-            border-radius: 14px;
-            padding: 30px 22px;
-            text-align: center;
-            transition: all 0.3s ease;
-        }
-        .diferencial-card:hover {
-            background: rgba(42,208,122,0.07);
-            border-color: rgba(42,208,122,0.2);
-            transform: translateY(-3px);
-        }
-        .diferencial-icon {
-            font-size: 2rem;
-            color: #2ad07a;
-            margin-bottom: 16px;
-            display: block;
-        }
-        .diferencial-title {
-            font-family: 'Raleway', sans-serif;
-            font-size: 1rem;
-            font-weight: 700;
-            color: #fff;
-            margin: 0 0 8px;
-        }
-        .diferencial-desc {
-            font-size: 0.85rem;
-            color: rgba(255,255,255,0.5);
-            line-height: 1.6;
-            margin: 0;
-        }
-
-        /* CTA SECTION */
-        .home-cta {
-            background: #fff;
-            padding: 90px 0;
-        }
-        .home-cta .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 40px;
-            display: grid;
-            grid-template-columns: 1fr auto;
-            gap: 40px;
-            align-items: center;
-        }
-        .cta-text-h2 {
-            font-family: 'Raleway', sans-serif;
-            font-size: clamp(1.6rem, 2.5vw, 2.2rem);
-            font-weight: 800;
-            color: #0d2416;
-            margin: 0 0 12px;
-        }
-        .cta-text-p {
-            color: #5a7060;
-            font-size: 1rem;
-            margin: 0;
-            line-height: 1.65;
-        }
-        .cta-buttons {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            min-width: 200px;
-        }
-        .btn-cta-green {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            background: #2ad07a;
-            color: #0a1a0f;
-            font-weight: 800;
-            font-size: 0.95rem;
-            padding: 14px 24px;
-            border-radius: 8px;
-            text-decoration: none;
-            transition: all 0.3s;
-            white-space: nowrap;
-        }
-        .btn-cta-green:hover {
-            background: #1fb868;
-            transform: translateY(-2px);
-        }
-        .btn-cta-whatsapp {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            background: #25D366;
-            color: #fff;
-            font-weight: 700;
-            font-size: 0.9rem;
-            padding: 13px 20px;
-            border-radius: 8px;
-            text-decoration: none;
-            transition: all 0.3s;
-            white-space: nowrap;
-        }
-        .btn-cta-whatsapp:hover { background: #1eb856; }
-
-        /* Responsive */
-        @media (max-width: 900px) {
-            .hero-inner { grid-template-columns: 1fr; gap: 40px; padding: 60px 24px; }
-            .hero-right { grid-template-columns: 1fr 1fr; }
-            .setores-grid { grid-template-columns: 1fr; }
-            .diferenciais-grid { grid-template-columns: 1fr 1fr; }
-            .home-cta .container { grid-template-columns: 1fr; }
-            .cta-buttons { flex-direction: row; }
-        }
-        @media (max-width: 600px) {
-            .hero-right { grid-template-columns: 1fr 1fr; }
-            .diferenciais-grid { grid-template-columns: 1fr 1fr; }
-            .cta-buttons { flex-direction: column; }
-            .home-diferenciais .container, .home-setores .container, .home-cta .container { padding: 0 20px; }
-            .hero-inner { padding: 50px 20px; }
-        }
-
-        /* Header actions compact styles */
-        .header-actions {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            margin-left: auto;
-        }
-        .header-phone-link {
-            display: flex;
-            align-items: center;
-            gap: 7px;
-            color: rgba(255,255,255,0.8);
-            text-decoration: none;
-            font-size: 0.85rem;
-            font-weight: 600;
-            transition: color 0.2s;
-            white-space: nowrap;
-        }
-        .header-phone-link:hover { color: #2ad07a; }
-        .header-social-compact {
-            display: flex;
-            align-items: center;
-            gap: 0;
-            list-style: none;
-            margin: 0;
-            padding: 0;
-        }
-    </style>
+    <script src="partials.js?v=8"></script>
 </head>
-<body>
+<body class="ax-home">
 
 <div id="page-content">
+<main>
 
-    <!-- HERO -->
-    <section class="home-hero" id="home">
-        <div class="hero-inner">
-            <div class="hero-left">
-                <div class="hero-eyebrow">
-                    <i class="fa-solid fa-recycle"></i>
-                    Reciclagem &amp; Sustentabilidade
-                </div>
-                <h1 class="hero-h1">Transformamos <span>Resíduos</span><br>em <span>Matéria-Prima Estratégica</span></h1>
-                <p class="hero-sub">A Apextech Metais compra, processa e valoriza sucatas metálicas, fios, cabos, conectores e resíduos eletroeletrônicos, oferecendo segurança, agilidade e soluções eficientes para fornecedores e indústrias.</p>
-                <div class="hero-ctas">
-                    <a href="/contato.html" class="btn-hero-primary">
-                        <i class="fa-solid fa-bolt"></i> Solicite uma Cotação
-                    </a>
-                    <a href="/sobre.html" class="btn-hero-outline">
-                        <i class="fa-solid fa-building"></i> Conheça a Apextech
-                    </a>
+    <!-- Abertura: proposta + cotações reais do dia -->
+    <section class="ax-hero" data-ax-entrada>
+        <div class="ax-wrap ax-hero__grade">
+            <div class="ax-hero__texto">
+                <h1>Compramos sucata metálica direto da sua indústria.</h1>
+                <p class="ax-lead">Cobre, alumínio, latão, fios, cabos e conectores. Coletamos em São Paulo e região, pesamos na sua frente e pagamos no mesmo dia.</p>
+                <div class="ax-acoes">
+                    <a class="ax-btn ax-btn--solido" href="/contato.html">Pedir avaliação da sucata</a>
+                    <a class="ax-btn ax-btn--linha" href="https://api.whatsapp.com/send?phone=5511940222249" target="_blank" rel="noopener">Falar no WhatsApp</a>
                 </div>
             </div>
-            <div class="hero-right">
-                <div class="hero-stat-card accent">
-                    <div class="stat-icon"><i class="fa-solid fa-industry"></i></div>
-                    <div class="stat-number">15+</div>
-                    <div class="stat-label">anos — Experiência no mercado de metais</div>
+
+            <aside class="ax-ticket" id="ax-ticket" aria-label="Cotações do dia na Bolsa de Metais de Londres">
+                <div class="ax-ticket__topo">
+                    <strong>Bolsa de Metais de Londres</strong>
+                    <span id="ax-ticket-data">carregando fechamento</span>
                 </div>
-                <div class="hero-stat-card">
-                    <div class="stat-icon"><i class="fa-solid fa-handshake"></i></div>
-                    <div class="stat-number">500+</div>
-                    <div class="stat-label">parceiros — Relacionamentos comerciais construídos</div>
+                <table class="ax-ticket__tabela">
+                    <thead>
+                        <tr><th scope="col">Metal</th><th scope="col">US$ por tonelada</th><th scope="col">No dia</th></tr>
+                    </thead>
+                    <tbody id="ax-ticket-linhas">
+                        <tr><th scope="row">Cobre</th><td>—</td><td>—</td></tr>
+                        <tr><th scope="row">Alumínio</th><td>—</td><td>—</td></tr>
+                        <tr><th scope="row">Zinco</th><td>—</td><td>—</td></tr>
+                        <tr><th scope="row">Chumbo</th><td>—</td><td>—</td></tr>
+                        <tr><th scope="row">Estanho</th><td>—</td><td>—</td></tr>
+                        <tr><th scope="row">Níquel</th><td>—</td><td>—</td></tr>
+                    </tbody>
+                </table>
+                <div class="ax-ticket__base">
+                    <span>Dólar comercial <b id="ax-ticket-dolar">—</b></span>
+                    <a href="/cotacoes.html">Ver histórico</a>
                 </div>
-                <div class="hero-stat-card">
-                    <div class="stat-icon"><i class="fa-solid fa-weight-hanging"></i></div>
-                    <div class="stat-number">1.000+</div>
-                    <div class="stat-label">toneladas — Capacidade anual de processamento</div>
-                </div>
-                <div class="hero-stat-card accent">
-                    <div class="stat-icon"><i class="fa-solid fa-leaf"></i></div>
-                    <div class="stat-number">100%</div>
-                    <div class="stat-label">comprometida — Com eficiência e responsabilidade</div>
-                </div>
+            </aside>
+        </div>
+
+        <!-- Faixa com os materiais que entram no pátio -->
+        <div class="ax-faixa" aria-hidden="true">
+            <div class="ax-faixa__trilho">
+                <span>Cobre</span><span>Alumínio</span><span>Latão</span><span>Bronze</span><span>Chumbo</span><span>Zinco</span><span>Estanho</span><span>Níquel</span><span>Fios e cabos</span><span>Conectores</span><span>Placas eletrônicas</span>
+                <span>Cobre</span><span>Alumínio</span><span>Latão</span><span>Bronze</span><span>Chumbo</span><span>Zinco</span><span>Estanho</span><span>Níquel</span><span>Fios e cabos</span><span>Conectores</span><span>Placas eletrônicas</span>
             </div>
         </div>
     </section>
 
-    <!-- SETORES DE ATUAÇÃO -->
-    <section class="home-setores" id="setores">
-        <div class="container">
-            <div class="section-label">Áreas de Atuação</div>
-            <h2 class="section-title">O que compramos de você</h2>
-            <p class="section-desc">Atuamos em diferentes segmentos, garantindo agilidade e o melhor preço na compra das suas sucatas e resíduos metálicos.</p>
-            <div class="setores-grid">
-                <div class="setor-card">
-                    <div class="setor-icon"><i class="fa-solid fa-industry"></i></div>
-                    <h3 class="setor-title">Sucatas Industriais</h3>
-                    <p class="setor-desc">Compramos resíduos metálicos de indústrias de todos os segmentos: alumínio, cobre, aço, bronze e mais.</p>
-                    <a href="/servicos.html" class="setor-link">Saiba mais <i class="fa-solid fa-arrow-right"></i></a>
-                </div>
-                <div class="setor-card">
-                    <div class="setor-icon"><i class="fa-solid fa-hard-hat"></i></div>
-                    <h3 class="setor-title">Construção Civil</h3>
-                    <p class="setor-desc">Resíduos de obras, estruturas metálicas, ferragens e sucatas de canteiros de obra. Avaliamos e compramos no local.</p>
-                    <a href="/servicos.html" class="setor-link">Saiba mais <i class="fa-solid fa-arrow-right"></i></a>
-                </div>
-                <div class="setor-card">
-                    <div class="setor-icon"><i class="fa-solid fa-plug-circle-bolt"></i></div>
-                    <h3 class="setor-title">Fios, Cabos e Conectores</h3>
-                    <p class="setor-desc">Especialistas na compra de fios de cobre, cabos elétricos e conectores. Peso justo, pagamento rápido e seguro.</p>
-                    <a href="/servicos.html" class="setor-link">Saiba mais <i class="fa-solid fa-arrow-right"></i></a>
-                </div>
-                <div class="setor-card">
-                    <div class="setor-icon"><i class="fa-solid fa-microchip"></i></div>
-                    <h3 class="setor-title">Sucatas Eletrônicas</h3>
-                    <p class="setor-desc">Equipamentos, placas eletrônicas e componentes obsoletos. Descarte responsável com retorno financeiro.</p>
-                    <a href="/servicos.html" class="setor-link">Saiba mais <i class="fa-solid fa-arrow-right"></i></a>
-                </div>
-                <div class="setor-card">
-                    <div class="setor-icon"><i class="fa-solid fa-building"></i></div>
-                    <h3 class="setor-title">Grandes Empresas e Indústrias</h3>
-                    <p class="setor-desc">Contratos de parceria para coleta e compra periódica de resíduos metálicos com logística dedicada.</p>
-                    <a href="/contato.html" class="setor-link">Fale conosco <i class="fa-solid fa-arrow-right"></i></a>
-                </div>
-                <div class="setor-card">
-                    <div class="setor-icon"><i class="fa-solid fa-chart-line"></i></div>
-                    <h3 class="setor-title">Cotações LME em Tempo Real</h3>
-                    <p class="setor-desc">Acompanhe as cotações da Bolsa de Metais de Londres (LME) atualizadas semanalmente para negociar com mais segurança.</p>
-                    <a href="/cotacoes.html" class="setor-link">Ver cotações <i class="fa-solid fa-arrow-right"></i></a>
-                </div>
+    <!-- O que compramos: lista que abre -->
+    <section class="ax-secao ax-compramos" id="o-que-compramos">
+        <div class="ax-wrap ax-compramos__grade">
+            <div class="ax-compramos__intro">
+                <h2>O que compramos de você</h2>
+                <p>Se é metal e está sobrando na sua operação, provavelmente tem valor. Escolha de onde vem a sua sucata.</p>
+                <figure class="ax-foto">
+                    <img src="assets/img/img-transformando-residuos.webp" alt="Sucata metálica separada no pátio da ApexTech" loading="lazy" width="640" height="760">
+                </figure>
+            </div>
+
+            <div class="ax-lista" data-ax-lista>
+                <article class="ax-item is-aberto">
+                    <h3><button type="button" aria-expanded="true" aria-controls="ax-item-1">Sucatas industriais</button></h3>
+                    <div class="ax-item__corpo" id="ax-item-1">
+                        <div>
+                            <p>Compramos resíduos metálicos de indústrias de todos os segmentos: alumínio, cobre, aço, bronze e mais.</p>
+                            <a href="/servicos.html">Ver soluções para indústrias</a>
+                        </div>
+                    </div>
+                </article>
+                <article class="ax-item">
+                    <h3><button type="button" aria-expanded="false" aria-controls="ax-item-2">Fios, cabos e conectores</button></h3>
+                    <div class="ax-item__corpo" id="ax-item-2">
+                        <div>
+                            <p>Fios de cobre, cabos elétricos e conectores. Peso justo, pagamento rápido e seguro.</p>
+                            <a href="/produtos.html">Ver catálogo de materiais</a>
+                        </div>
+                    </div>
+                </article>
+                <article class="ax-item">
+                    <h3><button type="button" aria-expanded="false" aria-controls="ax-item-3">Sucatas eletrônicas</button></h3>
+                    <div class="ax-item__corpo" id="ax-item-3">
+                        <div>
+                            <p>Equipamentos, placas eletrônicas e componentes obsoletos. Descarte responsável com retorno financeiro.</p>
+                            <a href="/produtos.html">Ver catálogo de materiais</a>
+                        </div>
+                    </div>
+                </article>
+                <article class="ax-item">
+                    <h3><button type="button" aria-expanded="false" aria-controls="ax-item-4">Obras e construção civil</button></h3>
+                    <div class="ax-item__corpo" id="ax-item-4">
+                        <div>
+                            <p>Resíduos de obras, estruturas metálicas, ferragens e sucatas de canteiro. Avaliamos e compramos no local.</p>
+                            <a href="/onde-comprar.html">Ver como funciona a compra</a>
+                        </div>
+                    </div>
+                </article>
+                <article class="ax-item">
+                    <h3><button type="button" aria-expanded="false" aria-controls="ax-item-5">Contratos com grandes geradores</button></h3>
+                    <div class="ax-item__corpo" id="ax-item-5">
+                        <div>
+                            <p>Parceria para coleta e compra periódica de resíduos metálicos, com logística dedicada à sua empresa.</p>
+                            <a href="/contato.html">Falar sobre um contrato</a>
+                        </div>
+                    </div>
+                </article>
             </div>
         </div>
     </section>
 
-    <!-- DIFERENCIAIS -->
-    <section class="home-diferenciais" id="diferenciais">
-        <div class="container">
-            <div class="section-label" style="color:#2ad07a;">Por que a ApexTech?</div>
-            <h2 class="section-title">Nossos diferenciais</h2>
-            <p class="section-desc">Trabalhamos com transparência, agilidade e respeito — do primeiro contato ao pagamento.</p>
-            <div class="diferenciais-grid">
-                <div class="diferencial-card">
-                    <i class="fa-solid fa-scale-balanced diferencial-icon"></i>
-                    <h4 class="diferencial-title">Pesagem Transparente</h4>
-                    <p class="diferencial-desc">Balança certificada e processo auditável. Você acompanha tudo em tempo real.</p>
-                </div>
-                <div class="diferencial-card">
-                    <i class="fa-solid fa-bolt-lightning diferencial-icon"></i>
-                    <h4 class="diferencial-title">Pagamento Ágil</h4>
-                    <p class="diferencial-desc">Pagamento realizado no ato ou via transferência bancária no mesmo dia.</p>
-                </div>
-                <div class="diferencial-card">
-                    <i class="fa-solid fa-truck-fast diferencial-icon"></i>
-                    <h4 class="diferencial-title">Coleta no Local</h4>
-                    <p class="diferencial-desc">Buscamos sua sucata onde estiver — indústrias, obras e estabelecimentos.</p>
-                </div>
-                <div class="diferencial-card">
-                    <i class="fa-solid fa-shield-halved diferencial-icon"></i>
-                    <h4 class="diferencial-title">Empresa Regularizada</h4>
-                    <p class="diferencial-desc">CNPJ ativo, nota fiscal emitida e todos os documentos legais em dia.</p>
-                </div>
-            </div>
+    <!-- Como funciona: é uma sequência de verdade, por isso numerada -->
+    <section class="ax-secao ax-passos" id="como-funciona">
+        <div class="ax-wrap">
+            <h2>Do primeiro contato ao pagamento</h2>
+            <ol class="ax-passos__lista" data-ax-passos>
+                <li>
+                    <h3>Você chama</h3>
+                    <p>Por telefone, WhatsApp ou formulário. Diga o material e a quantidade aproximada.</p>
+                </li>
+                <li>
+                    <h3>Vamos até você</h3>
+                    <p>Buscamos a sucata onde ela estiver: indústrias, obras e estabelecimentos.</p>
+                </li>
+                <li>
+                    <h3>Pesamos na sua frente</h3>
+                    <p>Balança certificada e processo auditável. Você acompanha a pesagem.</p>
+                </li>
+                <li>
+                    <h3>Pagamos no mesmo dia</h3>
+                    <p>No ato ou por transferência bancária, com nota fiscal emitida.</p>
+                </li>
+            </ol>
         </div>
     </section>
 
-    <!-- CTA FINAL -->
-    <section class="home-cta" id="contato-home">
-        <div class="container">
-            <div>
-                <h2 class="cta-text-h2">Tem sucata para vender? <br>Fale agora com a nossa equipe!</h2>
-                <p class="cta-text-p">Atendemos São Paulo e região. Entre em contato e receba uma avaliação sem compromisso.</p>
-            </div>
-            <div class="cta-buttons">
-                <a href="/contato.html" class="btn-cta-green">
-                    <i class="fa-solid fa-envelope"></i> Enviar mensagem
-                </a>
-                <a href="https://api.whatsapp.com/send?phone=5511940222249" target="_blank" class="btn-cta-whatsapp">
-                    <i class="fa-brands fa-whatsapp"></i> WhatsApp
-                </a>
-            </div>
+    <!-- Garantias -->
+    <section class="ax-secao ax-garantias">
+        <div class="ax-wrap ax-garantias__grade">
+            <h2>Negócio feito às claras, do peso ao papel.</h2>
+            <dl>
+                <div>
+                    <dt>Empresa regularizada</dt>
+                    <dd>CNPJ ativo, nota fiscal emitida e todos os documentos legais em dia.</dd>
+                </div>
+                <div>
+                    <dt>Destinação responsável</dt>
+                    <dd>O material volta para a cadeia produtiva como matéria-prima, com rastreabilidade.</dd>
+                </div>
+                <div>
+                    <dt>Preço com referência de mercado</dt>
+                    <dd>Acompanhamos a Bolsa de Metais de Londres todos os dias. <a href="/cotacoes.html">Veja as cotações</a>.</dd>
+                </div>
+            </dl>
         </div>
     </section>
 
-</div>
+    <!-- Chamada final -->
+    <section class="ax-chamada">
+        <div class="ax-wrap">
+            <h2>Tem sucata parada no pátio?</h2>
+            <a class="ax-chamada__fone" href="tel:+551156105564">11 5610-5564</a>
+            <div class="ax-acoes">
+                <a class="ax-btn ax-btn--claro" href="/contato.html">Pedir avaliação da sucata</a>
+                <a class="ax-btn ax-btn--linha-clara" href="https://api.whatsapp.com/send?phone=5511940222249" target="_blank" rel="noopener">Falar no WhatsApp</a>
+            </div>
+            <p>Atendemos São Paulo e região. A avaliação é sem compromisso.</p>
+        </div>
+    </section>
 
-<script src="script.js?v=7"></script>
-    <script src="assets/js/theme-toggle.js"></script>
+</main>
+</div><!-- /#page-content -->
+
+<script src="script.js?v=9"></script>
+<script src="assets/js/site.js?v=1"></script>
 </body>
 </html>

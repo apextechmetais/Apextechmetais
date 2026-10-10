@@ -12,84 +12,27 @@
     <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700;800&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link rel="stylesheet" href="style.css?v=5">
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/site.css?v=1">
     <script>window.CURRENT_PAGE = 'noticias';</script>
-    <script src="partials.js"></script>
+    <script src="partials.js?v=8"></script>
 </head>
 <body>
 
 <div id="page-content">
 
-    <!-- PAGE BANNER -->
-    <section style="background:var(--apex-dark);padding:80px 0;position:relative;overflow:hidden;">
-        <div style="position:absolute;inset:0;background:url('assets/img/photo-1605647540924-852290f6b0d5.jpg') center/cover;opacity:0.2;"></div>
-        <div class="container" style="position:relative;z-index:2;">
-            <nav style="color:#ccc;font-size:0.9rem;margin-bottom:15px;">
-                <a href="/index.html" style="color:#ccc;">Home</a> &rsaquo; <span style="color:var(--apex-yellow);">Notícias</span>
-            </nav>
-            <h1 style="color:#fff;font-size:2.8rem;font-weight:700;">Notícias e Destaques</h1>
-            <p style="color:#ddd;margin-top:10px;font-size:1.1rem;">Sustentabilidade, metais e economia circular</p>
-        </div>
-    </section>
-
-    <!-- NEWS SECTION -->
-    <section class="section-news" id="noticias" style="padding-top:50px;">
-        <div class="container">
-            <div class="news-layout">
-                <div class="news-feature">
-                    <img src="assets/img/photo-1605647540924-852290f6b0d5.jpg" alt="Destaque">
-                    <div class="news-feature-overlay">
-                        <span class="news-badge">Destaque</span>
-                        <h2 style="font-size:1.5rem;margin-bottom:10px;">Reciclagem de Sucata Eletrônica: O Que Todo Profissional Precisa Saber</h2>
-                        <p style="color:#ddd;">Entenda a importância de processar placas de circuito e recuperar metais preciosos de forma segura e eficiente.</p>
-                    </div>
-                </div>
-
-                <div class="news-list" id="noticias-grid">
-                    <div id="noticias-empty">Carregando notícias...</div>
-                </div>
-            </div>
-
-            <!-- All News Grid -->
-            <div style="margin-top:60px;">
-                <h2 style="font-size:1.8rem;font-weight:700;color:var(--apex-dark);margin-bottom:30px;">Todas as Notícias</h2>
-                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:25px;" id="all-noticias-grid">
-                    <!-- Static placeholders (will be replaced by script.js if it feeds this section) -->
-                    <article style="border:1px solid var(--apex-border);border-radius:8px;overflow:hidden;transition:box-shadow 0.3s;" onmouseover="this.style.boxShadow='0 8px 20px rgba(0,0,0,0.1)'" onmouseout="this.style.boxShadow=''">
-                        <img src="assets/img/photo-1558618666-fcd25c85cd64.jpg" alt="Notícia 1" style="width:100%;height:200px;object-fit:cover;">
-                        <div style="padding:20px;">
-                            <span class="news-badge">Sustentabilidade</span>
-                            <h3 style="font-size:1.1rem;font-weight:700;color:var(--apex-dark);margin:10px 0;">O Futuro da Reciclagem de Cobre no Brasil</h3>
-                            <p style="color:var(--apex-text-muted);font-size:0.9rem;margin-bottom:15px;">Com a alta do cobre no mercado internacional, a reciclagem se torna cada vez mais estratégica para a indústria.</p>
-                            <span style="font-size:0.8rem;color:var(--apex-text-muted);"><i class="fa-regular fa-calendar"></i> Jun 2026</span>
-                        </div>
-                    </article>
-                    <article style="border:1px solid var(--apex-border);border-radius:8px;overflow:hidden;transition:box-shadow 0.3s;" onmouseover="this.style.boxShadow='0 8px 20px rgba(0,0,0,0.1)'" onmouseout="this.style.boxShadow=''">
-                        <img src="assets/img/photo-1581092918056-0c4c3acd3789.jpg" alt="Notícia 2" style="width:100%;height:200px;object-fit:cover;">
-                        <div style="padding:20px;">
-                            <span class="news-badge">Mercado</span>
-                            <h3 style="font-size:1.1rem;font-weight:700;color:var(--apex-dark);margin:10px 0;">LME: Metais Industriais em Alta em 2026</h3>
-                            <p style="color:var(--apex-text-muted);font-size:0.9rem;margin-bottom:15px;">As cotações do zinco e alumínio vêm registrando alta histórica. Entenda os fatores que impulsionam essa tendência.</p>
-                            <span style="font-size:0.8rem;color:var(--apex-text-muted);"><i class="fa-regular fa-calendar"></i> Mai 2026</span>
-                        </div>
-                    </article>
-                    <article style="border:1px solid var(--apex-border);border-radius:8px;overflow:hidden;transition:box-shadow 0.3s;" onmouseover="this.style.boxShadow='0 8px 20px rgba(0,0,0,0.1)'" onmouseout="this.style.boxShadow=''">
-                        <img src="assets/img/photo-1504328345606-18bbc8c9d7d1.jpg" alt="Notícia 3" style="width:100%;height:200px;object-fit:cover;">
-                        <div style="padding:20px;">
-                            <span class="news-badge">Regulamentação</span>
-                            <h3 style="font-size:1.1rem;font-weight:700;color:var(--apex-dark);margin:10px 0;">MTR: Novas Regras para Transportadores de Resíduos</h3>
-                            <p style="color:var(--apex-text-muted);font-size:0.9rem;margin-bottom:15px;">Entenda as novas exigências do Manifesto de Transporte de Resíduos e como a Apex pode ajudar sua empresa.</p>
-                            <span style="font-size:0.8rem;color:var(--apex-text-muted);"><i class="fa-regular fa-calendar"></i> Abr 2026</span>
-                        </div>
-                    </article>
-                </div>
+    <!-- Notícias publicadas pelo painel administrativo -->
+    <section class="section-news ax-noticias" id="noticias">
+        <div class="ax-wrap">
+            <div class="ax-noticias__lista" id="noticias-grid">
+                <div id="noticias-empty">Carregando notícias…</div>
             </div>
         </div>
     </section>
 
 </div><!-- /#page-content -->
 
-<script src="script.js?v=7"></script>
-    <script src="assets/js/theme-toggle.js"></script>
+<script src="script.js?v=9"></script>
 </body>
 </html>
 
