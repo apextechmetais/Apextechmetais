@@ -120,9 +120,151 @@ module.exports = function(pool, dbAvailable, memStore) {
         ];
     }
 
+    // Com banco de dados (produção) o CRM começa vazio: os dados de demonstração acima servem só ao modo memória
+    if (pool && !memStore._waSemDemo) {
+        memStore._waSemDemo = true;
+        memStore.whatsapp_instancias = memStore.whatsapp_instancias.filter(i => !['inst_1', 'inst_2', 'inst_3'].includes(i.id));
+        memStore.whatsapp_contatos = [];
+        memStore.whatsapp_conversas = [];
+        memStore.whatsapp_mensagens = [];
+    }
+
+    // ─── EQUIPE: cada WhatsApp pertence a um usuário do sistema ───
+    // Diretoria e Administrador enxergam e gerenciam todos; os demais só o próprio celular e as próprias conversas.
+    const ehGestor = (req) => ['administrador', 'diretoria'].includes(String((req.user && req.user.perfil) || '').trim().toLowerCase());
+    const loginDe = (req) => String((req.user && req.user.user) || '');
+    const nomeAtendente = (req) => (req.user && (req.user.nome || req.user.user)) || 'Administrador';
+    const statusDe = (inst) => whatsappManager.statuses.get(inst.id) || inst.status || 'desconectado';
+    const instanciasVisiveis = (req) => (memStore.whatsapp_instancias || []).filter(i => ehGestor(req) || (i.usuario && i.usuario === loginDe(req)));
+    const idsVisiveis = (req) => new Set(instanciasVisiveis(req).map(i => i.id));
+
+    /** Conta que o usuário vai usar para enviar: a pedida (se for dele) ou a própria que estiver conectada. */
+    function resolverInstancia(req, res, pedida) {
+        const visiveis = instanciasVisiveis(req);
+        const alvo = pedida
+            ? visiveis.find(i => i.id === pedida)
+            : (visiveis.find(i => statusDe(i) === 'conectado') || visiveis[0]);
+        if (!alvo) {
+            res.status(pedida ? 403 : 409).json({ error: pedida ? 'Este WhatsApp pertence a outro usuário.' : 'Você ainda não tem um WhatsApp cadastrado. Conecte o seu em "Contas / Celulares".' });
+            return null;
+        }
+        return alvo.id;
+    }
+
+    // As contas ficam gravadas no banco para a equipe não precisar ser recadastrada a cada reinício
+    let tabelaInstancias = null;
+    const garantirTabelaInstancias = () => tabelaInstancias || (tabelaInstancias = pool.query(`
+        CREATE TABLE IF NOT EXISTS whatsapp_instancias (
+            id          TEXT PRIMARY KEY,
+            nome        TEXT NOT NULL,
+            numero      TEXT,
+            responsavel TEXT,
+            usuario     TEXT,
+            criado_em   TIMESTAMP DEFAULT NOW()
+        )
+    `).catch(err => { tabelaInstancias = null; throw err; }));
+
+    async function salvarInstanciaBanco(inst) {
+        if (!pool) return;
+        try {
+            await garantirTabelaInstancias();
+            await pool.query(`
+                INSERT INTO whatsapp_instancias (id, nome, numero, responsavel, usuario) VALUES ($1, $2, $3, $4, $5)
+                ON CONFLICT (id) DO UPDATE SET nome = EXCLUDED.nome, numero = EXCLUDED.numero, responsavel = EXCLUDED.responsavel, usuario = EXCLUDED.usuario
+            `, [inst.id, inst.nome, inst.numero || null, inst.responsavel || null, inst.usuario || null]);
+        } catch (err) {
+            console.error('[WhatsApp] Não foi possível gravar a conta no banco:', err.message);
+        }
+    }
+    async function removerInstanciaBanco(id) {
+        if (!pool) return;
+        try {
+            await garantirTabelaInstancias();
+            await pool.query('DELETE FROM whatsapp_instancias WHERE id = $1', [id]);
+        } catch (err) {
+            console.error('[WhatsApp] Não foi possível remover a conta do banco:', err.message);
+        }
+    }
+    (async function carregarInstanciasBanco() {
+        if (!pool) return;
+        try {
+            await garantirTabelaInstancias();
+            const r = await pool.query('SELECT * FROM whatsapp_instancias ORDER BY criado_em ASC');
+            r.rows.forEach(row => {
+                const atual = memStore.whatsapp_instancias.find(i => i.id === row.id);
+                if (atual) {
+                    Object.assign(atual, { nome: row.nome, responsavel: row.responsavel, usuario: row.usuario });
+                } else {
+                    memStore.whatsapp_instancias.push({
+                        id: row.id, nome: row.nome, numero: row.numero || 'Pendente', responsavel: row.responsavel || '', usuario: row.usuario || null,
+                        status: whatsappManager.statuses.get(row.id) || 'desconectado', qr_code: null, criado_em: row.criado_em
+                    });
+                }
+            });
+        } catch (err) {
+            console.error('[WhatsApp] Não foi possível carregar as contas do banco:', err.message);
+        }
+    })();
+
+    // Guarda geral: ninguém mexe na conta de outro usuário; ações de gestão só para gestores
+    router.use((req, res, next) => {
+        const m = req.path.match(/^\/instancias\/([^/]+)/);
+        if (m) {
+            const id = decodeURIComponent(m[1]);
+            if (!idsVisiveis(req).has(id)) {
+                const existe = (memStore.whatsapp_instancias || []).some(i => i.id === id);
+                return res.status(existe ? 403 : 404).json({ error: existe ? 'Este WhatsApp pertence a outro usuário.' : 'Instância não encontrada' });
+            }
+        }
+        if (['/disparo-massa', '/equipe'].includes(req.path) && !ehGestor(req)) {
+            return res.status(403).json({ error: 'Apenas Diretoria ou Administrador podem usar este recurso.' });
+        }
+        next();
+    });
+
+    // Painel da equipe (gestores): quem está conectado, quantas conversas e quem ainda não tem WhatsApp
+    router.get('/equipe', async (req, res) => {
+        try {
+            const conversas = memStore.whatsapp_conversas || [];
+            const mensagens = memStore.whatsapp_mensagens || [];
+            const hoje = new Date().toISOString().slice(0, 10);
+            const contas = (memStore.whatsapp_instancias || []).map(i => {
+                const convs = conversas.filter(c => c.instancia_id === i.id);
+                const datas = convs.map(c => c.atualizado_em).filter(Boolean).sort();
+                return {
+                    id: i.id, nome: i.nome, numero: i.numero, responsavel: i.responsavel, usuario: i.usuario || null,
+                    status: statusDe(i),
+                    conversas: convs.length,
+                    nao_lidas: convs.reduce((t, c) => t + (parseInt(c.nao_lidas) || 0), 0),
+                    enviadas_hoje: mensagens.filter(m => m.instancia_id === i.id && m.remetente === 'atendente' && String(m.criado_em).slice(0, 10) === hoje).length,
+                    ultima_atividade: datas.length ? datas[datas.length - 1] : null
+                };
+            });
+            let usuarios = [];
+            try {
+                usuarios = pool
+                    ? (await pool.query('SELECT "user", nome, perfil FROM usuarios ORDER BY nome ASC')).rows
+                    : (memStore.usuarios || []).map(u => ({ user: u.user, nome: u.nome, perfil: u.perfil }));
+            } catch (e) {
+                usuarios = (memStore.usuarios || []).map(u => ({ user: u.user, nome: u.nome, perfil: u.perfil }));
+            }
+            const comConta = new Set(contas.map(c => c.usuario).filter(Boolean));
+            res.json({
+                success: true,
+                contas,
+                usuarios,
+                sem_whatsapp: usuarios.filter(u => !comConta.has(u.user)),
+                totais: { contas: contas.length, conectadas: contas.filter(c => c.status === 'conectado').length, nao_lidas: contas.reduce((t, c) => t + c.nao_lidas, 0) }
+            });
+        } catch (err) {
+            console.error('[WhatsApp API] Erro equipe:', err);
+            res.status(500).json({ error: err.message });
+        }
+    });
+
     // ─── 1. STATUS E GESTÃO DE INSTÂNCIAS (CONTAS / CELULARES) ───
     router.get('/status', (req, res) => {
-        const instancias = memStore.whatsapp_instancias || [];
+        const instancias = instanciasVisiveis(req);
         const ativas = instancias.filter(i => i.status === 'conectado').length;
         res.json({
             status: ativas > 0 ? 'conectado' : 'desconectado',
@@ -135,15 +277,17 @@ module.exports = function(pool, dbAvailable, memStore) {
     });
 
     router.get('/instancias', (req, res) => {
-        const list = (memStore.whatsapp_instancias || []).map(inst => {
+        const list = instanciasVisiveis(req).map(inst => {
             const st = whatsappManager.statuses.get(inst.id);
             if (st) inst.status = st;
             return inst;
         });
-        res.json({ success: true, instancias: list });
+        res.json({ success: true, instancias: list, gestor: ehGestor(req), usuario: loginDe(req), nome: nomeAtendente(req) });
     });
 
     router.post('/resincronizar', async (req, res) => {
+        // A ressincronização geral mexe em todas as contas: só gestores a disparam
+        if (!ehGestor(req)) return res.json({ success: true, ignorado: true });
         try {
             const data = await whatsappManager.resincronizarTudo();
             res.json({ success: true, ...data });
@@ -154,23 +298,43 @@ module.exports = function(pool, dbAvailable, memStore) {
     });
 
     router.post('/instancias', async (req, res) => {
-        const { nome, numero, responsavel } = req.body;
-        if (!nome) return res.status(400).json({ error: 'Nome da conta/celular é obrigatório' });
+        const { nome, numero, responsavel, usuario } = req.body || {};
+        const gestor = ehGestor(req);
+        // Gestor pode cadastrar o celular de qualquer usuário; os demais cadastram só o próprio
+        const dono = gestor ? (String(usuario || '').trim() || loginDe(req)) : loginDe(req);
+        if (!gestor && (memStore.whatsapp_instancias || []).some(i => i.usuario === dono)) {
+            return res.status(409).json({ error: 'Você já tem um WhatsApp cadastrado. Use "Escanear QR Code" para reconectá-lo.' });
+        }
+        const nomeConta = String(nome || '').trim() || `WhatsApp de ${gestor && usuario ? usuario : nomeAtendente(req)}`;
 
         const id = 'inst_' + Date.now();
         const novaInstancia = {
             id,
-            nome: nome,
+            nome: nomeConta.slice(0, 80),
             numero: numero || 'Pendente',
-            responsavel: responsavel || 'Funcionário',
+            responsavel: String(responsavel || '').trim() || (dono === loginDe(req) ? nomeAtendente(req) : dono),
+            usuario: dono,
             status: 'desconectado',
             qr_code: null,
             criado_em: new Date().toISOString()
         };
 
         memStore.whatsapp_instancias.push(novaInstancia);
+        await salvarInstanciaBanco(novaInstancia);
         await whatsappManager.iniciarInstancia(id);
         res.json({ success: true, instancia: novaInstancia });
+    });
+
+    // Gestor troca o nome, o responsável ou o usuário dono de uma conta
+    router.put('/instancias/:id', async (req, res) => {
+        if (!ehGestor(req)) return res.status(403).json({ error: 'Apenas Diretoria ou Administrador podem alterar uma conta.' });
+        const inst = memStore.whatsapp_instancias.find(i => i.id === req.params.id);
+        const { nome, responsavel, usuario } = req.body || {};
+        if (nome !== undefined && String(nome).trim()) inst.nome = String(nome).trim().slice(0, 80);
+        if (responsavel !== undefined) inst.responsavel = String(responsavel).trim();
+        if (usuario !== undefined) inst.usuario = String(usuario).trim() || null;
+        await salvarInstanciaBanco(inst);
+        res.json({ success: true, instancia: inst });
     });
 
     router.get('/instancias/:id/qr', async (req, res) => {
@@ -205,6 +369,7 @@ module.exports = function(pool, dbAvailable, memStore) {
         const id = req.params.id;
         await whatsappManager.desconectar(id);
         memStore.whatsapp_instancias = (memStore.whatsapp_instancias || []).filter(i => i.id !== id);
+        await removerInstanciaBanco(id);
         res.json({ success: true });
     });
 
@@ -265,7 +430,8 @@ module.exports = function(pool, dbAvailable, memStore) {
     router.get('/conversas', (req, res) => {
         try {
             const { busca, atendente_id, instancia_id } = req.query;
-            let conversas = memStore.whatsapp_conversas || [];
+            const visiveis = idsVisiveis(req);
+            let conversas = (memStore.whatsapp_conversas || []).filter(c => visiveis.has(c.instancia_id));
 
             // Resolve nomes reais dos contatos
             conversas.forEach(c => {
@@ -314,6 +480,9 @@ module.exports = function(pool, dbAvailable, memStore) {
 
             const cleanNum = id.replace(/\D/g, '');
             const conv = (memStore.whatsapp_conversas || []).find(c => String(c.id) === String(id) || String(c.id) === String(cleanNum));
+            if (conv && !idsVisiveis(req).has(conv.instancia_id)) {
+                return res.status(403).json({ error: 'Esta conversa pertence a outro usuário.' });
+            }
             if (conv) {
                 conv.contato_nome = novo_nome;
             }
@@ -345,7 +514,12 @@ module.exports = function(pool, dbAvailable, memStore) {
     router.get('/conversas/:id/mensagens', (req, res) => {
         try {
             const conversaId = req.params.id;
-            const mensagens = (memStore.whatsapp_mensagens || []).filter(m => m.conversa_id === conversaId);
+            const visiveis = idsVisiveis(req);
+            const conv = (memStore.whatsapp_conversas || []).find(c => String(c.id) === String(conversaId));
+            if (conv && !visiveis.has(conv.instancia_id)) {
+                return res.status(403).json({ error: 'Esta conversa pertence a outro usuário.' });
+            }
+            const mensagens = (memStore.whatsapp_mensagens || []).filter(m => m.conversa_id === conversaId && (ehGestor(req) || visiveis.has(m.instancia_id)));
             res.json({ success: true, mensagens });
         } catch (err) {
             console.error('[WhatsApp API] Erro mensagens:', err);
@@ -360,15 +534,17 @@ module.exports = function(pool, dbAvailable, memStore) {
                 return res.status(400).json({ error: 'conversa_id e mensagem são obrigatórios' });
             }
 
-            const instId = instancia_id || 'inst_1';
+            const instId = resolverInstancia(req, res, instancia_id);
+            if (!instId) return;
             const conv = memStore.whatsapp_conversas.find(c => c.id === String(conversa_id));
             const telefoneDestino = conv ? conv.telefone : conversa_id;
 
-            // Tenta enviar pelo celular/socket oficial conectado
+            // Envia pelo celular conectado. Se não sair, avisa: antes a mensagem aparecia como enviada mesmo sem ter ido.
             try {
                 await whatsappManager.enviarMensagem(instId, telefoneDestino, mensagem);
             } catch (e) {
                 console.log(`[WhatsApp Real Send] Socket (${instId}): ${e.message}`);
+                return res.status(409).json({ error: 'Mensagem não enviada: este WhatsApp não está conectado. Escaneie o QR Code em "Contas / Celulares".' });
             }
 
             const novaMensagem = {
@@ -376,12 +552,12 @@ module.exports = function(pool, dbAvailable, memStore) {
                 conversa_id: String(conversa_id),
                 instancia_id: instId,
                 remetente: 'atendente',
-                remetente_nome: usuario_nome || 'Administrador',
+                remetente_nome: nomeAtendente(req),
                 mensagem: mensagem,
                 tipo: 'texto',
                 anexo_url: null,
                 tabela_tipo: null,
-                enviado_por: usuario_nome || 'Administrador',
+                enviado_por: nomeAtendente(req),
                 criado_em: new Date().toISOString()
             };
 
@@ -395,12 +571,12 @@ module.exports = function(pool, dbAvailable, memStore) {
                 const cont = memStore.whatsapp_contatos.find(k => k.telefone.includes(conversa_id)) || { nome: 'Contato ' + conversa_id, telefone: conversa_id };
                 memStore.whatsapp_conversas.push({
                     id: String(conversa_id),
-                    instancia_id: instancia_id || 'inst_1',
+                    instancia_id: instId,
                     instancia_nome: 'WhatsApp Geral',
                     contato_nome: cont.nome,
                     telefone: cont.telefone,
                     atendente_id: 1,
-                    atendente_nome: usuario_nome || 'Administrador',
+                    atendente_nome: nomeAtendente(req),
                     nao_lidas: 0,
                     ultima_mensagem: mensagem,
                     atualizado_em: new Date().toISOString()
@@ -426,7 +602,8 @@ module.exports = function(pool, dbAvailable, memStore) {
                 return res.status(400).json({ error: 'conversa_id e arquivo são obrigatórios' });
             }
 
-            const instId = instancia_id || 'inst_1';
+            const instId = resolverInstancia(req, res, instancia_id);
+            if (!instId) return;
             const conv = memStore.whatsapp_conversas.find(c => c.id === String(conversa_id));
             const telefoneDestino = conv ? conv.telefone : conversa_id;
 
@@ -455,11 +632,11 @@ module.exports = function(pool, dbAvailable, memStore) {
                 conversa_id: String(conversa_id),
                 instancia_id: instId,
                 remetente: 'atendente',
-                remetente_nome: usuario_nome || 'Administrador',
+                remetente_nome: nomeAtendente(req),
                 mensagem: legenda || `[${isImg ? 'Imagem' : 'Documento'}: ${req.file.originalname}]`,
                 tipo: msgTipo,
                 anexo_url: anexoUrl,
-                enviado_por: usuario_nome || 'Administrador',
+                enviado_por: nomeAtendente(req),
                 criado_em: new Date().toISOString()
             };
 
@@ -481,6 +658,8 @@ module.exports = function(pool, dbAvailable, memStore) {
     router.post('/enviar-tabela', (req, res) => {
         try {
             const { conversa_id, tabela_tipo, titulo_personalizado, observacoes, usuario_nome, instancia_id } = req.body;
+            const instId = resolverInstancia(req, res, instancia_id);
+            if (!instId) return;
             if (!conversa_id || !tabela_tipo) {
                 return res.status(400).json({ error: 'conversa_id e tabela_tipo são obrigatórios' });
             }
@@ -518,14 +697,14 @@ module.exports = function(pool, dbAvailable, memStore) {
             const novaMensagem = {
                 id: Date.now(),
                 conversa_id: String(conversa_id),
-                instancia_id: instancia_id || 'inst_1',
+                instancia_id: instId,
                 remetente: 'sistema_tabela',
-                remetente_nome: usuario_nome || 'Administrador',
+                remetente_nome: nomeAtendente(req),
                 mensagem: msgEnv,
                 tipo: 'tabela_sistema',
                 anexo_url: null,
                 tabela_tipo: tabela_tipo,
-                enviado_por: usuario_nome || 'Administrador',
+                enviado_por: nomeAtendente(req),
                 criado_em: new Date().toISOString()
             };
 
@@ -548,6 +727,8 @@ module.exports = function(pool, dbAvailable, memStore) {
     router.post('/disparo-massa', (req, res) => {
         try {
             const { mensagem, tabela_tipo, contatos_ids, usuario_nome, instancia_id } = req.body;
+            const instId = resolverInstancia(req, res, instancia_id);
+            if (!instId) return;
             let contatosAlvo = memStore.whatsapp_contatos || [];
 
             if (contatos_ids && Array.isArray(contatos_ids) && contatos_ids.length > 0) {
@@ -566,14 +747,14 @@ module.exports = function(pool, dbAvailable, memStore) {
                 memStore.whatsapp_mensagens.push({
                     id: Date.now() + Math.floor(Math.random() * 10000),
                     conversa_id: convId,
-                    instancia_id: instancia_id || 'inst_1',
+                    instancia_id: instId,
                     remetente: 'disparo_massa',
-                    remetente_nome: usuario_nome || 'Administrador',
+                    remetente_nome: nomeAtendente(req),
                     mensagem: msgTexto,
                     tipo: 'disparo_massa',
                     anexo_url: null,
                     tabela_tipo: tabela_tipo || null,
-                    enviado_por: usuario_nome || 'Administrador',
+                    enviado_por: nomeAtendente(req),
                     criado_em: new Date().toISOString()
                 });
 
@@ -585,12 +766,12 @@ module.exports = function(pool, dbAvailable, memStore) {
                 } else {
                     memStore.whatsapp_conversas.push({
                         id: convId,
-                        instancia_id: instancia_id || 'inst_1',
+                        instancia_id: instId,
                         instancia_nome: 'Disparo em Massa',
                         contato_nome: contato.nome,
                         telefone: contato.telefone,
                         atendente_id: 1,
-                        atendente_nome: usuario_nome || 'Administrador',
+                        atendente_nome: nomeAtendente(req),
                         nao_lidas: 0,
                         ultima_mensagem: msgTexto,
                         atualizado_em: new Date().toISOString()
@@ -609,8 +790,9 @@ module.exports = function(pool, dbAvailable, memStore) {
     // ─── 7. AUDITORIA SUPERVISORA ADM ───
     router.get('/auditoria', (req, res) => {
         try {
-            const mensagens = memStore.whatsapp_mensagens || [];
-            const conversas = memStore.whatsapp_conversas || [];
+            const visiveis = idsVisiveis(req);
+            const mensagens = (memStore.whatsapp_mensagens || []).filter(m => visiveis.has(m.instancia_id));
+            const conversas = (memStore.whatsapp_conversas || []).filter(c => visiveis.has(c.instancia_id));
 
             const resumo = conversas.map(c => {
                 const msgs = mensagens.filter(m => m.conversa_id === c.id);
@@ -627,7 +809,7 @@ module.exports = function(pool, dbAvailable, memStore) {
 
             res.json({
                 success: true,
-                total_instancias: (memStore.whatsapp_instancias || []).length,
+                total_instancias: visiveis.size,
                 total_conversas: conversas.length,
                 total_mensagens: mensagens.length,
                 resumo_conversas: resumo,

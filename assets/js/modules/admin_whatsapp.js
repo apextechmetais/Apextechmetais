@@ -5,6 +5,12 @@
     let _contatos = [];
     let _conversaAtivaId = null;
     let _mensagensAtivas = [];
+    // Equipe: o servidor informa se o usuário logado é gestor (vê todas as contas) e qual é o login dele
+    let _gestor = false;
+    let _meuLogin = '';
+    let _equipe = null;
+    const _esc = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+    const _rotuloStatus = (s) => (s === 'conectado' ? 'Conectado' : (s === 'reconectando' ? 'Reconectando' : (s === 'aguardando_qr' ? 'Aguardando QR Code' : 'Desconectado')));
 
     window.carregarWhatsappModulo = async function(isUserClick = false) {
         try {
@@ -40,6 +46,8 @@
             const data = await res.json();
             if (data.success && Array.isArray(data.instancias)) {
                 _instancias = data.instancias;
+                _gestor = !!data.gestor;
+                _meuLogin = data.usuario || '';
 
                 // Popula o filtro de contas no topo e selects dos modais
                 const selFiltro = document.getElementById('wa-select-instancia-filtro');
@@ -48,7 +56,7 @@
 
                 if (selFiltro) {
                     const curVal = selFiltro.value;
-                    selFiltro.innerHTML = '<option value="">📱 Todas as Contas (Visão Geral ADM Master)</option>';
+                    selFiltro.innerHTML = `<option value="">📱 ${_gestor ? 'Todas as contas da equipe' : 'Minhas conversas'}</option>`;
                     _instancias.forEach(i => {
                         selFiltro.innerHTML += `<option value="${i.id}">📱 ${i.nome} (${i.responsavel})</option>`;
                     });
@@ -77,10 +85,138 @@
                 }
 
                 window.renderInstanciasTabela();
+                await window.carregarPainelEquipeWhatsapp();
             }
         } catch (e) {
             console.warn('[WhatsApp] Erro ao carregar instâncias:', e);
         }
+    };
+
+    // ─── PAINEL DA EQUIPE ───
+    // Gestor: uma ficha por celular da equipe e a lista de quem ainda não conectou.
+    // Demais usuários: a situação do próprio WhatsApp, com o botão para conectar.
+    window.carregarPainelEquipeWhatsapp = async function() {
+        const grade = document.getElementById('wa-grid-container');
+        if (!grade) return;
+        let painel = document.getElementById('wa-equipe-painel');
+        if (!painel) {
+            painel = document.createElement('div');
+            painel.id = 'wa-equipe-painel';
+            painel.style.cssText = 'margin-bottom:16px;';
+            grade.parentNode.insertBefore(painel, grade);
+        }
+
+        // ações que só gestores podem usar
+        document.querySelectorAll('#whatsapp-view [onclick*="abrirModalDisparoMassaWhatsapp"]').forEach(b => { b.style.display = _gestor ? '' : 'none'; });
+        const campoUsuario = document.getElementById('wa-novo-inst-usuario-grupo');
+        if (campoUsuario) campoUsuario.style.display = _gestor ? '' : 'none';
+
+        if (!_gestor) {
+            const minha = _instancias[0];
+            if (!minha) {
+                painel.innerHTML = `
+                    <div style="padding:16px 18px; border-radius:10px; background:#162433; border:1px solid #223547; display:flex; gap:16px; align-items:center; justify-content:space-between; flex-wrap:wrap;">
+                        <div><strong style="color:#fff; display:block;">Conecte o seu WhatsApp</strong><span style="color:#aaa; font-size:0.88rem;">Você ainda não tem um celular conectado. Leia o QR Code com o WhatsApp do seu aparelho, como no WhatsApp Web.</span></div>
+                        <button type="button" class="btn-primary" onclick="conectarMeuWhatsapp()"><i class="fa-solid fa-qrcode"></i> Conectar meu WhatsApp</button>
+                    </div>`;
+            } else {
+                const ok = minha.status === 'conectado';
+                painel.innerHTML = `
+                    <div style="padding:14px 18px; border-radius:10px; background:#162433; border:1px solid #223547; display:flex; gap:16px; align-items:center; justify-content:space-between; flex-wrap:wrap;">
+                        <div><strong style="color:#fff;">${_esc(minha.nome)}</strong> <span style="color:${ok ? '#2AD07A' : '#ffb74d'}; font-weight:600; margin-left:8px;">● ${_rotuloStatus(minha.status)}</span><br><span style="color:#aaa; font-size:0.85rem;">${_esc(minha.numero || '')}</span></div>
+                        ${ok ? '' : `<button type="button" class="btn-primary" onclick="abrirQrCodeScannerWhatsapp('${_esc(minha.id)}')"><i class="fa-solid fa-qrcode"></i> Escanear QR Code</button>`}
+                    </div>`;
+            }
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/whatsapp/equipe', { cache: 'no-store' });
+            _equipe = res.ok ? await res.json() : null;
+        } catch (e) { _equipe = null; }
+        if (!_equipe) { painel.innerHTML = ''; return; }
+
+        // lista de usuários para o cadastro de uma nova conta
+        const selUsuario = document.getElementById('wa-novo-inst-usuario');
+        if (selUsuario) {
+            const atual = selUsuario.value;
+            selUsuario.innerHTML = '<option value="">Eu mesmo</option>' + _equipe.usuarios.map(u => `<option value="${_esc(u.user)}">${_esc(u.nome || u.user)} (${_esc(u.perfil || '')})</option>`).join('');
+            selUsuario.value = atual;
+        }
+
+        const fmtData = (d) => (d ? new Date(d).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'sem atividade');
+        const fichas = _equipe.contas.map(c => {
+            const ok = c.status === 'conectado';
+            const dono = _equipe.usuarios.find(u => u.user === c.usuario);
+            return `
+                <div style="padding:14px 16px; border-radius:10px; background:#162433; border:1px solid #223547; display:flex; flex-direction:column; gap:8px;">
+                    <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start;">
+                        <div style="min-width:0;">
+                            <strong style="color:#fff; display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${_esc(c.nome)}</strong>
+                            <span style="color:#aaa; font-size:0.82rem;">${dono ? _esc(dono.nome || dono.user) : (c.usuario ? _esc(c.usuario) : '<span style="color:#ffb74d;">sem usuário atribuído</span>')}${c.numero && c.numero !== 'Pendente' ? ' · ' + _esc(c.numero) : ''}</span>
+                        </div>
+                        <span style="color:${ok ? '#2AD07A' : '#ffb74d'}; font-size:0.8rem; font-weight:600; white-space:nowrap;">● ${_rotuloStatus(c.status)}</span>
+                    </div>
+                    <div style="display:flex; gap:16px; color:#aaa; font-size:0.82rem; flex-wrap:wrap;">
+                        <span><strong style="color:#fff;">${c.conversas}</strong> conversas</span>
+                        <span><strong style="color:${c.nao_lidas ? '#ffb74d' : '#fff'};">${c.nao_lidas}</strong> não lidas</span>
+                        <span><strong style="color:#fff;">${c.enviadas_hoje}</strong> enviadas hoje</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px 10px; flex-wrap:wrap;">
+                        <span style="color:#aaa; font-size:0.78rem; white-space:nowrap;">Última atividade: ${fmtData(c.ultima_atividade)}</span>
+                        <span style="display:flex; gap:6px;">
+                            <button type="button" class="btn-secondary" style="padding:5px 10px; font-size:0.78rem;" onclick="verConversasDaContaWhatsapp('${_esc(c.id)}')">Ver conversas</button>
+                            ${ok ? '' : `<button type="button" class="btn-primary" style="padding:5px 10px; font-size:0.78rem;" onclick="abrirQrCodeScannerWhatsapp('${_esc(c.id)}')"><i class="fa-solid fa-qrcode"></i> QR Code</button>`}
+                        </span>
+                    </div>
+                </div>`;
+        }).join('');
+
+        const semConta = _equipe.sem_whatsapp || [];
+        painel.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:baseline; gap:12px; flex-wrap:wrap; margin-bottom:10px;">
+                <strong style="color:#fff; font-size:1.05rem;">Equipe no WhatsApp</strong>
+                <span style="color:#aaa; font-size:0.85rem;">${_equipe.totais.conectadas} de ${_equipe.totais.contas} celulares conectados · ${_equipe.totais.nao_lidas} mensagens não lidas</span>
+            </div>
+            <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:12px;">${fichas || '<p style="color:#aaa; margin:0;">Nenhum celular cadastrado ainda. Use "Contas / Celulares" para cadastrar o primeiro.</p>'}</div>
+            ${semConta.length ? `<p style="color:#aaa; font-size:0.85rem; margin:12px 0 0 0;">Ainda sem WhatsApp: ${semConta.map(u => `<button type="button" class="btn-secondary" style="padding:3px 9px; font-size:0.78rem; margin:2px;" title="Cadastrar um celular para este usuário" onclick="cadastrarWhatsappParaUsuario('${_esc(u.user)}')">${_esc(u.nome || u.user)}</button>`).join('')}</p>` : ''}`;
+    };
+
+    window.verConversasDaContaWhatsapp = function(id) {
+        const sel = document.getElementById('wa-select-instancia-filtro');
+        if (sel) { sel.value = id; window.carregarConversasWhatsapp(); }
+        const lista = document.getElementById('wa-lista-conversas');
+        if (lista) lista.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    };
+
+    async function _criarContaWhatsapp(corpo) {
+        const res = await fetch('/api/whatsapp/instancias', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.instancia) {
+            if (window._apexNotify) window._apexNotify('WhatsApp', data.error || 'Não foi possível cadastrar o celular.', 'error');
+            return null;
+        }
+        await window.carregarInstanciasWhatsapp();
+        return data.instancia;
+    }
+
+    // Usuário comum: cria a própria conta e abre o QR Code
+    window.conectarMeuWhatsapp = async function() {
+        const inst = await _criarContaWhatsapp({});
+        if (inst) window.abrirQrCodeScannerWhatsapp(inst.id);
+    };
+
+    // Gestor: cadastra um celular para um usuário que ainda não tem. O QR Code deve ser lido pelo aparelho dessa pessoa.
+    window.cadastrarWhatsappParaUsuario = async function(usuario) {
+        const inst = await _criarContaWhatsapp({ usuario });
+        if (inst) window.abrirQrCodeScannerWhatsapp(inst.id);
+    };
+
+    window.atribuirUsuarioInstanciaWhatsapp = async function(id, usuario) {
+        const res = await fetch('/api/whatsapp/instancias/' + encodeURIComponent(id), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ usuario }) });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok && window._apexNotify) window._apexNotify('WhatsApp', data.error || 'Não foi possível trocar o usuário.', 'error');
+        await window.carregarInstanciasWhatsapp();
     };
 
     window.abrirModalInstanciasWhatsapp = function() {
@@ -110,7 +246,7 @@
                 <tr>
                     <td style="font-weight:bold; color:#fff;">${i.nome}</td>
                     <td style="color:#aaa;">${i.numero}</td>
-                    <td style="color:#38bdf8; font-weight:bold;">${i.responsavel}</td>
+                    <td style="color:#38bdf8; font-weight:bold;">${_esc(i.responsavel)}${_gestor && _equipe ? `<br><select class="noble-input" style="margin-top:4px; padding:3px 6px; font-size:0.78rem; font-weight:normal;" title="Usuário do sistema dono deste celular" onchange="atribuirUsuarioInstanciaWhatsapp('${_esc(i.id)}', this.value)"><option value="">sem usuário</option>${_equipe.usuarios.map(u => `<option value="${_esc(u.user)}"${u.user === i.usuario ? ' selected' : ''}>${_esc(u.nome || u.user)}</option>`).join('')}</select>` : (i.usuario ? `<br><small style="color:#aaa; font-weight:normal;">login: ${_esc(i.usuario)}</small>` : '')}</td>
                     <td>
                         <span class="badge ${isConnected ? 'bg-success' : 'bg-warning text-dark'}" style="font-size:0.75rem;">
                             ${isConnected ? 'Conectado (WhatsApp Web OK)' : 'Aguardando QR Code'}
@@ -220,9 +356,10 @@
             const res = await fetch('/api/whatsapp/instancias', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ nome, numero, responsavel: resp })
+                body: JSON.stringify({ nome, numero, responsavel: resp, usuario: document.getElementById('wa-novo-inst-usuario')?.value || '' })
             });
             const data = await res.json();
+            if (!res.ok && window._apexNotify) window._apexNotify('WhatsApp', data.error || 'Não foi possível cadastrar o celular.', 'error');
             if (res.ok && data.instancia) {
                 document.getElementById('wa-novo-inst-nome').value = '';
                 document.getElementById('wa-novo-inst-numero').value = '';
@@ -566,7 +703,7 @@
 
         const texto = input.value.trim();
         input.value = '';
-        const instId = document.getElementById('wa-select-responder-como')?.value || 'inst_1';
+        const instId = document.getElementById('wa-select-responder-como')?.value || '';
 
         try {
             const res = await fetch('/api/whatsapp/enviar-mensagem', {
@@ -582,6 +719,10 @@
             if (res.ok) {
                 await window.selecionarConversaWhatsapp(_conversaAtivaId);
                 await window.carregarConversasWhatsapp();
+            } else {
+                const erro = await res.json().catch(() => ({}));
+                input.value = texto; // devolve o texto para o usuário não perder o que escreveu
+                if (window._apexNotify) window._apexNotify('WhatsApp', erro.error || 'Não foi possível enviar a mensagem.', 'error');
             }
         } catch (e) {
             console.error('[WhatsApp] Erro ao enviar mensagem:', e);
