@@ -206,6 +206,15 @@ module.exports = function(pool, dbAvailable, memStore) {
         }
     })();
 
+    // Conversas, mensagens e contatos ficam gravados no banco: carrega o histórico e grava o que muda a cada poucos segundos
+    const persistencia = require('../services/whatsappPersistencia')(pool, memStore);
+    persistencia.iniciar().then(() => {
+        (memStore.whatsapp_contatos || []).forEach(c => {
+            const fone = String(c.telefone || '').replace(/\D/g, '');
+            if (fone && c.nome && !String(c.nome).startsWith('+') && whatsappManager.contatosMap) whatsappManager.contatosMap.set(fone, c.nome);
+        });
+    });
+
     // Guarda geral: ninguém mexe na conta de outro usuário; ações de gestão só para gestores
     router.use((req, res, next) => {
         const m = req.path.match(/^\/instancias\/([^/]+)/);
