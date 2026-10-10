@@ -13,36 +13,31 @@
     const GRADE = 'rgba(245, 246, 243, 0.07)';
     const FUNDO_PAINEL = '#0C2A1D';
 
-    Chart.defaults.font.family = FONTE;
-    Chart.defaults.font.size = 12;
-    Chart.defaults.color = TEXTO;
-    Chart.defaults.borderColor = GRADE;
-    Chart.defaults.animation.duration = 650;
-    Chart.defaults.animation.easing = 'easeOutQuart';
-    Chart.defaults.elements.bar.borderRadius = 6;
-    Chart.defaults.elements.bar.borderSkipped = false;
-    Chart.defaults.elements.line.tension = 0.35;
-    Chart.defaults.elements.line.borderWidth = 2.5;
-    Chart.defaults.elements.line.borderCapStyle = 'round';
-    Chart.defaults.elements.line.borderJoinStyle = 'round';
-    Chart.defaults.elements.point.radius = 0;
-    Chart.defaults.elements.point.hoverRadius = 5;
-    Chart.defaults.elements.point.hitRadius = 14;
-    Chart.defaults.elements.arc.borderWidth = 2;
-    Chart.defaults.elements.arc.borderColor = FUNDO_PAINEL;
-    Chart.defaults.elements.arc.hoverOffset = 6;
-
     const semMovimento = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (semMovimento) Chart.defaults.animation = false;
+    // Telas que o cliente aprovou como estão (Relatório Diário LME e Tabelas) ficam com os gráficos originais.
+    // Por isso nada é alterado em Chart.defaults: o acabamento é aplicado gráfico a gráfico, pelo plugin abaixo.
+    const protegido = (chart) => !!(chart.canvas && chart.canvas.closest && chart.canvas.closest('.ap-original'));
 
     const ehRadial = (tipo) => ['pie', 'doughnut', 'polarArea', 'radar'].includes(tipo);
 
     Chart.register({
         id: 'apexAcabamento',
         beforeUpdate(chart) {
+            if (protegido(chart)) return;
             try {
                 const tipoBase = chart.config.type;
                 const opts = chart.options;
+
+                // Texto, grade e animação
+                opts.font = Object.assign({}, opts.font, { family: FONTE, size: 12 });
+                opts.color = TEXTO;
+                opts.borderColor = GRADE;
+                if (semMovimento) opts.animation = false;
+                else if (opts.animation && typeof opts.animation === 'object') { opts.animation.duration = 650; opts.animation.easing = 'easeOutQuart'; }
+                if (opts.elements) {
+                    if (opts.elements.point) opts.elements.point.hitRadius = 14;
+                    if (opts.elements.arc) { opts.elements.arc.borderColor = FUNDO_PAINEL; opts.elements.arc.borderWidth = 2; }
+                }
 
                 // Legenda: marcadores redondos e discretos
                 const legenda = opts.plugins && opts.plugins.legend;
@@ -131,6 +126,7 @@
         },
         // Gráfico sem nenhum valor: avisa, em vez de mostrar só a grade vazia
         afterDraw(chart) {
+            if (protegido(chart)) return;
             try {
                 const temDado = (chart.data.datasets || []).some(ds => (ds.data || []).some(v => {
                     const n = (v && typeof v === 'object') ? (v.y !== undefined ? v.y : v.v) : v;
