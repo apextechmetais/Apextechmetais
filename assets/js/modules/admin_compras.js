@@ -23,6 +23,22 @@ let itensPedidoCompra = [];
         carregarPedidosCompra();
     };
 
+    // Fornecedores do formulário de pedido. Lista própria e completa: window.localFornecedores é da tela de
+    // Fornecedores e guarda só a página que estiver aberta lá, por isso a busca aqui não achava ninguém.
+    let fornecedoresPedido = [];
+    let cargaFornecedores = null;
+    function carregarFornecedoresPedido(forcar) {
+        if (cargaFornecedores && !forcar) return cargaFornecedores;
+        cargaFornecedores = fetch('/api/fornecedores?limit=9999', { cache: 'no-store' })
+            .then(r => (r.ok ? r.json() : []))
+            .then(d => { fornecedoresPedido = Array.isArray(d) ? d : (d && Array.isArray(d.data) ? d.data : []); return fornecedoresPedido; })
+            .catch(e => { console.error('Erro ao carregar fornecedores:', e); cargaFornecedores = null; return fornecedoresPedido; });
+        return cargaFornecedores;
+    }
+    const nomeFornecedor = (f) => f.nome || f.razao_social || f.nome_fantasia || f.fantasia || f.apelido || '';
+    const apelidoFornecedor = (f) => { const a = f.apelido || f.nome_fantasia || f.fantasia || ''; return a && a !== nomeFornecedor(f) ? a : ''; };
+    const foneFornecedor = (f) => f.fone1 || f.whatsapp || f.celular || f.fone2 || f.telefone || f.telefone1 || f.telefone2 || '';
+
     async function carregarPedidosCompra() {
         if (localPedidos && localPedidos.length > 0) renderPedidosCompra(localPedidos);
         try {
@@ -61,7 +77,7 @@ let itensPedidoCompra = [];
                     <small style="color:#5a738e; font-weight:normal;">Emissão: ${fmtD(p.data_emissao)}</small>
                 </td>
                 <td style="padding:12px 10px; color:#fff;">
-                    <div style="font-weight:bold; font-size:0.92rem;">${p.fornecedor_nome || p.fornecedor_nome_avulso || 'Cliente Avulso'} ${badgeCliente}</div>
+                    <div style="font-weight:bold; font-size:0.92rem;">${p.fornecedor_nome || p.fornecedor_nome_avulso || 'Fornecedor avulso'} ${badgeCliente}</div>
                     <div style="color:#7fa8c8; font-size:0.8rem; margin-top:2px;">
                         ${p.fornecedor_cnpj ? 'CNPJ: ' + p.fornecedor_cnpj : 'Sem CNPJ'} ${p.fornecedor_cidade ? ' | ' + p.fornecedor_cidade + '-' + (p.fornecedor_uf||'') : ''}
                     </div>
@@ -136,10 +152,7 @@ let itensPedidoCompra = [];
         if(document.getElementById('pedidoc-data-entrega')) document.getElementById('pedidoc-data-entrega').value = '';
 
         // 2. Buscar dados em segundo plano com validação de status HTTP
-        try {
-            const res = await fetch('/api/fornecedores');
-            if (res.ok) window.localFornecedores = await res.json();
-        } catch(e){}
+        await carregarFornecedoresPedido(true);
 
         try {
             const r = await fetch('/api/pedidos-compra/proximo-numero');
@@ -160,127 +173,101 @@ let itensPedidoCompra = [];
         const drop = document.getElementById('pedidoc-fornecedor-dropdown');
         if (!drop) return;
 
-        if (!window.localFornecedores || window.localFornecedores.length === 0) {
-            try {
-                const res = await fetch('/api/fornecedores');
-                window.localFornecedores = await res.json();
-            } catch(e){}
+        if (fornecedoresPedido.length === 0) {
+            drop.innerHTML = '<div style="padding:12px 14px; color:#aaa; font-size:0.88rem;"><i class="fa-solid fa-circle-notch fa-spin"></i> Carregando fornecedores...</div>';
+            drop.style.display = 'block';
+            await carregarFornecedoresPedido();
+            // o usuário pode ter continuado a digitar enquanto a lista carregava
+            const campo = document.getElementById('pedidoc-fornecedor-busca');
+            if (campo) val = campo.value;
         }
 
         const rawVal = (val || '').trim();
         const q = normalizeTxt(rawVal);
         const searchTerms = q.split(/\s+/).filter(Boolean);
+        const esc = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 
-        let resultados = [];
+        let encontrados = [];
         if (searchTerms.length === 0) {
-            resultados = (window.localFornecedores || []).slice(0, 15);
+            encontrados = fornecedoresPedido;
         } else {
-            resultados = (window.localFornecedores || []).filter(c => {
-                const targetText = normalizeTxt(`${c.nome||''} ${c.fantasia||''} ${c.razao_social||''} ${c.cnpj||''} ${c.cpf||''} ${c.email||''}`);
-                const cleanCnpj = (c.cnpj||'').replace(/\D/g,'');
-                const cleanCpf = (c.cpf||'').replace(/\D/g,'');
-                const cleanQ = q.replace(/\D/g,'');
-
-                const matchesCNPJ = cleanQ.length >= 3 && (cleanCnpj.includes(cleanQ) || cleanCpf.includes(cleanQ));
-                const matchesWords = searchTerms.every(term => targetText.includes(term));
-
-                return matchesCNPJ || matchesWords;
+            const cleanQ = q.replace(/\D/g, '');
+            encontrados = fornecedoresPedido.filter(f => {
+                const alvo = normalizeTxt(`${f.nome||''} ${f.apelido||''} ${f.razao_social||''} ${f.nome_fantasia||''} ${f.fantasia||''} ${f.cnpj||''} ${f.cpf||''} ${f.email||''} ${f.cidade||''} ${f.codfor||''}`);
+                const docs = String(f.cnpj || '').replace(/\D/g, '') + ' ' + String(f.cpf || '').replace(/\D/g, '');
+                return (cleanQ.length >= 3 && docs.includes(cleanQ)) || searchTerms.every(t => alvo.includes(t));
             });
         }
+        const resultados = encontrados.slice(0, 15);
 
-        let html = '';
-
-        if (rawVal.length > 0) {
-            html += `
-                <div onclick="abrirCadastroFornecedorExpress('${rawVal.replace(/'/g,"\\'")}')" style="padding:10px 14px; background:#1b382b; color:#2AD07A; cursor:pointer; font-weight:bold; border-bottom:1px solid #1e4e8c; display:flex; align-items:center; gap:8px;" onmouseover="this.style.background='#224535'" onmouseout="this.style.background='#1b382b'">
-                    <i class="fa-solid fa-user-plus"></i> + Cadastrar Novo Cliente "${rawVal}"
-                </div>
-            `;
-        } else {
-            html += `
-                <div onclick="abrirCadastroFornecedorExpress('')" style="padding:10px 14px; background:#162738; color:#7fa8c8; cursor:pointer; font-size:0.85rem; border-bottom:1px solid #1e4e8c; display:flex; align-items:center; gap:8px;" onmouseover="this.style.background='#1e354d'" onmouseout="this.style.background='#162738'">
-                    <i class="fa-solid fa-plus-circle"></i> + Cadastrar Novo Cliente do Zero
-                </div>
-            `;
-        }
+        let html = `
+            <div onclick="abrirCadastroFornecedorExpress('${rawVal.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;')}')" style="padding:10px 14px; background:#1b382b; color:#2AD07A; cursor:pointer; font-weight:bold; border-bottom:1px solid #1e4e8c; display:flex; align-items:center; gap:8px;">
+                <i class="fa-solid fa-user-plus"></i> ${rawVal ? `Cadastrar novo fornecedor "${esc(rawVal)}"` : 'Cadastrar novo fornecedor'}
+            </div>
+        `;
 
         if (resultados.length > 0) {
-            html += resultados.map(c => `
-                <div onclick="selecionarFornecedorPedido(${c.id})" style="padding:10px 14px; cursor:pointer; border-bottom:1px solid #1a2a3a; transition:background 0.15s;" onmouseover="this.style.background='#1a2a3a'" onmouseout="this.style.background=''">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <strong style="color:#fff;">${c.nome||c.fantasia||''}</strong>
-                        <span style="background:#1b382b; color:#2AD07A; font-size:0.7rem; padding:1px 6px; border-radius:3px; font-weight:bold;">CADASTRADO</span>
+            html += resultados.map(f => {
+                const apelido = apelidoFornecedor(f);
+                const local = [f.cidade, f.uf].filter(Boolean).join('/');
+                const detalhes = [f.cnpj || f.cpf || 'Sem CNPJ/CPF', local, foneFornecedor(f)].filter(Boolean).join(' | ');
+                return `
+                <div onclick="selecionarFornecedorPedido(${parseInt(f.id)})" style="padding:10px 14px; cursor:pointer; border-bottom:1px solid #1a2a3a;" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background=''">
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+                        <strong style="color:#fff;">${esc(nomeFornecedor(f))}${apelido ? ` <span style="color:#aaa; font-weight:normal;">(${esc(apelido)})</span>` : ''}</strong>
+                        <span style="background:#1b382b; color:#2AD07A; font-size:0.7rem; padding:1px 6px; border-radius:3px; font-weight:bold; white-space:nowrap;">CADASTRADO</span>
                     </div>
-                    <div style="color:#7fa8c8; font-size:0.8rem; margin-top:2px;">${c.cnpj||c.cpf||'Sem CNPJ'} | ${c.cidade||''}${c.uf?'/'+c.uf:''} | ${c.telefone1||''}</div>
-                </div>
-            `).join('');
-        } else if (rawVal.length > 0) {
-            html += `
-                <div style="padding:14px; text-align:center; color:#aaa; font-size:0.88rem;">
-                    Nenhum cliente encontrado com "<strong>${rawVal}</strong>".
-                    <div style="margin-top:8px;">
-                        <button type="button" onclick="abrirCadastroFornecedorExpress('${rawVal.replace(/'/g,"\\'")}')" class="btn-primary" style="font-size:0.82rem; background:#2AD07A; color:#000; border:none; padding:6px 14px; font-weight:bold; cursor:pointer;">
-                            <i class="fa-solid fa-user-plus"></i> Cadastrar "${rawVal}" Agora
-                        </button>
-                    </div>
-                </div>
-            `;
+                    <div style="color:#aaa; font-size:0.8rem; margin-top:2px;">${esc(detalhes)}</div>
+                </div>`;
+            }).join('');
+            if (encontrados.length > resultados.length) {
+                html += `<div style="padding:8px 14px; color:#aaa; font-size:0.78rem;">Mostrando ${resultados.length} de ${encontrados.length}. Continue digitando para refinar.</div>`;
+            }
+        } else if (fornecedoresPedido.length === 0) {
+            html += '<div style="padding:14px; color:#aaa; font-size:0.88rem;">Nenhum fornecedor cadastrado ou não foi possível carregar a lista.</div>';
+        } else {
+            html += `<div style="padding:14px; color:#aaa; font-size:0.88rem;">Nenhum fornecedor encontrado com "<strong>${esc(rawVal)}</strong>".</div>`;
         }
 
         drop.innerHTML = html;
         drop.style.display = 'block';
     };
 
+    // "Cadastrar novo" leva à tela de Fornecedores (antes abria o cadastro de Clientes)
     window.redirecionarParaCadastroFornecedor = function(nomePrefill) {
         const drop = document.getElementById('pedidoc-fornecedor-dropdown');
         if (drop) drop.style.display = 'none';
 
         fecharModalPedidoCompra();
 
-        const navClientes = document.getElementById('nav-clientes') || document.querySelector('.nav-item[data-target="clientes-view"]');
-        if (navClientes) {
-            navClientes.click();
-        } else {
-            document.querySelectorAll('.view-section').forEach(s => { s.classList.remove('active'); s.style.display = 'none'; });
-            const cliSec = document.getElementById('clientes-view');
-            if (cliSec) { cliSec.classList.add('active'); cliSec.style.display = 'block'; }
-        }
-
-        if (window.initApexClientes) window.initApexClientes();
+        const navFornecedores = document.getElementById('nav-fornecedores') || document.querySelector('.nav-item[data-target="fornecedores-view"]');
+        if (navFornecedores) navFornecedores.click();
 
         setTimeout(() => {
-            if (window.abrirModalCliente) window.abrirModalCliente();
+            if (window.abrirModalFornecedor) window.abrirModalFornecedor();
             if (nomePrefill) {
-                const elNome = document.getElementById('cli-nome');
-                const elFant = document.getElementById('cli-fantasia');
-                if (elNome) elNome.value = nomePrefill;
-                if (elFant) elFant.value = nomePrefill;
+                const elNome = document.getElementById('forn-razao');
+                if (elNome && !elNome.value) elNome.value = nomePrefill;
             }
-        }, 150);
+        }, 200);
     };
 
     window.abrirCadastroFornecedorExpress = function(nomePrefill) {
         redirecionarParaCadastroFornecedor(nomePrefill);
     };
 
-    window.selecionarFornecedorPedido = function(id) {
-        if (!window.localFornecedores || window.localFornecedores.length === 0) {
-            fetch('/api/fornecedores').then(r=>r.json()).then(clis=>{
-                window.localFornecedores = clis;
-                window.selecionarFornecedorPedido(id);
-            });
-            return;
-        }
-        const c = (window.localFornecedores||[]).find(x => x.id == id);
+    window.selecionarFornecedorPedido = async function(id) {
+        if (fornecedoresPedido.length === 0) await carregarFornecedoresPedido();
+        const c = fornecedoresPedido.find(x => x.id == id);
         if (!c) return;
         document.getElementById('pedidoc-fornecedor-id').value = c.id;
-        document.getElementById('pedidoc-fornecedor-busca').value = c.nome || c.fantasia || '';
+        document.getElementById('pedidoc-fornecedor-busca').value = nomeFornecedor(c);
         document.getElementById('pedidoc-fornecedor-dropdown').style.display = 'none';
-        document.getElementById('fc-nome').textContent     = c.nome || c.fantasia || '';
+        document.getElementById('fc-nome').textContent     = nomeFornecedor(c);
         document.getElementById('fc-cnpj').textContent     = c.cnpj || c.cpf || 'CNPJ Não informado';
         document.getElementById('fc-cidade').textContent   = c.cidade || '';
         document.getElementById('fc-uf').textContent       = c.uf || '';
-        document.getElementById('fc-tel').textContent      = c.telefone1 || c.telefone2 || '-';
+        document.getElementById('fc-tel').textContent      = foneFornecedor(c) || '-';
         document.getElementById('fc-email').textContent    = c.email || '-';
         if (document.getElementById('fc-endereco')) document.getElementById('fc-endereco').textContent = c.endereco || 'Endereço principal de cadastro';
         
@@ -289,7 +276,7 @@ let itensPedidoCompra = [];
             badge.style.background = '#1b382b';
             badge.style.color = '#2AD07A';
             badge.style.borderColor = '#2AD07A';
-            badge.innerHTML = '<i class="fa-solid fa-user-check"></i> CLIENTE CADASTRADO NO SISTEMA';
+            badge.innerHTML = '<i class="fa-solid fa-user-check"></i> FORNECEDOR CADASTRADO NO SISTEMA';
         }
 
         // Se o endereço de entrega estiver vazio, preenche com o endereço do cliente
@@ -597,7 +584,7 @@ let itensPedidoCompra = [];
     window.exportarPedidoPdfDoFormCompra = async function() {
         const num    = document.getElementById('pedidoc-numero').value || 'PC-0000';
         const cliId  = document.getElementById('pedidoc-fornecedor-id').value;
-        const c      = (window.localFornecedores||[]).find(x => x.id == cliId) || {};
+        const c      = fornecedoresPedido.find(x => x.id == cliId) || {};
         const p = {
             numero: num,
             fornecedor_id: cliId ? parseInt(cliId) : null,
@@ -605,7 +592,7 @@ let itensPedidoCompra = [];
             fornecedor_cnpj: document.getElementById('fc-cnpj').textContent || c.cnpj || c.cpf || '-',
             fornecedor_cidade: document.getElementById('fc-cidade').textContent || c.cidade || '-',
             fornecedor_uf: document.getElementById('fc-uf').textContent || c.uf || '-',
-            fornecedor_telefone: document.getElementById('fc-tel').textContent || c.telefone1 || '-',
+            fornecedor_telefone: document.getElementById('fc-tel').textContent || foneFornecedor(c) || '-',
             fornecedor_email: document.getElementById('fc-email').textContent || c.email || '-',
             fornecedor_endereco: c.endereco || '-',
             data_emissao: document.getElementById('pedidoc-data-emissao').value,

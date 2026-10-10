@@ -210,6 +210,9 @@ window.fmtDecimal4 = function(val) {
                 if (item.dataset.target === 'pedidos-venda-view' && window.initApexPedidos) {
                     window.initApexPedidos();
                 }
+                if (item.dataset.target === 'pedidos-compra-view' && window.initApexPedidosCompra) {
+                    window.initApexPedidosCompra();
+                }
                 if (item.dataset.target === 'residuos-view' && window.initApexPrecosResiduos) {
                     window.initApexPrecosResiduos();
                 }
